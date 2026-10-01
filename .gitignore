@@ -1,0 +1,22 @@
+# Environment
+.env.local
+
+# Dependencies and builds
+node_modules/
+.next/
+out/
+coverage/
+
+# Supabase local state and secrets
+supabase/.temp/
+supabase/.branches/
+.env
+.env.*
+!.env.example
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+tsconfig.tsbuildinfo
