@@ -74,7 +74,21 @@ function parseEventForm(formData: FormData) {
     endsAt: formString(formData, "endsAt"),
     resultsVisibility: formString(formData, "resultsVisibility"),
   });
-  if (!parsed.success) return { error: "Complete each field with a valid value." } as const;
+  if (!parsed.success) {
+    const fieldLabels: Record<string, string> = {
+      name: "event name",
+      description: "event description",
+      votingMode: "voting type",
+      priceGhs: "price per vote",
+      freeVoteLimit: "free vote limit",
+      votingRules: "voting rules",
+      startsAt: "voting start time",
+      endsAt: "voting end time",
+      resultsVisibility: "results visibility",
+    };
+    const invalidFields = [...new Set(parsed.error.issues.map((issue) => fieldLabels[String(issue.path[0])] ?? "event details"))];
+    return { error: `Please check the ${invalidFields.join(", ")}.` } as const;
+  }
   const startsAt = ghanaLocalDateToIso(parsed.data.startsAt);
   const endsAt = ghanaLocalDateToIso(parsed.data.endsAt);
   const unitPriceMinor = parsed.data.votingMode === "free" ? 0 : /^\d{1,10}(\.\d{1,2})?$/.test(parsed.data.priceGhs ?? "") ? priceToMinor(parsed.data.priceGhs ?? "") : Number.NaN;
@@ -439,7 +453,8 @@ export async function acceptOrganizationInvitationAction(_previousState: AuthFor
 export async function createEventAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const organizationId = z.string().uuid().safeParse(formString(formData, "organizationId"));
   const parsed = parseEventForm(formData);
-  if (!organizationId.success || "error" in parsed) return { message: "Complete each field with a valid value." };
+  if (!organizationId.success) return { message: "This organization reference is invalid. Return to your organization and try again." };
+  if ("error" in parsed) return { message: parsed.error };
 
   let newEventId: string | null = null;
   try {
@@ -470,7 +485,8 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
   const eventId = z.string().uuid().safeParse(formString(formData, "eventId"));
   const organizationId = z.string().uuid().safeParse(formString(formData, "organizationId"));
   const parsed = parseEventForm(formData);
-  if (!eventId.success || !organizationId.success || "error" in parsed) return { message: "Complete each field with a valid value." };
+  if (!eventId.success || !organizationId.success) return { message: "This event or organization reference is invalid. Return to your event and try again." };
+  if ("error" in parsed) return { message: parsed.error };
 
   try {
     const supabase = await createClient();
