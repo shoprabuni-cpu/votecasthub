@@ -11,9 +11,14 @@ export default async function EventsPage() {
   let unavailable = false;
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("events").select("id, name, slug, description, unit_price_minor, starts_at, ends_at, status, voting_mode").in("status", ["published", "paused", "closed"]).order("starts_at", { ascending: true });
+    const { data, error } = await supabase.from("events").select("id, name, slug, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode").in("status", ["published", "paused", "closed"]).order("starts_at", { ascending: true });
     if (error) unavailable = true;
-    else events = (data ?? []) as PublicEventCardData[];
+    else {
+      const imagePaths = (data ?? []).map((event) => event.image_path).filter((path): path is string => Boolean(path));
+      const { data: signedImages } = imagePaths.length ? await supabase.storage.from("nominee-images").createSignedUrls(imagePaths, 3600) : { data: [] };
+      const imageUrls = new Map((signedImages ?? []).flatMap((image) => image.signedUrl && image.path ? [[image.path, image.signedUrl] as const] : []));
+      events = (data ?? []).map((event) => ({ ...event, imageUrl: event.image_path ? imageUrls.get(event.image_path) ?? null : null })) as PublicEventCardData[];
+    }
   } catch {
     unavailable = true;
   }

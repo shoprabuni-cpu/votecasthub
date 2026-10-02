@@ -570,12 +570,18 @@ export async function addCategoryNomineeAction(_previousState: AuthFormState, fo
     publicCode: z.string().trim().max(32).regex(/^[A-Za-z0-9-]*$/).optional().or(z.literal("")),
     biography: z.string().max(3000).optional().or(z.literal("")),
   }).safeParse({ name: formString(formData, "name"), publicCode: formString(formData, "publicCode"), biography: formString(formData, "biography") });
-  if (!categoryId.success || !parsed.success) return { message: "Check the nominee name, code, and biography fields." };
+  if (!categoryId.success) return { message: "This category reference is invalid. Refresh the event page and try again." };
+  if (!parsed.success) {
+    const labels: Record<string, string> = { name: "name (1–160 characters)", publicCode: "public code (up to 32 letters, numbers, or hyphens)", biography: "biography (up to 3,000 characters)" };
+    const invalidFields = [...new Set(parsed.error.issues.map((issue) => labels[String(issue.path[0])] ?? "nominee details"))];
+    return { message: `Please check the ${invalidFields.join(" and ")}.` };
+  }
   try {
     const supabase = await createClient();
     const { error } = await supabase.rpc("add_category_nominee", {
       p_category_id: categoryId.data, p_name: parsed.data.name, p_public_code: parsed.data.publicCode || null, p_biography: parsed.data.biography || null, p_display_order: null,
     });
+    if (error?.code === "23505") return { message: "A nominee with that name or public code already exists in this category." };
     if (error) return { message: eventError(error.code) };
     revalidatePath(backTo);
     return { message: "Nominee added.", success: true };
@@ -638,6 +644,27 @@ export async function updateNomineeImageAction(_previousState: AuthFormState, fo
     return { message: imagePath.data ? "Nominee image updated." : "Nominee image removed.", success: true };
   } catch {
     return { message: "Image updates are temporarily unavailable. Please try again." };
+  }
+}
+
+export async function updateEventImageAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const eventId = z.string().uuid().safeParse(formString(formData, "eventId"));
+  const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
+  const imagePath = z.string().max(512).optional().or(z.literal("")).safeParse(formString(formData, "imagePath"));
+  if (!eventId.success || !imagePath.success) return { message: "That event image could not be saved." };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("update_event_image", { p_event_id: eventId.data, p_image_path: imagePath.data || null });
+    if (error) {
+      if (error.code === "42501") return { message: "You do not have permission to change this event image." };
+      if (error.code === "22023") return { message: "Only draft events can change their cover image." };
+      return { message: "We could not save the cover image. Refresh the page and try again." };
+    }
+    revalidatePath(backTo);
+    revalidatePath("/events");
+    return { message: imagePath.data ? "Event cover updated." : "Event cover removed.", success: true };
+  } catch {
+    return { message: "Event image updates are temporarily unavailable. Please try again." };
   }
 }
 

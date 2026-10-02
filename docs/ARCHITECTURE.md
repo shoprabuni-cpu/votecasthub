@@ -31,7 +31,7 @@ Start with one Next.js web application and Supabase. Do not add a separate NestJ
 
 - `profiles`, `organizations`, `organization_members`: identity and tenant access.
 - `events`, `categories`, `nominees`: event configuration and lifecycle.
-- `nominee-images` private Storage bucket: images are stored under event/nominee-scoped paths; storage policies allow organizer edits on drafts and public reads only for published active nominees.
+- `nominee-images` private Storage bucket: nominee files use event/nominee-scoped paths; event covers use event-scoped paths. Storage policies allow authorized organizers to edit draft media and public reads only after publication (and only for active nominees).
 - `payment_attempts`: immutable snapshot of selected nominee, quantity, unit price, total, currency, and provider reference.
 - `vote_batches`: append-only vote quantities. Paid batches link uniquely to successful payments; free batches record only a verified Auth user and event/category/nominee. Avoid one row per individual vote.
 - `ledger_entries`: append-only gross, provider fee, platform fee, organizer share, refund, and adjustment entries.

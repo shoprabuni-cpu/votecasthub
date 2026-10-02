@@ -42,6 +42,7 @@
 - [ ] Run auth and onboarding against local Supabase, including confirmation email flow and RLS checks.
 - [x] Add a private, membership-checked event preview.
 - [x] Add nominee photo uploads with a private bucket, file type/size checks, role-checked paths, and public access only after publication.
+- [x] Add draft-only event cover uploads and show signed covers in private previews, public event pages, and the event directory.
 - [x] Add team invitations with seven-day expiry, role limits, confirmed-email matching, revocation, single-use acceptance, and audit records. Managers share the generated link manually; automatic email delivery remains pending.
 - [ ] Add member removal and role changes with owner-protection rules.
 - [ ] Admin review and audit history for consequential changes.

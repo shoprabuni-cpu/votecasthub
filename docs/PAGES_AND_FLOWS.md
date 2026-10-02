@@ -37,4 +37,4 @@ Select nominee and quantity → server calculates price → create pending payme
 
 ## Current implementation slice
 
-The current build implements organizer draft creation and setup, lifecycle actions, private previews, private-bucket nominee image uploads, public browsing, verified-phone free voting, results visibility rules, and role-limited single-use team invitations. Invitation links are generated for managers to share manually. Paid checkout and payment confirmation, automatic invitation email delivery, member removal and role changes, reporting, admin review, and USSD are not implemented yet.
+The current build implements organizer draft creation and setup, lifecycle actions, private previews, private-bucket event cover and nominee image uploads, public browsing, verified-phone free voting, results visibility rules, and role-limited single-use team invitations. Invitation links are generated for managers to share manually. Paid checkout and payment confirmation, automatic invitation email delivery, member removal and role changes, reporting, admin review, and USSD are not implemented yet.

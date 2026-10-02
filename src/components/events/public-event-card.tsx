@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export type PublicEventCardData = { id: string; name: string; slug: string; description: string | null; unit_price_minor: number; starts_at: string; ends_at: string; status: string; voting_mode: "free" | "paid" };
+export type PublicEventCardData = { id: string; name: string; slug: string; description: string | null; imageUrl?: string | null; unit_price_minor: number; starts_at: string; ends_at: string; status: string; voting_mode: "free" | "paid" };
 
 function eventStatus(event: PublicEventCardData) {
   if (event.status === "paused") return "Voting paused";
@@ -15,7 +15,7 @@ function ghRange(event: PublicEventCardData) {
 
 export function PublicEventCard({ event }: { event: PublicEventCardData }) {
   return <article className="public-event-card">
-    <div className="public-event-cover" aria-hidden="true"><span>V</span></div>
+    <div className={`public-event-cover${event.imageUrl ? " has-image" : ""}`} style={event.imageUrl ? { backgroundImage: `url("${event.imageUrl}")` } : undefined} role={event.imageUrl ? "img" : undefined} aria-label={event.imageUrl ? `${event.name} cover image` : undefined} aria-hidden={event.imageUrl ? undefined : true}>{!event.imageUrl && <span>V</span>}</div>
     <div className="public-event-copy">
       <div className="event-card-meta"><span className="public-status">{eventStatus(event)}</span><span className="price-pill">{event.voting_mode === "free" ? "Free voting" : `GHS ${(event.unit_price_minor / 100).toFixed(2)} per vote`}</span></div>
       <h2><Link href={`/events/${event.slug}`}>{event.name}</Link></h2>
