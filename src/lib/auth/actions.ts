@@ -18,6 +18,7 @@ const registrationSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(254),
   password: z.string().min(12).max(256),
+  acceptTerms: z.literal("yes"),
   next: z.string().max(2048).optional(),
 });
 
@@ -215,7 +216,7 @@ export async function signUpAction(_previousState: AuthFormState, formData: Form
       password: parsed.data.password,
       options: {
         emailRedirectTo,
-        data: { display_name: parsed.data.displayName },
+        data: { display_name: parsed.data.displayName, terms_accepted_at: new Date().toISOString(), terms_version: "2026-10-02" },
       },
     });
 

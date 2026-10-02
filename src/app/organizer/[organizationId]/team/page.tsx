@@ -23,7 +23,7 @@ export default async function OrganizationTeamPage({ params }: Props) {
   const typedInvitations = (invitations ?? []) as Array<{ id: string; email: string; role: string; status: string; created_at: string; expires_at: string }>;
   const typedMembers = (members ?? []) as Array<{ user_id: string; email: string; display_name: string | null; role: string; joined_at: string }>;
 
-  return <main className="dashboard-page"><DashboardHeader /><section className="dashboard-content">
+  return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="dashboard-content">
     <div className="dashboard-utility"><Link className="back-link" href={`/organizer/${organizationId}/events`}>← {organization?.name ?? "Organization"}</Link></div>
     <p className="eyebrow">ORGANIZATION ACCESS</p><h1>Team invitations</h1><p className="auth-description">Invite trusted teammates with access that matches their role.</p>
     {error || membersError ? <section className="empty-state"><h2>We could not load team access.</h2><p>Refresh the page and try again.</p></section> : <InvitationPanel organizationId={organizationId} canInviteAdmin={membership.role === "owner"} invitations={typedInvitations} members={typedMembers} />}

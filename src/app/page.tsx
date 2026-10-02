@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/cookie-consent";
 
 const voteFlow = [
   { number: "01", title: "Event published", detail: "Organizers set the voting dates, categories, nominees, and rules." },
@@ -40,12 +41,12 @@ export default function HomePage() {
         <div className="section-heading"><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div>
         <div className="feature-list">
           <article className="feature"><span className="feature-number">01</span><div><h3>Set up with confidence</h3><p>Create an event, organize categories and nominees, and publish clear voting dates and rules.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">02</span><div><h3>Use one voting system</h3><p>Web voting and future USSD voting follow the same event, payment, and vote rules.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">03</span><div><h3>Reconcile every cedi</h3><p>Payments, votes, platform fees, and organizer earnings are recorded for review and reporting.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature"><span className="feature-number">02</span><div><h3>Give voters a clear experience</h3><p>Publish your event rules and nominee profiles in a simple public event page.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature"><span className="feature-number">03</span><div><h3>Keep your team organized</h3><p>Invite teammates and manage event setup from one organization workspace.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
         </div>
       </section>
 
-      <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>Voting for events and awards.</span><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>
+      <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>Voting for events and awards.</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><CookieSettingsLink /></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>
     </main>
   );
 }

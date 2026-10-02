@@ -22,14 +22,14 @@ export default async function EventPreviewPage({ params }: Props) {
     supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(),
     supabase.from("categories").select("id, name, description, is_active, display_order").eq("event_id", eventId).order("display_order"),
   ]);
-  if (eventError || categoryError) return <main className="dashboard-page"><DashboardHeader /><section className="empty-state"><h1>Preview is temporarily unavailable.</h1><p>Refresh the page or return to event setup.</p><Link className="text-link" href={`/organizer/${organizationId}/events/${eventId}`}>Back to event setup</Link></section></main>;
+  if (eventError || categoryError) return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="empty-state"><h1>Preview is temporarily unavailable.</h1><p>Refresh the page or return to event setup.</p><Link className="text-link" href={`/organizer/${organizationId}/events/${eventId}`}>Back to event setup</Link></section></main>;
   const event = ((rows ?? []) as OrganizationEvent[]).find((item) => item.id === eventId);
   if (!event) notFound();
   const categoryIds = (categories ?? []).map((item) => item.id);
   const { data: nominees, error: nomineeError } = categoryIds.length
     ? await supabase.from("nominees").select("id, category_id, name, public_code, biography, image_path, is_active, display_order").in("category_id", categoryIds).order("display_order")
     : { data: [], error: null };
-  if (nomineeError) return <main className="dashboard-page"><DashboardHeader /><section className="empty-state"><h1>Preview is temporarily unavailable.</h1><p>Refresh the page or return to event setup.</p><Link className="text-link" href={`/organizer/${organizationId}/events/${eventId}`}>Back to event setup</Link></section></main>;
+  if (nomineeError) return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="empty-state"><h1>Preview is temporarily unavailable.</h1><p>Refresh the page or return to event setup.</p><Link className="text-link" href={`/organizer/${organizationId}/events/${eventId}`}>Back to event setup</Link></section></main>;
   const imagePaths = nominees?.map((nominee) => nominee.image_path).filter((path): path is string => Boolean(path)) ?? [];
   const { data: signedImages } = imagePaths.length ? await supabase.storage.from("nominee-images").createSignedUrls(imagePaths, 3600) : { data: [] };
   const imageUrlByPath = new Map((signedImages ?? []).flatMap((image) => image.signedUrl && image.path ? [[image.path, image.signedUrl] as const] : []));
@@ -37,7 +37,7 @@ export default async function EventPreviewPage({ params }: Props) {
   const nomineesByCategory = new Map<string, NonNullable<typeof nominees>>();
   for (const nominee of nominees ?? []) nomineesByCategory.set(nominee.category_id, [...(nomineesByCategory.get(nominee.category_id) ?? []), nominee]);
 
-  return <main className="public-page"><DashboardHeader />
+  return <main className="public-page"><DashboardHeader organizationId={organizationId} />
     <aside className="private-preview-banner"><span><strong>Private preview</strong> · Only organization members can see this draft.</span><Link className="text-link" href={`/organizer/${organizationId}/events/${eventId}`}>Back to setup →</Link></aside>
     <section className="event-hero">{eventImage?.signedUrl && <div className="event-hero-cover" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover image`} />}<Link className="back-link" href={`/organizer/${organizationId}/events/${eventId}`}>← {organization?.name ?? "Event setup"}</Link><p className="eyebrow">VOTER PAGE PREVIEW</p><span className="public-status">{event.status === "draft" ? "Draft preview" : event.status.replaceAll("_", " ")}</span><h1>{event.name}</h1><p className="event-hero-description">{event.description || "Your event description will appear here."}</p><div className="event-facts"><span><small>VOTING OPENS</small>{ghDate(event.starts_at)}</span><span><small>VOTING CLOSES</small>{ghDate(event.ends_at)}</span><span><small>VOTING TYPE</small>{event.voting_mode === "free" ? `Free · up to ${event.free_vote_limit_per_phone} per phone/category` : `GHS ${(event.unit_price_minor / 100).toFixed(2)} per vote`}</span></div>{event.voting_rules && <section className="public-rules"><p className="eyebrow">HOW VOTING WORKS</p><p>{event.voting_rules}</p></section>}</section>
     <section className="public-categories"><div className="section-title-row"><div><p className="eyebrow">THE NOMINEES</p><h2>Categories and nominees</h2></div><span>{categories?.filter((item) => item.is_active).length ?? 0} active categories</span></div>

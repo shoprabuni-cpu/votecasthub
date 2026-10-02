@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { SignOutForm } from "@/components/auth/sign-out-form";
 
-export function DashboardHeader() {
+export function DashboardHeader({ organizationId }: { organizationId?: string }) {
   return <header className="dashboard-header">
-    <Link className="brand" href="/" aria-label="VotecastHub GH home"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link>
-    <nav className="dashboard-nav" aria-label="Organizer navigation"><Link className="header-link" href="/events">Public events</Link><SignOutForm /></nav>
+    <div className="dashboard-header-main">
+      {organizationId ? <Link className="workspace-top-title" href={`/organizer/${organizationId}/events`}><span>YOUR WORKSPACE</span><strong>Event management</strong></Link> : <Link className="brand" href="/" aria-label="VotecastHub GH home"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link>}
+      <nav className="dashboard-nav" aria-label="Organizer navigation"><Link className="dashboard-public-link" href="/events"><span aria-hidden="true">↗</span> View public site</Link><SignOutForm /></nav>
+    </div>
   </header>;
 }
