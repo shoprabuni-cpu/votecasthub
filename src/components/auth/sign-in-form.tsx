@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { signInAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
+import { AuthCaptcha } from "@/components/auth/auth-captcha";
 
 export function SignInForm({ nextPath }: { nextPath: string }) {
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(signInAction, null);
@@ -17,6 +18,7 @@ export function SignInForm({ nextPath }: { nextPath: string }) {
       <input id="password" name="password" type="password" autoComplete="current-password" maxLength={256} required />
       <p className="auth-recovery-link"><Link href="/forgot-password">Forgot your password?</Link></p>
       <p className="auth-recovery-link"><Link href="/resend-confirmation">Resend confirmation email</Link></p>
+      <AuthCaptcha state={state} />
       {state?.message && <p className="form-message" role="alert">{state.message}</p>}
       <button className="primary-link auth-submit" type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
       <p className="auth-switch">New to VotecastHub GH? <Link href="/sign-up">Create an organizer account</Link></p>

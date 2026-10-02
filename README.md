@@ -35,6 +35,7 @@ Run `npm run lint`, `npm run typecheck`, and `npm run build`. Run `npm run db:li
 - `docs/PAGES_AND_FLOWS.md` — page map and user journeys
 - `docs/DECISIONS.md` — settled assumptions and decisions still needed
 - `docs/AUTH_PRODUCTION_CHECKLIST.md` — hosted auth setup and acceptance checks
+- `docs/ARKESEL_SMS_SETUP.md` — Arkesel SMS hook, secrets, and Vercel deployment
 
 ## Status
 

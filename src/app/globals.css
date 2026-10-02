@@ -8,6 +8,48 @@
   --font-vch-serif: Georgia, "Times New Roman", serif;
 }
 
+.sms-credit-banner { display:flex; align-items:center; gap:16px; margin:24px 0 30px; padding:20px 22px; border:1px solid rgba(29,61,52,.16); border-radius:18px; background:linear-gradient(110deg,#f3f8ee,#e6f1ed); color:#163b31; text-decoration:none; transition:transform .2s,box-shadow .2s; }
+.sms-credit-banner:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(23,62,50,.1); }
+.sms-credit-banner-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; background:#d7ecdf; color:#19805e; font-size:22px; }
+.sms-credit-banner span:nth-child(2) { display:grid; gap:4px; flex:1; }
+.sms-credit-banner strong { font-size:15px; }
+.sms-credit-banner small { color:#567269; }
+.sms-credit-banner-action { font-weight:700; font-size:13px; white-space:nowrap; }
+.sms-credit-callout { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; margin-top:18px; padding:14px; border-radius:13px; background:#f0f7ef; color:#214d3e; }
+.sms-credit-callout > span { font-size:20px; color:#16835e; }
+.sms-credit-callout p { margin:0; font-size:12px; line-height:1.5; }
+.sms-credit-callout a { color:#147458; font-size:12px; font-weight:700; white-space:nowrap; }
+.credits-hero { display:flex; justify-content:space-between; align-items:center; gap:36px; padding:28px 0 34px; }
+.credits-hero h1 { margin:8px 0 12px; }
+.credits-orbit { display:grid; place-items:center; width:142px; height:142px; border:1px solid #bddbc9; border-radius:50%; background:radial-gradient(circle,#e8f5e5 0 32%,transparent 33%),#f3f8ef; color:#1d6b51; transform:rotate(-8deg); }
+.credits-orbit span { font-size:11px; letter-spacing:.18em; font-weight:800; }
+.credits-orbit strong { font-size:27px; color:#c58f41; }
+.credits-balance-card { margin-bottom:35px; padding:25px; border-radius:20px; background:#173d32; color:#f3f8ec; }
+.credits-balance-card > div:first-child { display:flex; justify-content:space-between; align-items:end; gap:16px; }
+.credits-balance-card .eyebrow { color:#a8d5b8; }
+.credits-balance-card strong { display:block; margin-top:8px; font-size:42px; letter-spacing:-.04em; }
+.credits-balance-card strong small { font-size:15px; letter-spacing:0; color:#a8d5b8; }
+.credits-balance-card p { margin:5px 0 0; color:#bad8c4; font-size:13px; }
+.credits-balance-meter { height:7px; margin-top:22px; border-radius:99px; background:#2e5d4e; overflow:hidden; }
+.credits-balance-meter span { display:block; height:100%; background:#d3a758; border-radius:99px; }
+.credits-balance-note { display:block; margin-top:9px; color:#a8d5b8; font-size:11px; }
+.credits-heading { margin-bottom:14px; }
+.credit-packages { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.credit-package { position:relative; padding:24px; border:1px solid rgba(29,61,52,.14); border-radius:18px; background:#fffdf8; }
+.credit-package.is-featured { border-color:#c89647; box-shadow:0 8px 25px rgba(151,109,47,.12); transform:translateY(-5px); }
+.credit-package-mark { position:absolute; top:20px; right:22px; color:#b3c7bb; font-size:11px; font-weight:800; }
+.credit-package h3 { margin:16px 0 7px; font-size:30px; color:#173d32; }
+.credit-package h3 small { font-size:12px; font-weight:500; }
+.credit-package-price { display:block; margin:0 0 4px; color:#b27b2d; font-size:17px; }
+.credit-package p:not(.eyebrow) { min-height:38px; color:#65776e; font-size:13px; }
+.credit-package button { width:100%; margin-top:14px; opacity:.7; }
+.no-sms-card { display:flex; align-items:center; gap:20px; margin-top:38px; padding:23px; border:1px dashed #b9c7bd; border-radius:18px; background:#fafbf7; }
+.no-sms-card-icon { display:grid; place-items:center; width:43px; height:43px; border-radius:13px; background:#f0e7d4; color:#8b672d; font-size:20px; }
+.no-sms-card h2 { margin:3px 0 5px; font-size:19px; }
+.no-sms-card p:not(.eyebrow) { margin:0; color:#66766d; font-size:13px; line-height:1.5; }
+.no-sms-card > div { flex:1; }
+@media (max-width:760px) { .sms-credit-banner,.no-sms-card,.credits-hero { align-items:flex-start; flex-wrap:wrap; } .sms-credit-banner-action { width:100%; margin-left:58px; } .credit-packages { grid-template-columns:1fr; } .credit-package.is-featured { transform:none; } .credits-orbit { width:95px; height:95px; flex:none; } .credits-balance-card > div:first-child { display:block; } .credits-balance-card strong { font-size:35px; } }
+
 :root {
   --serif: Georgia, "Times New Roman", serif;
   @apply [--ink:#14271f] [--muted:#63746c] [--paper:#fafbf8] [--green:#1e704d] [--line:#e5e9e2] [--sans:Arial,_Helvetica,_sans-serif];

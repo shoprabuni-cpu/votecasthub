@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react";
+export function PaystackCreditButton({ organizationId, credits }: { organizationId: string; credits: number }) { const [busy,setBusy]=useState(false); const buy=async()=>{setBusy(true); try { const r=await fetch("/api/payments/paystack/sms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({organizationId,credits})}); const d=await r.json(); if(!r.ok) throw new Error(d.error); window.location.assign(d.url); } catch(e) { alert(e instanceof Error?e.message:"Payment unavailable"); setBusy(false); } }; return <button className="secondary-button" type="button" onClick={buy} disabled={busy}>{busy?"Opening Paystack…":"Pay with Paystack"}</button>; }

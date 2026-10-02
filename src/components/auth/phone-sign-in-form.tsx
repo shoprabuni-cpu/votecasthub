@@ -1,32 +1,56 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { requestVoterPhoneCodeAction, verifyVoterPhoneCodeAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
+import { AuthCaptcha } from "@/components/auth/auth-captcha";
 
-export function PhoneSignInForm({ nextPath }: { nextPath: string }) {
-  const [state, requestCode, requesting] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
+function PhoneCodeForm({ phone, nextPath, resendAt }: { phone: string; nextPath: string; resendAt: number }) {
   const [verifyState, verifyCode, verifying] = useActionState<AuthFormState, FormData>(verifyVoterPhoneCodeAction, null);
+  const [resendState, resendCode, resending] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
+  const [now, setNow] = useState(() => Date.now());
+  const remaining = Math.max(0, Math.ceil(((resendState?.resendAt ?? resendAt) - now) / 1000));
 
-  if (state?.codeSent) {
-    return <form action={verifyCode} className="auth-form">
-      <input type="hidden" name="phone" value={state.phone} />
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return <>
+    <form action={verifyCode} className="auth-form">
+      <input type="hidden" name="phone" value={phone} />
       <input type="hidden" name="next" value={nextPath} />
       <label htmlFor="phone-code">Verification code</label>
       <input id="phone-code" name="token" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" minLength={6} maxLength={8} required autoFocus />
-      <p className="auth-hint">Enter the code sent to {state.phone}.</p>
-      {(verifyState?.message || state.message) && <p className={`form-message${verifyState?.success ? " success-message" : ""}`} role="status">{verifyState?.message || state.message}</p>}
-      <button className="primary-link auth-submit" type="submit" disabled={verifying}>{verifying ? "Verifying…" : "Verify and continue"}</button>
+      <p className="auth-hint">Enter the code sent to {phone}. Use the most recent code.</p>
+      {verifyState?.message && <p className="form-message" role="alert">{verifyState.message}</p>}
+      <button className="primary-link auth-submit" type="submit" disabled={verifying || resending}>{verifying ? "Verifying…" : "Verify and continue"}</button>
+    </form>
+    <form action={resendCode} className="auth-form">
+      <input type="hidden" name="phone" value={phone} />
+      <input type="hidden" name="next" value={nextPath} />
+      {remaining === 0 && <AuthCaptcha state={resendState} />}
+      {resendState?.message && <p className="form-message" role="status">{resendState.message}</p>}
+      <button className="text-button" type="submit" disabled={remaining > 0 || resending || verifying}>{resending ? "Requesting code…" : remaining > 0 ? `Resend code in ${remaining}s` : "Resend code"}</button>
       <button className="text-button" type="button" onClick={() => window.location.reload()}>Use another number</button>
-    </form>;
+    </form>
+  </>;
+}
+
+export function PhoneSignInForm({ nextPath }: { nextPath: string }) {
+  const [state, requestCode, requesting] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
+
+  if (state?.codeSent && state.phone && state.resendAt) {
+    return <PhoneCodeForm phone={state.phone} nextPath={nextPath} resendAt={state.resendAt} />;
   }
 
   return <form action={requestCode} className="auth-form">
     <input type="hidden" name="next" value={nextPath} />
     <label htmlFor="phone">Ghana phone number</label>
-    <input id="phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" placeholder="+233241234567" pattern="\+233[0-9]{9}" maxLength={13} required />
-    <p className="auth-hint">We’ll send a one-time code. Your verified number helps enforce each event’s vote limit.</p>
+    <input id="phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" placeholder="0241234567" maxLength={32} required />
+    <p className="auth-hint">Use 0241234567 or +233241234567. We’ll send a one-time code to verify your number.</p>
+    <AuthCaptcha state={state} />
     {state?.message && <p className="form-message" role="alert">{state.message}</p>}
-    <button className="primary-link auth-submit" type="submit" disabled={requesting}>{requesting ? "Sending code…" : "Send verification code"}</button>
+    <button className="primary-link auth-submit" type="submit" disabled={requesting}>{requesting ? "Requesting code…" : "Send verification code"}</button>
   </form>;
 }

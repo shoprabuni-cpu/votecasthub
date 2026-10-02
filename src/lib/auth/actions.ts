@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicEnvironment } from "@/lib/env";
 import { safeNextPath, type AuthFormState } from "@/lib/auth/form-state";
+import { normalizeGhanaPhone } from "@/lib/auth/phone";
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -38,6 +39,14 @@ const eventFields = {
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function captchaOptions(formData: FormData) {
+  const captchaToken = formString(formData, "cf-turnstile-response");
+  if (captchaToken.length > 4096 || (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)) {
+    throw new Error("Complete security verification");
+  }
+  return captchaToken ? { captchaToken } : {};
 }
 
 function priceToMinor(value: string) {
@@ -122,6 +131,7 @@ export async function signInAction(_previousState: AuthFormState, formData: Form
     const { error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,
+      options: captchaOptions(formData),
     });
     if (error) return { message: "We could not sign you in. Check your details or verify your email, then try again." };
   } catch {
@@ -132,15 +142,18 @@ export async function signInAction(_previousState: AuthFormState, formData: Form
   redirect(safeNextPath(parsed.data.next));
 }
 
-const phoneSchema = z.string().regex(/^\+233\d{9}$/, "Enter a Ghana number in +233XXXXXXXXX format.");
+const phoneSchema = z.string().max(32).transform(normalizeGhanaPhone).pipe(z.string().regex(/^\+233\d{9}$/));
 
 export async function requestVoterPhoneCodeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const phone = phoneSchema.safeParse(formString(formData, "phone"));
   const next = safeNextPath(formString(formData, "next"), "/events");
-  if (!phone.success) return { message: "Enter a Ghana phone number in +233XXXXXXXXX format." };
+  if (!phone.success) return { message: "Enter a Ghana phone number such as 0241234567 or +233241234567." };
+  if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+    return { message: "Phone verification is temporarily unavailable. Please try again later." };
+  }
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true } });
+    const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) {
       logAuthFailure("phone_signin", error.code);
       return { message: "We could not send a verification code right now. Check the number or try again shortly." };
@@ -149,7 +162,7 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
     logAuthFailure("phone_signin");
     return { message: "Phone verification is temporarily unavailable. Please try again shortly." };
   }
-  return { message: "Verification code sent. Check your messages.", success: true, codeSent: true, phone: phone.data, next };
+  return { message: "Verification code requested. Check your messages.", success: true, codeSent: true, phone: phone.data, next, resendAt: Date.now() + 60_000 };
 }
 
 export async function verifyVoterPhoneCodeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -221,6 +234,7 @@ export async function signUpAction(_previousState: AuthFormState, formData: Form
       password: parsed.data.password,
       options: {
         emailRedirectTo,
+        ...captchaOptions(formData),
         data: { display_name: parsed.data.displayName, terms_accepted_at: new Date().toISOString(), terms_version: "2026-10-02" },
       },
     });
@@ -259,7 +273,7 @@ export async function resendConfirmationAction(_previousState: AuthFormState, fo
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: parsed.data.email,
-      options: { emailRedirectTo },
+      options: { emailRedirectTo, ...captchaOptions(formData) },
     });
     if (error) logAuthFailure("confirmation_resend", error.code);
   } catch {
@@ -285,7 +299,7 @@ export async function requestPasswordResetAction(_previousState: AuthFormState, 
     const supabase = await createClient();
     const { NEXT_PUBLIC_SITE_URL } = getPublicEnvironment();
     const redirectTo = new URL("/auth/callback?next=%2Freset-password", NEXT_PUBLIC_SITE_URL).toString();
-    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, { redirectTo });
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, { redirectTo, ...captchaOptions(formData) });
     if (error) {
       logAuthFailure("password_reset", error.code);
       return { message: "If an account matches that address, password reset instructions will be sent. Check your inbox.", success: true };

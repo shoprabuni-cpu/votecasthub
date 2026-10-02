@@ -1,0 +1,169 @@
+import "server-only";
+
+import { createHmac } from "node:crypto";
+import { Webhook } from "standardwebhooks";
+import { z } from "zod";
+
+const MAX_BODY_BYTES = 32_768;
+const hookPayload = z.object({
+  user: z.object({ phone: z.string().regex(/^\+?233\d{9}$/) }),
+  sms: z.object({ otp: z.string().regex(/^\d{6,8}$/) }),
+});
+
+const configuration = z.object({
+  ARKESEL_API_KEY: z.string().trim().min(1).regex(/^[^\r\n]+$/),
+  ARKESEL_SENDER_ID: z.string().trim().regex(/^[A-Za-z0-9 ]{1,11}$/),
+  SUPABASE_SEND_SMS_HOOK_SECRET: z.string().trim().regex(/^(?:v1,)?whsec_[A-Za-z0-9+/]+={0,2}$/),
+  SUPABASE_SECRET_KEY: z.string().trim().min(1).regex(/^[^\r\n]+$/),
+  NEXT_PUBLIC_SUPABASE_URL: z.url().refine((value) => new URL(value).protocol === "https:"),
+  SMS_DAILY_LIMIT: z.coerce.number().int().min(1).max(10_000).default(100),
+});
+
+type Configuration = z.infer<typeof configuration>;
+type Dependencies = { env?: NodeJS.ProcessEnv; fetch?: typeof fetch };
+
+function failure(status: number, message: string) {
+  return Response.json({ error: { http_code: status, message } }, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+function success() {
+  return Response.json({}, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function readLimitedBody(request: Request) {
+  if (!request.body) throw new Error("Empty body");
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new Error("Body too large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function rpc(config: Configuration, fetcher: typeof fetch, name: string, body: object) {
+  // This client never receives browser cookies or a user Authorization header.
+  const response = await fetcher(`${config.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: config.SUPABASE_SECRET_KEY,
+      ...(config.SUPABASE_SECRET_KEY.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${config.SUPABASE_SECRET_KEY}` }),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(800),
+  });
+  if (!response.ok) throw new Error("SMS guard unavailable");
+  return response.json() as Promise<unknown>;
+}
+
+/** Supabase owns OTP generation, expiry and verification. This only delivers signed SMS requests. */
+export async function handleArkeselSmsHook(request: Request, dependencies: Dependencies = {}) {
+  const parsedConfig = configuration.safeParse(dependencies.env ?? process.env);
+  if (!parsedConfig.success) return failure(503, "SMS service is not configured.");
+  const config = parsedConfig.data;
+  const fetcher = dependencies.fetch ?? fetch;
+
+  const webhookId = request.headers.get("webhook-id");
+  if (!webhookId || webhookId.length > 256 || !request.headers.get("webhook-signature") || !request.headers.get("webhook-timestamp")) {
+    return failure(401, "Invalid SMS hook signature.");
+  }
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return failure(415, "Expected JSON.");
+  }
+  if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) return failure(413, "Request too large.");
+
+  let rawBody: string;
+  try {
+    rawBody = await readLimitedBody(request);
+  } catch {
+    return failure(400, "Invalid SMS hook body.");
+  }
+
+  let verified: unknown;
+  const secret = config.SUPABASE_SEND_SMS_HOOK_SECRET.replace(/^v1,/, "");
+  try {
+    // Standard Webhooks checks the signature over the original bytes and timestamp freshness.
+    verified = new Webhook(secret).verify(rawBody, Object.fromEntries(request.headers));
+  } catch {
+    return failure(401, "Invalid SMS hook signature.");
+  }
+  const payload = hookPayload.safeParse(verified);
+  if (!payload.success) return failure(400, "Only valid Ghana verification messages are supported.");
+
+  const phone = payload.data.user.phone.replace(/^\+/, "");
+  const hash = (value: string) => createHmac("sha256", secret).update(value).digest("hex");
+  const requestHash = hash(`request:${webhookId}`);
+  // Store neither the code nor the phone number in the delivery guard.
+  try {
+    const claim = await rpc(config, fetcher, "claim_sms_delivery", {
+      p_request_hash: requestHash,
+      p_recipient_hash: hash(`phone:${phone}`),
+      p_daily_limit: config.SMS_DAILY_LIMIT,
+    });
+    if (claim === "sent") return success();
+    if (claim === "rate_limited") return failure(429, "SMS request limit reached. Please try again later.");
+    if (claim !== "claimed") return failure(503, "This SMS request cannot be resent. Request a new code shortly.");
+  } catch {
+    return failure(503, "SMS service is temporarily unavailable.");
+  }
+
+  let accepted = false;
+  try {
+    const response = await fetcher("https://sms.arkesel.com/api/v2/sms/send", {
+      method: "POST",
+      headers: { "api-key": config.ARKESEL_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender: config.ARKESEL_SENDER_ID,
+        recipients: [phone],
+        message: `Your VotecastHub verification code is ${payload.data.sms.otp}. Do not share this code.`,
+      }),
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(2_000),
+    });
+    if (response.ok) {
+      const result: unknown = await response.json();
+      const resultSchema = z.object({ status: z.literal("success"), data: z.union([
+        z.array(z.object({ recipient: z.string().optional(), id: z.string().optional() }).passthrough()),
+        z.object({ id: z.string().min(1) }),
+      ]) });
+      const parsed = resultSchema.safeParse(result);
+      accepted = parsed.success && (Array.isArray(parsed.data.data)
+        ? parsed.data.data.some((item) => item.recipient?.replace(/^\+/, "") === phone && !!item.id)
+        : true);
+    }
+  } catch {
+    // Do not log provider bodies, exceptions, OTPs, keys, or phone numbers.
+    // An ambiguous timeout must never trigger an automatic second paid send.
+  }
+
+  try {
+    await rpc(config, fetcher, "finish_sms_delivery", { p_request_hash: requestHash, p_sent: accepted });
+  } catch {
+    // Keep the durable pending claim: retries cannot send again after a write failure.
+    console.error("sms_hook_receipt_write_failed");
+    return failure(503, "SMS service is temporarily unavailable.");
+  }
+  if (!accepted) {
+    console.error("sms_hook_provider_request_failed");
+    return failure(502, "Unable to send verification code. Please try again shortly.");
+  }
+  return success();
+}

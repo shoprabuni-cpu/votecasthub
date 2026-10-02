@@ -2,6 +2,7 @@ export type AuthFormState = {
   message: string;
   success?: boolean;
   codeSent?: boolean;
+  resendAt?: number;
   phone?: string;
   next?: string;
   nextRequestKey?: string;
