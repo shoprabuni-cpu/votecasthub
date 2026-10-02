@@ -454,7 +454,7 @@ export async function createEventAction(_previousState: AuthFormState, formData:
   const organizationId = z.string().uuid().safeParse(formString(formData, "organizationId"));
   const parsed = parseEventForm(formData);
   if (!organizationId.success) return { message: "This organization reference is invalid. Return to your organization and try again." };
-  if ("error" in parsed) return { message: parsed.error };
+  if ("error" in parsed) return { message: typeof parsed.error === "string" ? parsed.error : "Check the event details." };
 
   let newEventId: string | null = null;
   try {
@@ -486,7 +486,7 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
   const organizationId = z.string().uuid().safeParse(formString(formData, "organizationId"));
   const parsed = parseEventForm(formData);
   if (!eventId.success || !organizationId.success) return { message: "This event or organization reference is invalid. Return to your event and try again." };
-  if ("error" in parsed) return { message: parsed.error };
+  if ("error" in parsed) return { message: typeof parsed.error === "string" ? parsed.error : "Check the event details." };
 
   try {
     const supabase = await createClient();
