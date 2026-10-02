@@ -48,6 +48,11 @@
 .no-sms-card h2 { margin:3px 0 5px; font-size:19px; }
 .no-sms-card p:not(.eyebrow) { margin:0; color:#66766d; font-size:13px; line-height:1.5; }
 .no-sms-card > div { flex:1; }
+.payment-account-status { display:flex; align-items:center; gap:14px; margin-top:28px; padding:20px; border:1px solid #c5d9cb; border-radius:16px; background:#f2f8f2; }
+.payment-account-status div { display:grid; gap:5px; flex:1; }
+.payment-account-status small { color:#63746c; }
+.payment-account-status b { text-transform:capitalize; color:#25724d; }
+.payment-account-note { padding:14px; border-radius:12px; background:#f3f7ef; color:#496458; font-size:13px; line-height:1.5; }
 @media (max-width:760px) { .sms-credit-banner,.no-sms-card,.credits-hero { align-items:flex-start; flex-wrap:wrap; } .sms-credit-banner-action { width:100%; margin-left:58px; } .credit-packages { grid-template-columns:1fr; } .credit-package.is-featured { transform:none; } .credits-orbit { width:95px; height:95px; flex:none; } .credits-balance-card > div:first-child { display:block; } .credits-balance-card strong { font-size:35px; } }
 
 :root {
