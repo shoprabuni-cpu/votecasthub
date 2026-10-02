@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { CookieSettingsLink } from "@/components/cookie-consent";
+import { Icon } from "@/components/icon";
 
 const voteFlow = [
-  { number: "01", title: "Event published", detail: "Organizers set the voting dates, categories, nominees, and rules." },
-  { number: "02", title: "Payment verified", detail: "A payment counts only after the provider confirms it." },
-  { number: "03", title: "Vote recorded", detail: "The confirmed payment and vote record are saved together." },
+  { number: "01", title: "Event published", detail: "Organizers set dates, nominees, and voting limits." },
+  { number: "02", title: "Phone verified", detail: "Free voters verify a phone number before voting." },
+  { number: "03", title: "Vote recorded", detail: "The selected rule is checked and the vote is recorded." },
 ];
 
 export default function HomePage() {
@@ -28,21 +29,21 @@ export default function HomePage() {
           <div className="flow-card">
             <div className="flow-card-top"><span className="flow-label">THE VOTING FLOW</span><span className="flow-count">3 STEPS</span></div>
             <div className="flow-list">{voteFlow.map((step, index) => <div className="flow-step" key={step.number}><span className={`step-mark ${index === 2 ? "step-mark-final" : ""}`}>{index === 2 ? "✓" : step.number}</span><span className="step-copy"><strong>{step.title}</strong><small>{step.detail}</small></span></div>)}</div>
-            <div className="flow-card-footer"><span className="lock-mark" aria-hidden="true">⌑</span> Payment verification happens on the server</div>
+            <div className="flow-card-footer"><Icon name="shield" size={16} /> Voting limits are checked on the server</div>
           </div>
-          <div className="floating-note"><span className="note-icon">✓</span><span><strong>Only verified payments count</strong><small>Vote records are not client editable</small></span></div>
-          <p className="art-caption">A TRACEABLE PATH FROM PAYMENT TO RESULT</p>
+          <div className="floating-note"><span className="note-icon"><Icon name="check" size={14} /></span><span><strong>Clear rules for every voter</strong><small>Limits apply to every vote</small></span></div>
+          <p className="art-caption">FROM EVENT SETUP TO A RECORDED VOTE</p>
         </div>
       </section>
 
-      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR TRUST</span><span className="trust-divider" /><span>Clear records</span><span className="trust-divider" /><span>Verified payments</span><span className="trust-divider" /><span>Organizer control</span></section>
+      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Verified phones</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
 
       <section className="features" id="how-it-works" aria-labelledby="features-title">
         <div className="section-heading"><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div>
         <div className="feature-list">
-          <article className="feature"><span className="feature-number">01</span><div><h3>Set up with confidence</h3><p>Create an event, organize categories and nominees, and publish clear voting dates and rules.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">02</span><div><h3>Give voters a clear experience</h3><p>Publish your event rules and nominee profiles in a simple public event page.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">03</span><div><h3>Keep your team organized</h3><p>Invite teammates and manage event setup from one organization workspace.</p></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature"><span className="feature-number">01</span><div className="feature-copy"><Icon className="feature-icon" name="calendar" size={20} /><span><h3>Set up with confidence</h3><p>Create an event, organize categories and nominees, and choose how voting will work.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature"><span className="feature-number">02</span><div className="feature-copy"><Icon className="feature-icon" name="shield" size={20} /><span><h3>Give voters a clear experience</h3><p>Show the vote limit before people participate and enforce it as each vote is recorded.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature"><span className="feature-number">03</span><div className="feature-copy"><Icon className="feature-icon" name="users" size={20} /><span><h3>Keep your team organized</h3><p>Invite teammates and manage event setup from one organization workspace.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
         </div>
       </section>
 

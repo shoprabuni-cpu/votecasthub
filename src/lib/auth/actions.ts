@@ -26,6 +26,7 @@ const eventFields = {
   name: z.string().trim().min(2).max(160),
   description: z.string().max(5000).optional().or(z.literal("")),
   votingMode: z.enum(["free", "paid"]),
+  votingRule: z.enum(["one_per_category", "category_limit", "per_nominee_limit"]),
   priceGhs: z.string().max(32).optional().or(z.literal("")),
   freeVoteLimit: z.string().max(3).optional().or(z.literal("")),
   votingRules: z.string().max(3000).optional().or(z.literal("")),
@@ -68,6 +69,7 @@ function parseEventForm(formData: FormData) {
     name: formString(formData, "name"),
     description: formString(formData, "description"),
     votingMode: formString(formData, "votingMode"),
+    votingRule: formString(formData, "votingRule"),
     priceGhs: formString(formData, "priceGhs"),
     freeVoteLimit: formString(formData, "freeVoteLimit"),
     votingRules: formString(formData, "votingRules"),
@@ -80,6 +82,7 @@ function parseEventForm(formData: FormData) {
       name: "event name",
       description: "event description",
       votingMode: "voting type",
+      votingRule: "voting rule",
       priceGhs: "price per vote",
       freeVoteLimit: "free vote limit",
       votingRules: "voting rules",
@@ -96,7 +99,8 @@ function parseEventForm(formData: FormData) {
   const freeVoteLimit = parsed.data.votingMode === "free" ? Number(parsed.data.freeVoteLimit) : null;
   if (!startsAt || !endsAt || new Date(startsAt) >= new Date(endsAt)) return { error: "Choose a valid voting start and end time." } as const;
   if (parsed.data.votingMode === "paid" && (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 1 || unitPriceMinor > 1_000_000_000_000)) return { error: "Enter a paid vote price with up to two decimal places." } as const;
-  if (parsed.data.votingMode === "free" && (!Number.isInteger(freeVoteLimit) || (freeVoteLimit ?? 0) < 1 || (freeVoteLimit ?? 0) > 100)) return { error: "Set a free vote limit from 1 to 100 per verified phone, per category." } as const;
+  if (parsed.data.votingMode === "free" && (!Number.isInteger(freeVoteLimit) || (freeVoteLimit ?? 0) < 1 || (freeVoteLimit ?? 0) > 100)) return { error: "Set a free vote limit from 1 to 100." } as const;
+  if (parsed.data.votingMode === "free" && parsed.data.votingRule === "one_per_category" && freeVoteLimit !== 1) return { error: "One vote per category must use a limit of one." } as const;
   return { data: { ...parsed.data, startsAt, endsAt, unitPriceMinor, freeVoteLimit } } as const;
 }
 
@@ -190,7 +194,7 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
     });
     if (error) {
       if (error.code === "42501" && error.message.includes("Verify your phone")) return { message: "Verify your phone number before voting." };
-      if (error.message.includes("reached the vote limit")) return { message: "You have reached the vote limit for this category." };
+      if (error.message.includes("reached the vote limit")) return { message: error.message.includes("this nominee") ? "You have reached the vote limit for this nominee." : "You have reached the vote limit for this category." };
       if (error.message.includes("not open")) return { message: "Voting is not open for this event right now." };
       return { message: "We could not record your vote. Refresh the page and try again." };
     }
@@ -198,6 +202,7 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
     return { message: "Voting is temporarily unavailable. Please try again shortly." };
   }
   revalidatePath("/events");
+  revalidatePath("/events/[slug]", "page");
   return { message: "Your vote has been recorded securely.", success: true, nextRequestKey: randomUUID() };
 }
 
@@ -471,6 +476,7 @@ export async function createEventAction(_previousState: AuthFormState, formData:
       p_results_visibility: parsed.data.resultsVisibility,
       p_voting_mode: parsed.data.votingMode,
       p_free_vote_limit_per_phone: parsed.data.freeVoteLimit,
+      p_voting_rule: parsed.data.votingRule,
       p_voting_rules: parsed.data.votingRules || null,
     });
     if (error || !data) return { message: eventError(error?.code) };
@@ -501,6 +507,7 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
       p_results_visibility: parsed.data.resultsVisibility,
       p_voting_mode: parsed.data.votingMode,
       p_free_vote_limit_per_phone: parsed.data.freeVoteLimit,
+      p_voting_rule: parsed.data.votingRule,
       p_voting_rules: parsed.data.votingRules || null,
     });
     if (error) return { message: eventError(error.code) };
@@ -677,6 +684,7 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   try {
     const supabase = await createClient();
     const { error } = await supabase.rpc("set_event_status", { p_event_id: eventId.data, p_action: action.data });
+    if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };
     if (error) return { message: eventError(error.code) };
   } catch {
     return { message: "We could not update the event status. Please try again." };

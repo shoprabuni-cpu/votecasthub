@@ -10,12 +10,14 @@ import { EditNomineeForm } from "@/components/events/edit-nominee-form";
 import { NomineeImageForm } from "@/components/events/nominee-image-form";
 import { EventImageForm } from "@/components/events/event-image-form";
 import { EventStatusForm } from "@/components/events/event-status-form";
+import { Icon } from "@/components/icon";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
+import { isVotingRule } from "@/lib/voting-rules";
 
 export const metadata: Metadata = { title: "Event setup" };
 type Props = { params: Promise<{ organizationId: string; eventId: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type OrganizationEvent = { id: string; name: string; slug: string; description: string | null; unit_price_minor: number; starts_at: string; ends_at: string; status: string; results_visibility: string; voting_mode: "free" | "paid"; free_vote_limit_per_phone: number | null; voting_rules: string | null; image_path: string | null };
+type OrganizationEvent = { id: string; name: string; slug: string; description: string | null; unit_price_minor: number; starts_at: string; ends_at: string; status: string; results_visibility: string; voting_mode: "free" | "paid"; free_vote_limit_per_phone: number | null; voting_rule: string; voting_rules: string | null; image_path: string | null };
 
 export default async function EventSetupPage({ params }: Props) {
   const { organizationId, eventId } = await params;
@@ -33,11 +35,25 @@ export default async function EventSetupPage({ params }: Props) {
   const event = typedEventRows.find((item) => item.id === eventId);
   if (!event) notFound();
   const canManage = ["owner", "admin", "editor"].includes(membership?.role ?? "");
+  const activeCategories = (categories ?? []).filter((category) => category.is_active);
   const categoryIds = (categories ?? []).map((category) => category.id);
   const { data: nominees, error: nomineeError } = categoryIds.length
     ? await supabase.from("nominees").select("id, category_id, name, public_code, biography, image_path, display_order, is_active").in("category_id", categoryIds).order("display_order", { ascending: true })
     : { data: [], error: null };
   const pagePath = `/organizer/${organizationId}/events/${eventId}`;
+  const activeNomineeCountByCategory = new Map<string, number>();
+  for (const nominee of nominees ?? []) if (nominee.is_active) activeNomineeCountByCategory.set(nominee.category_id, (activeNomineeCountByCategory.get(nominee.category_id) ?? 0) + 1);
+  const allCategoriesHaveNominees = activeCategories.length > 0 && activeCategories.every((category) => (activeNomineeCountByCategory.get(category.id) ?? 0) > 0);
+  const datesReady = new Date(event.starts_at) < new Date(event.ends_at) && new Date(event.ends_at).getTime() > Date.now();
+  const votingRulesReady = event.voting_mode === "free" && isVotingRule(event.voting_rule) && (event.voting_rule !== "one_per_category" || event.free_vote_limit_per_phone === 1);
+  const publishReady = datesReady && activeCategories.length > 0 && allCategoriesHaveNominees && votingRulesReady && !categoriesError && !nomineeError;
+  const publishChecks = [
+    { label: "Voting dates are valid and close in the future", complete: datesReady },
+    { label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected", complete: votingRulesReady },
+    { label: "At least one category is visible to voters", complete: activeCategories.length > 0 },
+    { label: "Every active category has an active nominee", complete: allCategoriesHaveNominees },
+    { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true },
+  ];
   const publicUrl = `/events/${event.slug}`;
   const imagePaths = nominees?.map((nominee) => nominee.image_path).filter((path): path is string => Boolean(path)) ?? [];
   const { data: signedImages } = imagePaths.length ? await supabase.storage.from("nominee-images").createSignedUrls(imagePaths, 3600) : { data: [] };
@@ -48,7 +64,7 @@ export default async function EventSetupPage({ params }: Props) {
     <div className="dashboard-utility"><Link className="back-link" href={`/organizer/${organizationId}/events`}>← {organization?.name ?? "Events"}</Link></div>
     <div className="event-detail-heading"><div><p className="eyebrow">EVENT SETUP</p><h1>{event.name}</h1><span className={`event-status event-status-${event.status}`}>{event.status.replaceAll("_", " ")}</span></div><div className="event-heading-actions">{event.status === "draft" && <Link className="secondary-button" href={`${pagePath}/preview`}>Preview voter page ↗</Link>}{event.status !== "draft" && event.status !== "archived" && <Link className="secondary-button" href={publicUrl}>View public page ↗</Link>}</div></div>
     {categoriesError || nomineeError ? <section className="form-message" role="alert">Some event details could not be loaded. Refresh the page to try again.</section> : <>
-      {event.status === "draft" && <section className="event-editor-panel"><div className="panel-heading"><p className="eyebrow">STEP 1</p><h2>Event details and rules</h2><p>Choose free or paid voting, set the rules, then schedule the voting window.</p></div><EventDetailsForm eventId={eventId} organizationId={organizationId} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules }} /></section>}
+      {event.status === "draft" && <section className="event-editor-panel"><div className="panel-heading"><p className="eyebrow">STEP 1</p><h2>Event details and rules</h2><p>Choose a voting model, set the dates, and explain any extra eligibility requirements.</p></div><EventDetailsForm eventId={eventId} organizationId={organizationId} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules }} /></section>}
       <section className="event-editor-panel"><div className="panel-heading"><p className="eyebrow">EVENT IMAGE</p><h2>Set your event cover</h2><p>This image appears on your public event page and in the event directory after publication.</p></div>{event.status === "draft" && canManage ? <EventImageForm eventId={eventId} eventName={event.name} initialPath={event.image_path} initialUrl={eventImage?.signedUrl ?? null} backTo={pagePath} /> : eventImage?.signedUrl ? <div className="event-image-readonly" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover image`} /> : <p className="quiet-empty">No cover image has been added.</p>}</section>
       <section className="event-editor-panel"><div className="panel-heading"><p className="eyebrow">STEP 2</p><h2>Categories and nominees</h2><p>Add the award categories, then add at least one nominee to each active category before publishing.</p></div>
         {categories?.length ? <div className="editor-category-list">{categories.map((category) => <article className={`editor-category ${category.is_active ? "" : "is-inactive"}`} key={category.id}><div className="category-heading"><div><h3>{category.name}</h3>{category.description && <p>{category.description}</p>}</div><span>{nominees?.filter((nominee) => nominee.category_id === category.id && nominee.is_active).length ?? 0} active nominees · {category.is_active ? "Visible" : "Hidden"}</span></div>
@@ -58,8 +74,8 @@ export default async function EventSetupPage({ params }: Props) {
         </article>)}</div> : <p className="quiet-empty">No categories have been added yet.</p>}
         {canManage && event.status === "draft" && <div className="add-category-panel"><h3>Add a category</h3><CategoryForm eventId={eventId} backTo={pagePath} /></div>}
       </section>
-      <section className="event-publish-panel"><div><p className="eyebrow">STEP 3</p><h2>Review and publish</h2><p>Publishing makes the event and active nominees visible to the public. Voting and payments are added in a later phase.</p></div>
-        {canManage && <div className="event-actions">{event.status === "draft" && <EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Publish event" />} {event.status === "published" && <><EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "paused" && <><EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "closed" && <EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive event" confirmMessage="Archive this event from your workspace? This cannot be undone." />}</div>}
+      <section className="event-publish-panel"><div className="publish-review-copy"><p className="eyebrow">STEP 3 · FINAL REVIEW</p><h2>Check readiness and publish</h2><p>Publishing makes this event page public right away. Votes open only during the dates you selected. You can preview the voter page before publishing.</p><ul className="publish-checklist">{publishChecks.map((item) => <li key={item.label} className={item.complete ? "is-complete" : item.optional ? "is-optional" : "is-pending"}><Icon name={item.complete ? "check" : item.optional ? "image" : "clock"} size={17} /><span>{item.label}</span><small>{item.complete ? "Ready" : item.optional ? "Optional" : "Needed"}</small></li>)}</ul>{event.voting_mode === "paid" && <p className="publish-blocker" role="status">Paid checkout is not connected yet. This event can be saved as a draft, but it cannot be published or collect paid votes.</p>}{!publishReady && event.voting_mode === "free" && <p className="publish-blocker" role="status">Complete the required items above before publishing.</p>}</div>
+        {canManage && <div className="event-actions">{event.status === "draft" && <><Link className="secondary-button" href={`${pagePath}/preview`}>Preview voter page</Link><EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Publish event" disabled={!publishReady} disabledMessage={event.voting_mode === "paid" ? "A verified payment provider must be connected before a paid event can go online." : "Complete the required checklist items first."} confirmMessage={`Publish “${event.name}” now? Its page will become public immediately. Voting opens at the scheduled Ghana time.`} /></>}{event.status === "published" && <><EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "paused" && <><EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "closed" && <EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive event" confirmMessage="Archive this event from your workspace? This cannot be undone." />}</div>}
       </section>
     </>}
   </section></main>;
