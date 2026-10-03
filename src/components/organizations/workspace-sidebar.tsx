@@ -6,8 +6,11 @@ import { useState } from "react";
 
 type Props = { organizationId: string; organizationName: string; role: string };
 
-function NavIcon({ name }: { name: "grid" | "plus" | "users" | "building" | "external" }) {
+function NavIcon({ name }: { name: "grid" | "plus" | "users" | "building" | "external" | "wallet" | "sms" | "chart" }) {
   const paths = {
+    wallet: <><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M16 14h2"/></>,
+    sms: <><path d="M5 3h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-6 4V5a2 2 0 0 1 2-2Z"/><path d="M7 8h10M7 12h6"/></>,
+    chart: <><path d="M4 3v18h17M8 16v-4M13 16V8M18 16V5"/></>,
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
     plus: <><path d="M12 5v14M5 12h14"/></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
@@ -38,6 +41,8 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
       <Link className={`workspace-nav-link ${overviewActive ? "is-active" : ""}`} href={events} aria-current={pathname === events ? "page" : undefined}><NavIcon name="grid"/><span>Overview</span>{pathname === events && <i aria-hidden="true"/>}</Link>
       {canCreate && <Link className={`workspace-nav-link ${active(`${events}/new`, true) ? "is-active" : ""}`} href={`${events}/new`} aria-current={active(`${events}/new`, true) ? "page" : undefined}><NavIcon name="plus"/><span>Create event</span></Link>}
       {canManageTeam && <Link className={`workspace-nav-link ${active(`${root}/team`, true) ? "is-active" : ""}`} href={`${root}/team`} aria-current={active(`${root}/team`, true) ? "page" : undefined}><NavIcon name="users"/><span>Team &amp; access</span></Link>}
+      <span className="workspace-nav-label workspace-nav-label-spaced">MONEY &amp; CREDITS</span>
+      {([{ path: "payments", label: "Payment account", icon: "wallet" }, { path: "credits", label: "SMS credits", icon: "sms" }, { path: "earnings", label: "Earnings", icon: "chart" }] as const).map(item => <Link key={item.path} className={`workspace-nav-link ${active(`${root}/${item.path}`) ? "is-active" : ""}`} href={`${root}/${item.path}`} aria-current={active(`${root}/${item.path}`) ? "page" : undefined} onClick={() => setOpen(false)}><NavIcon name={item.icon}/><span>{item.label}</span>{active(`${root}/${item.path}`) && <i aria-hidden="true"/>}</Link>)}
       <span className="workspace-nav-label workspace-nav-label-spaced">DISCOVER</span>
       <Link className="workspace-nav-link" href="/events"><NavIcon name="external"/><span>Public events</span><span className="workspace-external">↗</span></Link>
     </nav>
