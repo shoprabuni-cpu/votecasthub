@@ -22,7 +22,7 @@ declare p public.payment_attempts%rowtype; s public.sms_credit_purchases%rowtype
 begin
  if p_kind not in ('refund','reversal') or p_amount_minor is null or p_amount_minor<=0 or length(p_provider_key)>160 then raise exception 'Invalid adjustment'; end if;
  perform pg_advisory_xact_lock(hashtextextended(p_reference,0));
- select * into p from public.payment_attempts where provider='paystack' and provider_reference=p_reference for update;
+ select * into p from public.payment_attempts where provider in ('paystack','arkesel_ussd') and provider_reference=p_reference for update;
  if found then
   if p.confirmed_at is null then raise exception 'Confirm payment before adjustment'; end if;
   full_amount:=p.total_amount_minor; org:=p.organization_id;

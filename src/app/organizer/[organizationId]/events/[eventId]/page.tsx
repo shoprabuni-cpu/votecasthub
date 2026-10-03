@@ -34,6 +34,9 @@ export default async function EventSetupPage({ params }: Props) {
   if (!typedEventRows.some((item) => item.id === eventId)) notFound();
   const event = typedEventRows.find((item) => item.id === eventId);
   if (!event) notFound();
+  const { data: paidCheckoutReady } = event.voting_mode === "paid"
+    ? await supabase.rpc("can_publish_paid_event", { p_event_id: eventId })
+    : { data: true };
   const canManage = ["owner", "admin", "editor"].includes(membership?.role ?? "");
   const activeCategories = (categories ?? []).filter((category) => category.is_active);
   const categoryIds = (categories ?? []).map((category) => category.id);
@@ -46,10 +49,11 @@ export default async function EventSetupPage({ params }: Props) {
   const allCategoriesHaveNominees = activeCategories.length > 0 && activeCategories.every((category) => (activeNomineeCountByCategory.get(category.id) ?? 0) > 0);
   const datesReady = new Date(event.starts_at) < new Date(event.ends_at) && new Date(event.ends_at).getTime() > Date.now();
   const votingRulesReady = event.voting_mode === "free" && isVotingRule(event.voting_rule) && (event.voting_rule !== "one_per_category" || event.free_vote_limit_per_phone === 1);
-  const publishReady = datesReady && activeCategories.length > 0 && allCategoriesHaveNominees && votingRulesReady && !categoriesError && !nomineeError;
+  const checkoutReady = event.voting_mode === "paid" ? paidCheckoutReady === true : votingRulesReady;
+  const publishReady = datesReady && activeCategories.length > 0 && allCategoriesHaveNominees && checkoutReady && !categoriesError && !nomineeError;
   const publishChecks = [
     { label: "Voting dates are valid and close in the future", complete: datesReady },
-    { label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected", complete: votingRulesReady },
+    { label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected", complete: checkoutReady },
     { label: "At least one category is visible to voters", complete: activeCategories.length > 0 },
     { label: "Every active category has an active nominee", complete: allCategoriesHaveNominees },
     { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true },
@@ -74,7 +78,7 @@ export default async function EventSetupPage({ params }: Props) {
         </article>)}</div> : <p className="quiet-empty">No categories have been added yet.</p>}
         {canManage && event.status === "draft" && <div className="add-category-panel"><h3>Add a category</h3><CategoryForm eventId={eventId} backTo={pagePath} /></div>}
       </section>
-      <section className="event-publish-panel"><div className="publish-review-copy"><p className="eyebrow">STEP 3 · FINAL REVIEW</p><h2>Check readiness and publish</h2><p>Publishing makes this event page public right away. Votes open only during the dates you selected. You can preview the voter page before publishing.</p><ul className="publish-checklist">{publishChecks.map((item) => <li key={item.label} className={item.complete ? "is-complete" : item.optional ? "is-optional" : "is-pending"}><Icon name={item.complete ? "check" : item.optional ? "image" : "clock"} size={17} /><span>{item.label}</span><small>{item.complete ? "Ready" : item.optional ? "Optional" : "Needed"}</small></li>)}</ul>{event.voting_mode === "paid" && <p className="publish-blocker" role="status">Paid checkout is not connected yet. This event can be saved as a draft, but it cannot be published or collect paid votes.</p>}{!publishReady && event.voting_mode === "free" && <p className="publish-blocker" role="status">Complete the required items above before publishing.</p>}</div>
+      <section className="event-publish-panel"><div className="publish-review-copy"><p className="eyebrow">STEP 3 · FINAL REVIEW</p><h2>Check readiness and publish</h2><p>Publishing makes this event page public right away. Votes open only during the dates you selected. You can preview the voter page before publishing.</p><ul className="publish-checklist">{publishChecks.map((item) => <li key={item.label} className={item.complete ? "is-complete" : item.optional ? "is-optional" : "is-pending"}><Icon name={item.complete ? "check" : item.optional ? "image" : "clock"} size={17} /><span>{item.label}</span><small>{item.complete ? "Ready" : item.optional ? "Optional" : "Needed"}</small></li>)}</ul>{event.voting_mode === "paid" && !checkoutReady && <p className="publish-blocker" role="status">Connect and verify a Paystack payment account before publishing this paid event.</p>}{!publishReady && event.voting_mode === "free" && <p className="publish-blocker" role="status">Complete the required items above before publishing.</p>}</div>
         {canManage && <div className="event-actions">{event.status === "draft" && <><Link className="secondary-button" href={`${pagePath}/preview`}>Preview voter page</Link><EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Publish event" disabled={!publishReady} disabledMessage={event.voting_mode === "paid" ? "A verified payment provider must be connected before a paid event can go online." : "Complete the required checklist items first."} confirmMessage={`Publish “${event.name}” now? Its page will become public immediately. Voting opens at the scheduled Ghana time.`} /></>}{event.status === "published" && <><EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "paused" && <><EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "closed" && <EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive event" confirmMessage="Archive this event from your workspace? This cannot be undone." />}</div>}
       </section>
     </>}
