@@ -1688,3 +1688,47 @@ a {
  .dashboard-content {
     @apply [width:calc(100%_-_30px)] [padding-top:34px]; }
 }
+.settlement-fields { border:0; padding:0; margin:0; min-width:0; }
+.settlement-fields legend { font-weight:650; font-size:14px; margin-bottom:14px; color:#244630; }
+.settlement-options { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0 26px; }
+.settlement-options label { flex:1; display:flex; align-items:center; gap:10px; padding:16px; border:1px solid #d7e0d3; border-radius:12px; cursor:pointer; min-width:160px; }
+.settlement-options label.is-selected { background:#eaf3e4; border-color:#458458; color:#245437; }
+.settlement-options input,.account-name-confirm input { accent-color:#255b3c; }
+.payment-account-form .field select { min-height:48px; padding:12px; border:1px solid #d7e0d3; border-radius:10px; background:#fafcf8; width:100%; }
+.account-name-result { padding:18px; background:#f0f6ed; border:1px solid #d8e6d0; border-radius:12px; color:#36563e; font-size:13px; line-height:1.6; display:grid; gap:5px; }
+.account-name-result small { font-size:10px; letter-spacing:1px; }
+.account-name-result strong { font-size:17px; }
+.account-name-confirm { display:flex; align-items:center; gap:10px; font-size:13px; color:#405846; }
+
+/* Earnings dashboard */
+.earnings-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:24px; margin:28px 0 32px; }
+.earnings-heading h1 { margin:10px 0 12px; font:500 clamp(32px,4vw,48px)/1.1 var(--serif); color:#203d2b; letter-spacing:-1.4px; }
+.earnings-heading > div > p:last-child { color:#68796c; font-size:14px; line-height:1.6; }
+.earnings-account-link { display:inline-flex; align-items:center; justify-content:center; gap:18px; min-height:44px; padding:12px 18px; border:1px solid #d2decc; border-radius:10px; background:#fff; color:#2e5538; font-size:12px; font-weight:650; text-decoration:none; transition:background .2s,border-color .2s; }
+.earnings-account-link:hover { background:#edf4e7; border-color:#88a874; }
+.earnings-account-link:focus-visible { outline:2px solid #458458; outline-offset:4px; }
+.earnings-net-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:28px; padding:clamp(24px,4vw,38px); border-radius:22px; background:radial-gradient(ellipse at top right,#396549,transparent 65%),#193d2d; color:#f7faef; box-shadow:0 14px 36px #193d2d12; }
+.earnings-net-card .eyebrow { color:#c4dca8; font-size:10px; letter-spacing:1.5px; }
+.earnings-net-card > div:first-child > strong { display:block; font-size:clamp(32px,5vw,52px); line-height:1.2; letter-spacing:-1.5px; margin:16px 0 12px; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.earnings-net-card p:not(.eyebrow) { color:#c5d4c5; font-size:13px; line-height:1.6; max-width:440px; }
+.earnings-payment-count { display:grid; align-content:center; justify-items:end; gap:8px; }
+.earnings-payment-count > span { color:#d7bd7f; font-size:28px; }
+.earnings-payment-count strong { font-size:27px; }
+.earnings-payment-count small { color:#cad9c6; font-size:11px; }
+.earnings-net-footer { grid-column:1/-1; border-top:1px solid #ffffff24; padding-top:18px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:11px; color:#bdd0b8; }
+.earnings-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:22px 0 32px; }
+.earnings-metric { background:#fff; border:1px solid #dfe7d9; border-radius:16px; padding:24px; }
+.earnings-metric > div { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#5e7162; font-size:12px; font-weight:600; }
+.earnings-metric-icon { display:grid; place-items:center; width:32px; height:32px; background:#f0f5ea; color:#557643; border-radius:9px; font-size:16px; }
+.earnings-metric > strong { display:block; margin:18px 0 10px; font-size:clamp(20px,2.4vw,29px); font-weight:600; color:#26432e; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.earnings-metric > p { font-size:11px; line-height:1.5; color:#788476; }
+.earnings-history { background:#fff; border:1px solid #dfe7d9; border-radius:20px; padding:clamp(20px,3vw,30px); }
+.earnings-history-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding-bottom:22px; border-bottom:1px solid #edf0e8; }
+.earnings-history h2 { font:500 25px/1.2 var(--serif); margin:8px 0; color:#294332; }
+.earnings-count-badge { padding:8px 12px; border-radius:30px; background:#f0f5eb; color:#546b47; font-size:11px; }
+.earnings-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:40px 12px; }
+.earnings-empty-icon { display:grid; place-items:center; width:56px; height:56px; background:#f3f6ec; border:1px solid #e1e8d6; border-radius:18px; color:#819867; font-size:27px; margin-bottom:20px; }
+.earnings-empty h3 { font:500 23px/1.3 var(--serif); color:#354e39; margin:0 0 12px; }
+.earnings-empty p { max-width:440px; color:#768172; font-size:13px; line-height:1.7; margin:0 0 22px; }
+.earnings-settlement-note { border-top:1px solid #edf0e8; padding-top:18px; color:#7b8576; font-size:11px; line-height:1.7; }
+@media(max-width:760px) { .earnings-metrics { grid-template-columns:1fr; gap:12px; } .earnings-net-card { grid-template-columns:1fr; } .earnings-payment-count { justify-items:start; } .earnings-heading { align-items:flex-start; } }
