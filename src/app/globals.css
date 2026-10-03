@@ -1732,3 +1732,7 @@ a {
 .earnings-empty p { max-width:440px; color:#768172; font-size:13px; line-height:1.7; margin:0 0 22px; }
 .earnings-settlement-note { border-top:1px solid #edf0e8; padding-top:18px; color:#7b8576; font-size:11px; line-height:1.7; }
 @media(max-width:760px) { .earnings-metrics { grid-template-columns:1fr; gap:12px; } .earnings-net-card { grid-template-columns:1fr; } .earnings-payment-count { justify-items:start; } .earnings-heading { align-items:flex-start; } }
+.saved-account-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; margin:24px 0; }
+.saved-account-details dt { color:#6b796e; font-size:12px; margin-bottom:8px; }
+.saved-account-details dd { color:#244630; margin:0; font-size:15px; font-weight:600; overflow-wrap:anywhere; }
+@media(max-width:600px){.saved-account-details{grid-template-columns:1fr;}}

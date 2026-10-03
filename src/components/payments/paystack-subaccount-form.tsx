@@ -48,8 +48,9 @@ export function PaystackSubaccountForm({ organizationId }: { organizationId:stri
         <label className="field">Contact phone<input name="contactPhone" required type="tel" minLength={7} maxLength={24}/></label>
       </div>
     </fieldset>
-    <div className="payment-account-note"><strong>Transaction split</strong><p>VotecastHub: 10% · Your subaccount: 90%, before applicable Paystack fees.</p><p>Account-name lookup is separate from Paystack’s settlement approval.</p></div>
+    <div className="payment-account-note"><strong>Transaction split</strong><p>VotecastHub: 10% including Paystack fees · Your subaccount: 90%.</p><p>Account-name lookup is separate from Paystack’s settlement approval.</p></div>
     {message&&<p className="form-message" role="status">{message}</p>}
     <button className="primary-link" disabled={busy||!name||!confirmed}>{busy?"Submitting…":"Create payment account"}</button>
   </form>;
 }
+

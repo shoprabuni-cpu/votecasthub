@@ -698,6 +698,7 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   try {
     const supabase = await createClient();
     const { error } = await supabase.rpc("set_event_status", { p_event_id: eventId.data, p_action: action.data });
+    if (error?.message.includes("Verify the organizer Paystack subaccount")) return { message: "Open Payment account and refresh verification after Paystack approves your account, then publish this event." };
     if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };
     if (error) return { message: eventError(error.code) };
   } catch {
@@ -707,3 +708,4 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   revalidatePath("/events");
   redirect(backTo);
 }
+
