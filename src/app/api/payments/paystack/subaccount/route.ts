@@ -1,3 +1,5 @@
+import { recoverAccount } from "@/lib/payments/recover-account";
+import { allow } from "@/lib/payments/gateway";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -47,8 +49,11 @@ export async function PATCH(request:Request) {
     if(!user)return NextResponse.json({error:"Sign in required."},{status:401});
     const {data:member}=await supabase.from("organization_members").select("role").eq("organization_id",organizationId).eq("user_id",user.id).maybeSingle();
     if(!member||!["owner","admin"].includes(member.role))return NextResponse.json({error:"Organization access denied."},{status:403});
-    const admin=paymentAdmin();const {data:account,error}=await admin.from("organization_paystack_accounts").select("subaccount_code").eq("organization_id",organizationId).single();
-    if(error||!account)return NextResponse.json({error:"No saved payment account found."},{status:404});
+    if(!await allow(`account-refresh:${user.id}`,3,60))return NextResponse.json({error:"Please wait a minute before checking again."},{status:429});
+    const admin=paymentAdmin();const {data:saved,error:readError}=await admin.from("organization_paystack_accounts").select("subaccount_code").eq("organization_id",organizationId).maybeSingle();
+    if(readError)throw readError;
+    const account=saved??await recoverAccount(organizationId);
+    if(!account)return NextResponse.json({error:"No saved payment account found."},{status:404});
     const response=await fetch(`https://api.paystack.co/subaccount/${encodeURIComponent(account.subaccount_code)}`,{headers:{Authorization:`Bearer ${paystackSecret()}`},cache:"no-store",signal:AbortSignal.timeout(12000)});
     const result=await response.json();const remote=result.data;
     if(!response.ok||!result.status||remote?.subaccount_code!==account.subaccount_code)throw new Error("Lookup failed");
@@ -58,3 +63,4 @@ export async function PATCH(request:Request) {
     return NextResponse.json({status});
   }catch{return NextResponse.json({error:"Could not refresh verification. Try again shortly."},{status:503});}
 }
+

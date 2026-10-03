@@ -1,12 +1,33 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { NextResponse } from "next/server";
-export const runtime = "nodejs";
-export async function POST(request: Request) {
-  const raw = await request.text(); const signature = request.headers.get("x-paystack-signature") ?? ""; const secret = process.env.PAYSTACK_SECRET_KEY; if(!secret || !signature) return new NextResponse("Unauthorized",{status:401});
-  const expected=createHmac("sha512",secret).update(raw).digest("hex"); if(signature.length!==expected.length || !timingSafeEqual(Buffer.from(signature),Buffer.from(expected))) return new NextResponse("Unauthorized",{status:401});
-  const event=JSON.parse(raw); const reference=event.data?.reference; if(typeof reference!=="string") return NextResponse.json({received:true}); const transactionId=Number(event.data?.id||0);
-  const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const key=process.env.SUPABASE_SECRET_KEY; if(!url || !key) return new NextResponse("Server misconfigured",{status:503});
-  const kind=event.data?.metadata?.kind;
-  const response=event.event==="charge.success" ? kind==="paid_vote" ? await fetch(`${url}/rest/v1/rpc/confirm_paid_vote`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({p_reference:reference,p_transaction_id:transactionId,p_paid_amount_minor:Number(event.data.amount),p_provider_fee_minor:Number(event.data.fees||0)})}) : await fetch(`${url}/rest/v1/rpc/fulfill_sms_credit_purchase`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({p_reference:reference,p_transaction_id:transactionId})}) : ["refund.processed","charge.refunded","charge.reversed"].includes(event.event) ? await fetch(`${url}/rest/v1/rpc/reverse_paid_vote`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({p_reference:reference,p_status:event.event.includes("refund")?"refunded":"reversed"})}) : null;
-  if(!response) return NextResponse.json({received:true}); if(!response.ok) return new NextResponse("Fulfilment failed",{status:503}); return NextResponse.json({received:true});
+import { z } from "zod";
+import { paymentAdmin } from "@/lib/payments/admin";
+import { processPaymentJob } from "@/lib/payments/reconcile";
+export const runtime="nodejs";
+export const maxDuration=60;
+export async function POST(request:Request){
+  const secret=process.env.PAYSTACK_SECRET_KEY;
+  const signature=request.headers.get("x-paystack-signature")||"";
+  if(!secret||!/^[a-f0-9]{128}$/i.test(signature))return new Response("Unauthorized",{status:401});
+  let raw:string;
+  try{
+    const reader=request.body?.getReader();if(!reader)throw new Error();
+    const chunks:Uint8Array[]=[];let size=0;
+    try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>262144){await reader.cancel();throw new Error();}chunks.push(value);}}finally{reader.releaseLock();}
+    raw=Buffer.concat(chunks).toString("utf8");
+  }catch{return new Response("Invalid body",{status:400});}
+  if(!timingSafeEqual(Buffer.from(signature,"hex"),createHmac("sha512",secret).update(raw).digest()))return new Response("Unauthorized",{status:401});
+  let event;
+  try{event=z.object({event:z.string(),data:z.object({id:z.number().int().positive().safe().optional(),reference:z.string().max(100).optional()})}).parse(JSON.parse(raw));}catch{return new Response("Invalid event",{status:400});}
+  if(!["charge.success","refund.processed","charge.dispute.resolve"].includes(event.event))return Response.json({received:true});
+  const resource=event.event==="charge.success"?event.data.reference:event.data.id?.toString();
+  if(!resource)return new Response("Missing event identity",{status:400});
+  const id=`${event.event}:${resource}`;
+  try{
+    const db=paymentAdmin();
+    const {error}=await db.from("payment_jobs").upsert({id,kind:event.event,resource},{onConflict:"id",ignoreDuplicates:true});if(error)throw error;
+    const {data:job,error:read}=await db.from("payment_jobs").select("processed_at").eq("id",id).single();if(read)throw read;
+    if(!job.processed_at){if(!await processPaymentJob(event.event,resource))throw new Error("Provider confirmation pending");const {error:e}=await db.from("payment_jobs").update({processed_at:new Date().toISOString()}).eq("id",id);if(e)throw e;}
+    return Response.json({received:true});
+  }catch{console.error("payment_webhook_processing_failed",{event:event.event});return new Response("Retry processing",{status:503});}
 }
+

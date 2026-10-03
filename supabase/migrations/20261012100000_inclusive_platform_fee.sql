@@ -34,8 +34,12 @@ end $$;
 
 revoke all on function public.confirm_paid_vote(text,bigint,bigint,bigint) from public, anon, authenticated;
 grant execute on function public.confirm_paid_vote(text,bigint,bigint,bigint) to service_role;
-revoke all on function public.reverse_paid_vote(text,text) from public, anon, authenticated;
-grant execute on function public.reverse_paid_vote(text,text) to service_role;
+do $$ begin
+  if to_regprocedure('public.reverse_paid_vote(text,text)') is not null then
+    revoke all on function public.reverse_paid_vote(text,text) from public, anon, authenticated;
+    revoke execute on function public.reverse_paid_vote(text,text) from service_role;
+  end if;
+end $$;
 
 -- Preserve historical entries. Correct prior understatements with explicit adjustments.
 insert into public.ledger_entries(organization_id,payment_attempt_id,entry_type,amount_minor,currency,idempotency_key,note)

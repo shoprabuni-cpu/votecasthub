@@ -7,6 +7,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicEnvironment } from "@/lib/env";
 import { safeNextPath, type AuthFormState } from "@/lib/auth/form-state";
+import { createHmac } from "node:crypto";
+import { paymentAdmin } from "@/lib/payments/admin";
 import { normalizeGhanaPhone } from "@/lib/auth/phone";
 
 const loginSchema = z.object({
@@ -153,6 +155,12 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
   }
   try {
     const supabase = await createClient();
+    const eventSlug = /^\/events\/([^/?]+)(?:[/?]|$)/.exec(next)?.[1];
+    const hookSecret = process.env.SUPABASE_SEND_SMS_HOOK_SECRET?.replace(/^v1,/, "");
+    if (!eventSlug || !hookSecret) return { message: "Open the event you want to vote in before requesting a code." };
+    const recipientHash = createHmac("sha256", hookSecret).update(`phone:${phone.data.replace(/^\+/, "")}`).digest("hex");
+    const { data: sponsored, error: sponsorError } = await paymentAdmin().rpc("prepare_voter_sms", { p_recipient_hash: recipientHash, p_event_slug: eventSlug });
+    if (sponsorError || !sponsored) return { message: "Verification is unavailable. The event must be open with SMS credits available. Wait a minute before retrying." };
     const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) {
       logAuthFailure("phone_signin", error.code);
@@ -698,6 +706,7 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   try {
     const supabase = await createClient();
     const { error } = await supabase.rpc("set_event_status", { p_event_id: eventId.data, p_action: action.data });
+    if (error?.message.includes("Add SMS credits")) return { message: "Add SMS credits in your workspace before publishing this free event." };
     if (error?.message.includes("Verify the organizer Paystack subaccount")) return { message: "Open Payment account and refresh verification after Paystack approves your account, then publish this event." };
     if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };
     if (error) return { message: eventError(error.code) };
@@ -708,4 +717,5 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   revalidatePath("/events");
   redirect(backTo);
 }
+
 

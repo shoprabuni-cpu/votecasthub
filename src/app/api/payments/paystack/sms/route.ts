@@ -1,16 +1,25 @@
 import { randomBytes } from "node:crypto";
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { packageSchema, paystackSecret, smsPackages } from "@/lib/payments/paystack";
-export const runtime = "nodejs";
-export async function POST(request: Request) {
-  try {
-    const body = await request.json(); const pkg = packageSchema.safeParse(body?.credits); if (!pkg.success) return NextResponse.json({ error:"Invalid package" },{status:400});
-    const supabase = await createClient(); const { data:{ user } } = await supabase.auth.getUser(); if (!user?.email) return NextResponse.json({error:"Sign in required"},{status:401});
-    const organizationId = typeof body.organizationId === "string" ? body.organizationId : ""; const { data: member } = await supabase.from("organization_members").select("role").eq("organization_id",organizationId).eq("user_id",user.id).maybeSingle(); if (!member || !["owner","admin"].includes(member.role)) return NextResponse.json({error:"Organization access denied"},{status:403});
-    const selected = smsPackages[pkg.data]; const reference = `VCH-SMS-${randomBytes(8).toString("hex").toUpperCase()}`;
-    const { error } = await supabase.from("sms_credit_purchases").insert({organization_id:organizationId,reference,credits:selected.credits,amount_minor:selected.amountMinor}); if(error) throw error;
-    const response = await fetch("https://api.paystack.co/transaction/initialize",{method:"POST",headers:{Authorization:`Bearer ${paystackSecret()}`,"Content-Type":"application/json"},body:JSON.stringify({email:user.email,amount:selected.amountMinor,currency:"GHS",reference,callback_url:`${process.env.NEXT_PUBLIC_SITE_URL}/organizer/${organizationId}/credits`,metadata:{organization_id:organizationId,credits:selected.credits}})});
-    const result = await response.json(); if(!response.ok || !result.status) return NextResponse.json({error:"Unable to start payment"},{status:502}); return NextResponse.json({url:result.data.authorization_url});
-  } catch { return NextResponse.json({error:"Payment service unavailable"},{status:503}); }
+import { paymentAdmin } from "@/lib/payments/admin";
+import { packageSchema,smsPackages } from "@/lib/payments/paystack";
+import { allow,siteUrl } from "@/lib/payments/gateway";
+import { reserveCheckout,initializeCheckout } from "@/lib/payments/checkout";
+export const runtime="nodejs";
+const schema=z.object({organizationId:z.string().uuid(),requestKey:z.string().uuid(),credits:packageSchema});
+export async function POST(request:Request){
+ try{
+  const parsed=schema.safeParse(await request.json());if(!parsed.success)return Response.json({error:"Invalid package."},{status:400});
+  const p=parsed.data;const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
+  if(!user?.email)return Response.json({error:"Sign in required."},{status:401});
+  const {data:member}=await supabase.from("organization_members").select("role").eq("organization_id",p.organizationId).eq("user_id",user.id).maybeSingle();
+  if(!member||!["owner","admin"].includes(member.role))return Response.json({error:"Organization access denied."},{status:403});
+  if(!await allow(`sms-purchase:${user.id}`,10,600))return Response.json({error:"Too many requests. Try again shortly."},{status:429});
+  const origin=siteUrl();const selected=smsPackages[p.credits];
+  const session=await reserveCheckout(p.requestKey,{...p,userId:user.id},`VCH-SMS-${randomBytes(16).toString("hex").toUpperCase()}`);
+  if(!session.fresh)return session.url?Response.json({url:session.url}):Response.json({error:"This purchase is being confirmed. Check your credits before starting another."},{status:409});
+  const {error}=await paymentAdmin().from("sms_credit_purchases").insert({organization_id:p.organizationId,reference:session.reference,credits:selected.credits,amount_minor:selected.amountMinor});if(error)throw error;
+  const url=await initializeCheckout(session.reference,{email:user.email,amount:selected.amountMinor,currency:"GHS",callback_url:`${origin}/payments/complete`,metadata:{kind:"sms_credits"}});
+  return Response.json({url});
+ }catch{console.error("sms_checkout_failed");return Response.json({error:"Payment service unavailable. Retry using the same package."},{status:503});}
 }

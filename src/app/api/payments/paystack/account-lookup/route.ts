@@ -1,3 +1,4 @@
+import { allow } from "@/lib/payments/gateway";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +15,9 @@ export async function POST(request:Request) {
   const {data:member} = await supabase.from("organization_members").select("role").eq("organization_id",p.organizationId).eq("user_id",user.id).maybeSingle();
   if (!member || !["owner","admin"].includes(member.role)) return NextResponse.json({error:"Only owners and admins can manage payment accounts."},{status:403});
   try {
+    if(!await allow(`account-lookup:${user.id}`,15,60))return NextResponse.json({error:"Too many lookups. Wait a minute before retrying."},{status:429});
     const data = p.bankCode && p.accountNumber ? await resolveSettlement(p.type,p.bankCode,p.accountNumber) : {providers:await settlementProviders(p.type)};
     return NextResponse.json(data,{headers:{"Cache-Control":"no-store"}});
   } catch(e) { return NextResponse.json({error:e instanceof Error ? e.message : "Account lookup unavailable."},{status:422,headers:{"Cache-Control":"no-store"}}); }
 }
+
