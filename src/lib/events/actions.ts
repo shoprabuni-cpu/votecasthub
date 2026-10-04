@@ -6,6 +6,34 @@ import { createClient } from "@/lib/supabase/server";
 import type { AuthFormState } from "@/lib/auth/form-state";
 import { cleanupEventImages } from "./image-cleanup";
 
+export async function requestEventCorrectionAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
+  const parsed = z.object({
+    eventId:z.string().uuid(),kind:z.enum(["name","description","instructions","clarification","photo"]),
+    value:z.string().min(1).max(5000),reason:z.string().trim().min(20).max(1000),
+    nomineeId:z.string().uuid().optional(),
+  }).safeParse(Object.fromEntries(form));
+  if(!parsed.success)return {message:"Enter the proposed correction and a reason of at least 20 characters."};
+  try {
+    const p=parsed.data;const db=await createClient();
+    const {error}=await db.rpc("request_event_correction",{p_event_id:p.eventId,p_kind:p.kind,p_value:p.value,p_reason:p.reason,p_nominee_id:p.nomineeId??null});
+    if(error)return {message:error.code==="23505"?"A correction for this item is already awaiting review.":error.code==="22023"?error.message:"Could not submit this correction. Check your access and try again."};
+    revalidatePath("/organizer","layout");
+    return {success:true,message:"Correction submitted for platform review. The current public details stay unchanged until approved."};
+  }catch{return {message:"Correction submission is temporarily unavailable."};}
+}
+
+export async function reopenEventAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
+  const parsed=z.object({eventId:z.string().uuid(),endsAt:z.string().datetime(),reason:z.string().trim().min(20).max(1000),acknowledged:z.literal("yes")}).safeParse(Object.fromEntries(form));
+  if(!parsed.success)return {message:"Choose a new deadline, explain the reopening and confirm that existing votes and limits remain."};
+  try {
+    const p=parsed.data;const db=await createClient();
+    const {error}=await db.rpc("reopen_event_voting",{p_event_id:p.eventId,p_ends_at:p.endsAt,p_reason:p.reason});
+    if(error)return {message:error.code==="22023"?error.message:"Only owners and admins can reopen eligible expired events."};
+    revalidatePath("/organizer","layout");revalidatePath("/events","layout");
+    return {success:true,message:"Voting reopened. Your reason and the old and new deadlines are now public."};
+  }catch{return {message:"Reopening is temporarily unavailable. Refresh before retrying."};}
+}
+
 export async function updatePublicEventAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
   const parsed = z.object({
     eventId: z.string().uuid(), name: z.string().trim().min(2).max(160),

@@ -86,11 +86,11 @@ assert.equal((await value(`select has_function_privilege('authenticated','public
 assert.equal((await value(`select has_table_privilege('authenticated','public.payment_account_operations','insert') b`)).b,false);
 const eventId = '30000000-0000-4000-8000-000000000001';
 const draftId = '30000000-0000-4000-8000-000000000002';
-const extend = `select update_event_details('${eventId}','Updated event','New description',(select starts_at from events where id='${eventId}'),now()+interval '3 days','live','Updated instructions')`;
+const extend = `select update_event_details('${eventId}','Public Event','',(select starts_at from events where id='${eventId}'),now()+interval '3 days','live','')`;
 await assert.rejects(()=>db.exec(extend)); // unrelated user
 await db.exec(`select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false)`);
 await db.exec(extend);
-assert.equal((await value(`select name n from events where id='${eventId}'`)).n,'Updated event');
+assert.equal((await value(`select name n from events where id='${eventId}'`)).n,'Public Event');
 await assert.rejects(()=>db.exec(`select update_event_details('${eventId}','Updated event','',(select starts_at from events where id='${eventId}'),now()+interval '1 day','live','')`));
 await assert.rejects(()=>db.exec(`select set_event_status('${eventId}','unpublish')`));
 await assert.rejects(()=>db.exec(`select delete_unused_event('${eventId}')`));
@@ -103,7 +103,7 @@ await assert.rejects(()=>db.exec(extend));
 await db.exec(`select set_event_status('${eventId}','archive')`);
 assert.equal((await value(`select status s from events where id='${eventId}'`)).s,'archived');
 assert.equal(Number((await value(`select count(*) n from vote_batches where event_id='${eventId}'`)).n),1);
-await db.exec(`update events set status='published' where id='${draftId}'`);
+await db.exec(`update events set status='published',starts_at=now()+interval '1 hour',ends_at=now()+interval '2 hours' where id='${draftId}'`);
 await db.exec(`select set_event_status('${draftId}','unpublish')`);
 await db.exec(`insert into storage.objects(bucket_id,name) values('nominee-images','${draftId}/cover.png')`);
 await db.exec(`select delete_unused_event('${draftId}')`);
