@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
+import { VotingNotice } from "@/components/events/voting-notice";
+import { eventPresentation } from "@/lib/events/presentation";
 import { ShareButton } from "@/components/sharing/share-buttons";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,14 +24,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function NomineePage({ params }: Props) {
   const { slug, nomineeId } = await params;
-  let event: { id: string; name: string; slug: string } | null = null;
+  let event: { id: string; name: string; slug: string; status: string; starts_at: string; ends_at: string; voting_mode: "free" | "paid"; unit_price_minor: number } | null = null;
   let nominee: { id: string; category_id: string; name: string; public_code: string | null; biography: string | null; image_path: string | null } | null = null;
   let category: { id: string; name: string; event_id: string } | null = null;
   let imageUrl: string | null = null;
   let unavailable = false;
   try {
     const supabase = await createClient();
-    const eventResult = await supabase.from("events").select("id, name, slug").eq("slug", slug).in("status", ["published", "paused", "closed"]).maybeSingle();
+    const eventResult = await supabase.from("events").select("id, name, slug, status, starts_at, ends_at, voting_mode, unit_price_minor").eq("slug", slug).in("status", ["published", "paused", "closed"]).maybeSingle();
     if (eventResult.error) unavailable = true;
     else if (eventResult.data) {
       event = eventResult.data;
@@ -54,5 +56,5 @@ export default async function NomineePage({ params }: Props) {
   if (!unavailable && (!event || !nominee || !category)) notFound();
   if (unavailable) return <main className="public-page"><SiteHeader /><section className="empty-state"><h1>Nominee details are temporarily unavailable.</h1><p>Please try again shortly.</p><Link className="text-link" href="/events">Back to events</Link></section></main>;
   if (!event || !nominee || !category) notFound();
-  return <main className="public-page"><SiteHeader /><article className="nominee-profile"><Link className="back-link" href={`/events/${event.slug}`}>← Back to {event.name}</Link>{imageUrl ? <div className="nominee-photo-profile" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nominee.name} photo`} /> : <span className="nominee-avatar nominee-avatar-large" aria-hidden="true">{nominee.name.trim().slice(0, 1).toUpperCase()}</span>}<p className="eyebrow">{category.name}</p><h1>{nominee.name}</h1>{nominee.public_code && <p className="nominee-profile-code">{nominee.public_code}</p>}<p className="nominee-biography">{nominee.biography || "A profile for this nominee has not been added yet."}</p><p className="vote-coming-note">View the event page for current voting options and rules.</p><ShareButton title={nominee.name} text={`Support ${nominee.name} in ${event.name}`} url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${event.slug}/nominees/${nominee.id}`} flyer={{ nominee: nominee.name, category: category.name, imageUrl }} /><Link className="primary-link" href={`/events/${event.slug}`}>Return to event</Link></article><footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>© {new Date().getFullYear()} VotecastHub GH</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav></footer></main>;
+  return <main className="public-page"><SiteHeader /><article className="nominee-profile"><Link className="back-link" href={`/events/${event.slug}`}>← Back to {event.name}</Link>{imageUrl ? <div className="nominee-photo-profile" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nominee.name} photo`} /> : <span className="nominee-avatar nominee-avatar-large" aria-hidden="true">{nominee.name.trim().slice(0, 1).toUpperCase()}</span>}<p className="eyebrow">{category.name}</p><h1>{nominee.name}</h1>{nominee.public_code && <p className="nominee-profile-code">{nominee.public_code}</p>}<p className="nominee-biography">{nominee.biography || "A profile for this nominee has not been added yet."}</p><VotingNotice event={event} /><ShareButton title={nominee.name} text={`${nominee.name} — ${event.name}`} url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${event.slug}/nominees/${nominee.id}`} flyer={{ nominee: nominee.name, category: category.name, imageUrl, eventName: event.name, code: nominee.public_code, startsAt: event.starts_at, endsAt: event.ends_at, status: event.status, votingMode: event.voting_mode, unitPriceMinor: event.unit_price_minor }} /><Link className="primary-link" href={`/events/${event.slug}`}>{eventPresentation(event).key === "open" ? "Go to voting" : "Explore event & results"}</Link></article><footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>© {new Date().getFullYear()} VotecastHub GH</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav></footer></main>;
 }

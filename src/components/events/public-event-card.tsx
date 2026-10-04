@@ -1,12 +1,9 @@
 import Link from "next/link";
+import { eventPresentation } from "@/lib/events/presentation";
 
 export type PublicEventCardData = { id: string; name: string; slug: string; description: string | null; imageUrl?: string | null; unit_price_minor: number; starts_at: string; ends_at: string; status: string; voting_mode: "free" | "paid" };
 
-function eventStatus(event: PublicEventCardData) {
-  if (event.status === "paused") return "Voting paused";
-  if (event.status === "closed") return "Closed";
-  return "Published event";
-}
+function eventStatus(event: PublicEventCardData) { return eventPresentation(event).label; }
 
 function ghRange(event: PublicEventCardData) {
   const format = new Intl.DateTimeFormat("en-GH", { dateStyle: "medium", timeZone: "Africa/Accra" });

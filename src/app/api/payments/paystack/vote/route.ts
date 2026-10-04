@@ -20,11 +20,17 @@ export async function POST(request:Request){
    db.from("organization_paystack_accounts").select("subaccount_code").eq("organization_id",event.organization_id).eq("status","active").eq("paystack_verified",true).eq("percentage_charge",10).maybeSingle()
   ]);
   if(!category||!nominee||!account)return Response.json({error:"Voting or the organizer payment account is unavailable."},{status:409});
+  const {data:operation,error:operationError}=await db.from("payment_account_operations").select("organization_id").eq("organization_id",event.organization_id).maybeSingle();
+  if(operationError||operation)return Response.json({error:"The organizer payment account is being updated. Please try again shortly."},{status:409});
   const total=Number(event.unit_price_minor)*p.quantity;
   if(!Number.isSafeInteger(total)||total<100||total>100000000||event.currency!=="GHS")return Response.json({error:"Checkout total must be between GH₵1 and GH₵1,000,000."},{status:400});
   const origin=siteUrl();
   const session=await reserveCheckout(p.requestKey,{...p,price:event.unit_price_minor},`VCH-VOTE-${randomUUID().replaceAll("-","")}`);
-  if(!session.fresh)return session.url?Response.json({authorization_url:session.url,reference:session.reference}):Response.json({error:"This checkout is being confirmed. Check payment status before starting another.",reference:session.reference},{status:409});
+  if(!session.fresh){
+   const {data:attempt,error:attemptError}=await db.from("payment_attempts").select("subaccount_code,status").eq("provider_reference",session.reference).maybeSingle();
+   if(attemptError||!attempt||attempt.subaccount_code!==account.subaccount_code||attempt.status!=="pending")return Response.json({error:"This payment is no longer available for checkout. Check its status before starting a new payment.",reference:session.reference},{status:409});
+   return session.url?Response.json({authorization_url:session.url,reference:session.reference}):Response.json({error:"This checkout is being confirmed. Check payment status before starting another.",reference:session.reference},{status:409});
+  }
   const {error:insert}=await db.from("payment_attempts").insert({idempotency_key:p.requestKey,event_id:event.id,organization_id:event.organization_id,category_id:p.categoryId,nominee_id:p.nomineeId,quantity:p.quantity,unit_price_minor:event.unit_price_minor,total_amount_minor:total,currency:"GHS",provider:"paystack",provider_reference:session.reference,status:"pending",subaccount_code:account.subaccount_code});if(insert)throw insert;
   const url=await initializeCheckout(session.reference,{email:p.email,amount:total,currency:"GHS",subaccount:account.subaccount_code,bearer:"account",transaction_charge:Math.floor(total/10),callback_url:`${origin}/payments/complete`,metadata:{kind:"paid_vote"}});
   return Response.json({authorization_url:url,reference:session.reference});

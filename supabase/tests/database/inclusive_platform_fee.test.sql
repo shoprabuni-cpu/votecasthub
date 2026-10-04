@@ -24,6 +24,8 @@ values
   ('50000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 'Inactive Nominee', 0, true),
   ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000003', 'Draft Nominee', 0, true);
 
+insert into public.organization_paystack_accounts(organization_id,subaccount_code,business_name,settlement_bank,account_last4,status,paystack_verified)
+values('20000000-0000-4000-8000-000000000001','ACCT_original','First Organization','MTN','9221','active',true);
 insert into public.payment_attempts(id,idempotency_key,event_id,organization_id,category_id,nominee_id,quantity,unit_price_minor,total_amount_minor,currency,provider,provider_reference,status)
 values('60000000-0000-4000-8000-000000000001','inclusive-platform-fee-test','30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001',100,100,10000,'GHS','paystack','inclusive-fee-test','pending');
 select public.confirm_paid_vote('inclusive-fee-test',123456,10000,195);

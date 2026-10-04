@@ -222,7 +222,7 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
   } catch {
     return { message: "Voting is temporarily unavailable. Please try again shortly." };
   }
-  revalidatePath("/events");
+  revalidatePath("/events", "layout");
   revalidatePath("/events/[slug]", "page");
   return { message: "Your vote has been recorded securely.", success: true, nextRequestKey: randomUUID() };
 }
@@ -585,7 +585,7 @@ export async function updateEventCategoryAction(_previousState: AuthFormState, f
     });
     if (error) return { message: eventError(error.code) };
     revalidatePath(backTo);
-    revalidatePath("/events");
+    revalidatePath("/events", "layout");
     return { message: "Category updated.", success: true };
   } catch {
     return { message: "We could not update that category right now. Please try again." };
@@ -649,7 +649,7 @@ export async function updateCategoryNomineeAction(_previousState: AuthFormState,
     });
     if (error) return { message: eventError(error.code) };
     revalidatePath(backTo);
-    revalidatePath("/events");
+    revalidatePath("/events", "layout");
     return { message: "Nominee updated.", success: true };
   } catch {
     return { message: "We could not update that nominee right now. Please try again." };
@@ -666,11 +666,11 @@ export async function updateNomineeImageAction(_previousState: AuthFormState, fo
     const { error } = await supabase.rpc("update_nominee_image", { p_nominee_id: nomineeId.data, p_image_path: imagePath.data || null });
     if (error) {
       if (error.code === "42501") return { message: "You do not have permission to change this nominee image." };
-      if (error.code === "22023") return { message: "Only draft nominees can change their image." };
+      if (error.code === "22023") return { message: "Check the image reference. Archived events cannot change nominee images." };
       return { message: "We could not save the image. Refresh the page and try again." };
     }
     revalidatePath(backTo);
-    revalidatePath("/events");
+    revalidatePath("/events", "layout");
     return { message: imagePath.data ? "Nominee image updated." : "Nominee image removed.", success: true };
   } catch {
     return { message: "Image updates are temporarily unavailable. Please try again." };
@@ -687,11 +687,11 @@ export async function updateEventImageAction(_previousState: AuthFormState, form
     const { error } = await supabase.rpc("update_event_image", { p_event_id: eventId.data, p_image_path: imagePath.data || null });
     if (error) {
       if (error.code === "42501") return { message: "You do not have permission to change this event image." };
-      if (error.code === "22023") return { message: "Only draft events can change their cover image." };
+      if (error.code === "22023") return { message: "Archived events cannot change their cover image." };
       return { message: "We could not save the cover image. Refresh the page and try again." };
     }
     revalidatePath(backTo);
-    revalidatePath("/events");
+    revalidatePath("/events", "layout");
     return { message: imagePath.data ? "Event cover updated." : "Event cover removed.", success: true };
   } catch {
     return { message: "Event image updates are temporarily unavailable. Please try again." };
@@ -700,7 +700,7 @@ export async function updateEventImageAction(_previousState: AuthFormState, form
 
 export async function setEventStatusAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const eventId = z.string().uuid().safeParse(formString(formData, "eventId"));
-  const action = z.enum(["publish", "pause", "resume", "close", "archive"]).safeParse(formString(formData, "action"));
+  const action = z.enum(["publish", "pause", "resume", "close", "archive", "unpublish"]).safeParse(formString(formData, "action"));
   const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
   if (!eventId.success || !action.success) return { message: "That event action is invalid." };
   try {
@@ -709,12 +709,12 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
     if (error?.message.includes("Add SMS credits")) return { message: "Add SMS credits in your workspace before publishing this free event." };
     if (error?.message.includes("Verify the organizer Paystack subaccount")) return { message: "Open Payment account and refresh verification after Paystack approves your account, then publish this event." };
     if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };
-    if (error) return { message: eventError(error.code) };
+    if (error) return { message: error.code === "22023" ? error.message : eventError(error.code) };
   } catch {
     return { message: "We could not update the event status. Please try again." };
   }
   revalidatePath(backTo);
-  revalidatePath("/events");
+  revalidatePath("/events", "layout");
   redirect(backTo);
 }
 

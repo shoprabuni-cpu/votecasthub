@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
 import { processPaymentJob } from "@/lib/payments/reconcile";
+import { cleanupEventImages } from "@/lib/events/image-cleanup";
 export const runtime="nodejs";
 export const maxDuration=60;
 export async function GET(request:Request){
@@ -9,6 +10,7 @@ export async function GET(request:Request){
   if(!secret||provided.length!==expected.length||!timingSafeEqual(provided,expected))return new Response("Unauthorized",{status:401});
   const started=Date.now();const db=paymentAdmin();let completed=0,failed=0;
   try{
+    await cleanupEventImages().catch(() => { console.error("event_image_cleanup_pending"); });
     // A persisted pagination cursor eventually scans every refund, including updates to older refunds.
     const {data:cursor}=await db.from("payment_operations").select("cursor_page").eq("name","refund-scan").maybeSingle();
     const page=cursor?.cursor_page||1;

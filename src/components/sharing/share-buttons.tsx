@@ -1,5 +1,49 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppModal } from "@/components/ui/app-modal";
-async function share(title:string,text:string,url:string){if(navigator.share)return navigator.share({title,text,url});await navigator.clipboard.writeText(`${text}\n${url}`)}
-export function ShareButton({title,text,url,flyer}:{title:string;text:string;url:string;flyer?:{nominee?:string;category?:string;imageUrl?:string|null}}){const[error,setError]=useState<string|null>(null);const[busy,setBusy]=useState(false);async function make(){if(!flyer)return;setBusy(true);try{const c=document.createElement("canvas");c.width=1200;c.height=1500;const x=c.getContext("2d");if(!x)throw Error("Flyer generation is unavailable.");const g=x.createLinearGradient(0,0,1200,1500);g.addColorStop(0,"#101a3a");g.addColorStop(1,"#276bff");x.fillStyle=g;x.fillRect(0,0,1200,1500);x.fillStyle="#fff";x.font="700 34px system-ui";x.fillText("VOTECASTHUB GH",90,850);x.font="700 64px system-ui";x.fillText(flyer.nominee??title,90,950);x.font="400 34px system-ui";x.fillStyle="#c8d5ff";x.fillText(flyer.category??"Nominee",90,1010);x.fillText("Support this nominee by voting today",90,1130);x.fillStyle="#fff";x.font="600 28px system-ui";x.fillText(url,90,1330);const b=await new Promise<Blob|null>(r=>c.toBlob(r,"image/png"));if(!b)throw Error("Could not create flyer.");const f=new File([b],"votecasthub-flyer.png",{type:"image/png"});if(navigator.share&&navigator.canShare?.({files:[f]}))await navigator.share({title,text,url,files:[f]});else{const a=document.createElement("a");a.download=f.name;a.href=URL.createObjectURL(b);a.click();await navigator.clipboard.writeText(`${text}\n${url}`)}}catch(e){if((e as DOMException)?.name!=="AbortError")setError(e instanceof Error?e.message:"Sharing is unavailable.")}finally{setBusy(false)}}return <><div className="share-actions"><button type="button" className="secondary-button" onClick={()=>share(title,text,url).catch(()=>setError("We could not open sharing."))}>Share link</button>{flyer&&<button type="button" className="primary-link" onClick={make} disabled={busy}>{busy?"Creating flyer…":"Share flyer"}</button>}</div><AppModal open={Boolean(error)} title="Sharing unavailable" message={error??"Please try again."} tone="danger" confirmLabel="Close" cancelLabel="" onCancel={()=>setError(null)} onConfirm={()=>setError(null)}/></>}
+import { createFlyer, type FlyerDetails } from "@/lib/events/flyer";
+export function ShareButton({ title, text, url, flyer }: { title: string; text: string; url: string; flyer?: FlyerDetails }) {
+  const [message,setMessage] = useState("");
+  const [busy,setBusy] = useState(false);
+  const [preview,setPreview] = useState<{ file: File; url: string; photoMissing: boolean } | null>(null);
+  const [open,setOpen] = useState(false);
+  const current = useRef<string|null>(null);
+  useEffect(()=>()=>{if(current.current)URL.revokeObjectURL(current.current);},[]);
+  const publicUrl = () => new URL(url,window.location.origin).href;
+  async function shareLink() {
+    setMessage("");
+    try {
+      if (navigator.share) await navigator.share({ title,text,url:publicUrl() });
+      else { await navigator.clipboard.writeText(publicUrl()); setMessage("Link copied. Paste it into WhatsApp, a message or a social post."); }
+    } catch (error) { if ((error as Error).name !== "AbortError") setMessage("Sharing could not open. You can copy the link below."); }
+  }
+  async function make() {
+    if (!flyer || busy) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await createFlyer(title,publicUrl(),flyer);
+      if(current.current)URL.revokeObjectURL(current.current);
+      current.current=URL.createObjectURL(result.blob);
+      const filename=(title.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,60)||"event")+"-flyer.png";
+      setPreview({file:new File([result.blob],filename,{type:"image/png"}),url:current.current,photoMissing:result.photoMissing});
+      setOpen(true);
+    } catch(error) {setMessage(error instanceof Error?error.message:"Could not create a flyer. Please try again.");}
+    finally {setBusy(false);}
+  }
+  async function shareFlyer() {
+    if(!preview)return;
+    try {
+      if(navigator.canShare?.({files:[preview.file]}) && navigator.share) await navigator.share({files:[preview.file],title,text: text+"\n"+publicUrl()});
+      else {download();setMessage("Flyer downloaded. Share the image with the public link.");}
+    } catch(error) {if((error as Error).name!=="AbortError")setMessage("Your device could not share this image. Use Download PNG instead.");}
+  }
+  function download() {if(!preview)return;const link=document.createElement("a");link.href=preview.url;link.download=preview.file.name;link.click();}
+  return <div className="share-tools"><div className="share-actions"><button type="button" className="secondary-button" onClick={shareLink}>Share link ↗</button>{flyer && <button type="button" className="primary-link" onClick={make} disabled={busy}>{busy?"Creating flyer…":"Create share flyer"}</button>}</div>
+    {message && <p className="share-feedback" role="status">{message}</p>}
+    {message && <input className="share-link-copy" aria-label="Public sharing link" readOnly value={typeof window!=="undefined"?publicUrl():url} onFocus={e=>e.target.select()} />}
+    <AppModal open={open} title="Your share flyer" message="Share the image and link with your community, or download a PNG for your next post." confirmLabel="Share flyer" cancelLabel="Done" onCancel={()=>setOpen(false)} onConfirm={shareFlyer}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- Local canvas blob preview does not use the image optimization server. */}
+      {preview && <><img className="flyer-preview" src={preview.url} alt={`Share flyer for ${title}`} width={1080} height={1350}/>{preview.photoMissing && <p role="status">The photo could not load, so this preview uses a branded background. Refresh the page to retry with the photo.</p>}<button className="secondary-button" type="button" onClick={download}>Download PNG</button></>}
+    </AppModal>
+  </div>;
+}
