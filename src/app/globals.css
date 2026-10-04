@@ -1747,3 +1747,6 @@ a {
 .paid-vote-form input{padding:12px;border:1px solid #d6e0cc;border-radius:8px;background:white;min-width:0;width:100%;}
 .paid-vote-form button{padding:13px;background:#285a3b;color:white;border-radius:10px;cursor:pointer;}
 .paid-vote-form button:disabled{opacity:.6;cursor:wait;}
+ .app-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:1.25rem;background:rgba(8,15,35,.66);backdrop-filter:blur(8px)}
+ .app-modal{width:min(100%,30rem);border:1px solid rgba(255,255,255,.14);border-radius:1.25rem;padding:1.5rem;background:#111b39;color:#fff;box-shadow:0 24px 80px rgba(0,0,0,.32);display:grid;grid-template-columns:auto 1fr;gap:1rem}
+ .app-modal-icon{width:2.25rem;height:2.25rem;border-radius:50%;display:grid;place-items:center;background:#315efb;font-weight:800}.app-modal-danger .app-modal-icon{background:#dc4d65}.app-modal-success .app-modal-icon{background:#2fb878}.app-modal-copy h2{margin:0 0 .35rem;font-size:1.15rem}.app-modal-copy p{margin:0;color:#c4cce2;line-height:1.55}.app-modal-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:.65rem;margin-top:.35rem}.danger-button{border:0;border-radius:.7rem;padding:.7rem 1rem;background:#dc4d65;color:white;font-weight:700}.share-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin:.9rem 0 1.2rem}
