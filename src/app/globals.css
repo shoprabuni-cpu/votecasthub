@@ -644,7 +644,8 @@ a {
 .image-form-message {
   @apply [width:100%] [margin:0] [color:#617466] [font-size:10px]; }
 .image-upload-progress { @apply [grid-column:1_/-1] [display:flex] [align-items:center] [gap:6px] [color:var(--green)] [font-size:10px]; }
-.image-upload-spinner { @apply [width:11px] [height:11px] [display:inline-block] [border:2px_solid_#d7e3d1] [border-top-color:var(--green)] [border-radius:50%] [animate-spin]; }
+.image-upload-spinner { @apply [width:11px] [height:11px] [display:inline-block] [border:2px_solid_#d7e3d1] [border-top-color:var(--green)] [border-radius:50%]; animation: image-upload-spin .8s linear infinite; }
+@keyframes image-upload-spin { to { transform: rotate(360deg); } }
 .admin-photo-preview { @apply [width:120px] [height:120px] [margin:12px_0] [border:1px_solid_var(--line)] [border-radius:10px] [background-position:center] [background-size:cover]; }
 .edit-details {
   @apply [color:var(--green)] [font-size:10px]; }

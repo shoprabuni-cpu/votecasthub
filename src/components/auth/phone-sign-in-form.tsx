@@ -48,7 +48,7 @@ export function PhoneSignInForm({ nextPath }: { nextPath: string }) {
     <input type="hidden" name="next" value={nextPath} />
     <label htmlFor="phone">Ghana phone number</label>
     <input id="phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" placeholder="0241234567" maxLength={32} required />
-    <p className="auth-hint">Use 0241234567 or +233241234567. We’ll send a one-time code to verify your number.</p>
+    <p className="auth-hint">Use 0241234567 or +233241234567. We’ll send a one-time code to verify your number. Your number is used only for verification, voting limits, and fraud prevention. <a href="/privacy">Privacy details</a>.</p>
     <AuthCaptcha state={state} />
     {state?.message && <p className="form-message" role="alert">{state.message}</p>}
     <button className="primary-link auth-submit" type="submit" disabled={requesting}>{requesting ? "Requesting code…" : "Send verification code"}</button>
