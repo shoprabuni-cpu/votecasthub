@@ -139,15 +139,18 @@ export async function handleArkeselSmsHook(request: Request, dependencies: Depen
       signal: AbortSignal.timeout(2_000),
     });
     if (response.ok) {
-      const result: unknown = await response.json();
-      const resultSchema = z.object({ status: z.literal("success"), data: z.union([
-        z.array(z.object({ recipient: z.string().optional(), id: z.string().optional() }).passthrough()),
-        z.object({ id: z.string().min(1) }),
-      ]) });
-      const parsed = resultSchema.safeParse(result);
-      accepted = parsed.success && (Array.isArray(parsed.data.data)
-        ? parsed.data.data.some((item) => item.recipient?.replace(/^\+/, "") === phone && !!item.id)
-        : true);
+      // Arkesel has returned several valid response shapes over time (the v2
+      // endpoint may return an object, an array, or only a status message).
+      // HTTP 2xx is the provider's acceptance signal; only an explicit error
+      // status should be treated as a failed send. The SMS provider has already
+      // accepted the OTP at this point, so rejecting an unfamiliar success
+      // payload would show a false failure to the voter.
+      let result: unknown = null;
+      try { result = await response.json(); } catch { /* empty 2xx body */ }
+      const status = typeof result === "object" && result !== null && "status" in result
+        ? String((result as { status?: unknown }).status).toLowerCase()
+        : "";
+      accepted = !["error", "failed", "failure"].includes(status);
     }
   } catch {
     // Do not log provider bodies, exceptions, OTPs, keys, or phone numbers.
@@ -157,9 +160,11 @@ export async function handleArkeselSmsHook(request: Request, dependencies: Depen
   try {
     await rpc(config, fetcher, "finish_sms_delivery", { p_request_hash: requestHash, p_sent: accepted });
   } catch {
-    // Keep the durable pending claim: retries cannot send again after a write failure.
+    // The provider has already accepted the OTP. Do not turn a successful SMS
+    // into an auth failure if the receipt write is temporarily unavailable;
+    // Supabase must still receive a 2xx response so the voter can enter it.
     console.error("sms_hook_receipt_write_failed");
-    return failure(503, "SMS service is temporarily unavailable.");
+    if (!accepted) return failure(503, "SMS service is temporarily unavailable.");
   }
   if (!accepted) {
     console.error("sms_hook_provider_request_failed");
