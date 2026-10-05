@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
-import { PublicEventCard, type PublicEventCardData } from "@/components/events/public-event-card";
+import { type PublicEventCardData } from "@/components/events/public-event-card";
+import { EventBrowser } from "@/components/events/event-browser";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Browse events" };
@@ -26,7 +27,7 @@ export default async function EventsPage() {
   return <main className="public-page">
     <SiteHeader />
     <section className="public-page-heading"><p className="eyebrow">VOTECASTHUB GH EVENTS</p><h1>Find an event worth celebrating.</h1><p>Explore awards and competitions. Browse categories and meet the nominees.</p></section>
-    {unavailable ? <section className="empty-state" role="status"><span className="empty-icon">↻</span><h2>Events are temporarily unavailable.</h2><p>Please refresh in a little while.</p></section> : events.length ? <section className="public-event-grid" aria-label="Published events">{events.map((event) => <PublicEventCard event={event} key={event.id} />)}</section> : <section className="empty-state"><span className="empty-icon">✦</span><h2>No events are published yet.</h2><p>Check back soon, or <Link href="/sign-up">set up an event</Link> as an organizer.</p></section>}
+    {unavailable ? <section className="empty-state" role="status"><span className="empty-icon">↻</span><h2>Events are temporarily unavailable.</h2><p>Please refresh in a little while.</p></section> : events.length ? <EventBrowser events={events} /> : <section className="empty-state"><span className="empty-icon">✦</span><h2>No events are published yet.</h2><p>Check back soon, or <Link href="/sign-up">set up an event</Link> as an organizer.</p></section>}
     <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>Voting for events and awards.</span><span>© {new Date().getFullYear()} VotecastHub GH</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav></footer>
   </main>;
 }

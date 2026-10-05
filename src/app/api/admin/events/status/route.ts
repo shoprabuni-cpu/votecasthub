@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server";
+import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+export async function POST(request:Request){const {supabase}=await requirePlatformAdmin();const body=await request.json().catch(()=>null);if(!body||typeof body.id!=="string"||typeof body.status!=="string")return NextResponse.json({error:"Invalid request"},{status:400});const {error}=await supabase.rpc("admin_set_event_status",{p_event_id:body.id,p_status:body.status,p_note:"Admin moderation action"});if(error)return NextResponse.json({error:"Unable to update event"},{status:400});return NextResponse.json({ok:true});}

@@ -1,0 +1,3 @@
+"use client";
+type Flag={id:string;organization_id:string;event_id:string|null;kind:string;severity:number;details:string;status:string;created_at:string};
+export function ModerationQueue({flags}:{flags:Flag[]}){if(!flags.length)return <section className="admin-empty"><h2>No open risk flags</h2><p>Suspicious activity will appear here for review.</p></section>;return <section className="admin-queue">{flags.map(flag=><article className="admin-review-card" key={flag.id}><div className="admin-review-meta"><span>{flag.kind.replaceAll("_"," ")}</span><span>Severity {flag.severity}/5</span></div><h2>Organization {flag.organization_id.slice(0,8)}</h2><p>{flag.details}</p><small>Raised {new Date(flag.created_at).toLocaleString("en-GH")}</small></article>)}</section>}

@@ -705,7 +705,9 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
   if (!eventId.success || !action.success) return { message: "That event action is invalid." };
   try {
     const supabase = await createClient();
-    const { error } = await supabase.rpc("set_event_status", { p_event_id: eventId.data, p_action: action.data });
+    const { error } = action.data === "publish"
+      ? await supabase.rpc("submit_event_for_review", { p_event_id: eventId.data })
+      : await supabase.rpc("set_event_status", { p_event_id: eventId.data, p_action: action.data });
     if (error?.message.includes("Add SMS credits")) return { message: "Add SMS credits in your workspace before publishing this free event." };
     if (error?.message.includes("Verify the organizer Paystack subaccount")) return { message: "Open Payment account and refresh verification after Paystack approves your account, then publish this event." };
     if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };

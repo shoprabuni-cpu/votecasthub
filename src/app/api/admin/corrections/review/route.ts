@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server";
+import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+export async function POST(request:Request){ await requirePlatformAdmin(); const body=await request.json().catch(()=>null); if(!body||typeof body.id!=="string"||typeof body.approve!=="boolean")return NextResponse.json({error:"Invalid request"},{status:400}); const {supabase}=await requirePlatformAdmin(); const {error}=await supabase.rpc("admin_review_event_correction",{p_request_id:body.id,p_approve:body.approve,p_note:null}); if(error)return NextResponse.json({error:"Review failed"},{status:400}); return NextResponse.json({ok:true}); }
