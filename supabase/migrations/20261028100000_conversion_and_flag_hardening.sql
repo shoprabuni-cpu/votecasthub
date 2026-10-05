@@ -1,0 +1,3 @@
+create or replace function private.update_vote_conversion() returns trigger language plpgsql security definer set search_path='' as $$ declare d date:=new.created_at::date; eid uuid; begin eid:=new.event_id; insert into public.event_analytics_daily(event_id,day,vote_starts,successful_votes) values(eid,d,1,1) on conflict(event_id,day) do update set vote_starts=event_analytics_daily.vote_starts+1,successful_votes=event_analytics_daily.successful_votes+1; return new; end $$;
+drop trigger if exists vote_conversion_analytics on public.vote_batches;
+create trigger vote_conversion_analytics after insert on public.vote_batches for each row execute function private.update_vote_conversion();
