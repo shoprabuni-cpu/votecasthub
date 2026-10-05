@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
+import { ClosureRequestForm } from "@/components/organizations/closure-request-form";
 
 export const metadata: Metadata = { title: "Organization events" };
 type Props = { params: Promise<{ organizationId: string }> };
@@ -34,5 +35,6 @@ export default async function OrganizationEventsPage({ params }: Props) {
     {membershipError || eventsError || orgError ? <section className="empty-state"><h2>We could not load this workspace.</h2><p>Refresh the page or try again shortly.</p><Link className="text-link" href={`/organizer/${organizationId}/events`}>Try again</Link></section> : eventRows.length ? <div className="organizer-event-list">{eventRows.map((event) => <Link className="organizer-event-card" href={`/organizer/${organizationId}/events/${event.id}`} key={event.id}>
       <div><span className={`event-status event-status-${event.status}`}>{event.status.replaceAll("_", " ")}</span><h2>{event.name}</h2><p>{new Intl.DateTimeFormat("en-GH", { dateStyle: "medium", timeZone: "Africa/Accra" }).format(new Date(event.starts_at))} – {new Intl.DateTimeFormat("en-GH", { dateStyle: "medium", timeZone: "Africa/Accra" }).format(new Date(event.ends_at))}</p></div><span className="organizer-event-arrow" aria-hidden="true">↗</span>
     </Link>)}</div> : <section className="empty-state"><span className="empty-icon">✦</span><h2>No events yet.</h2><p>Create a draft and add categories and nominees before publishing.</p><Link className="primary-link" href={`/organizer/${organizationId}/events/new`}>Create your first event</Link></section>}
+    {['owner','admin'].includes(membership?.role ?? '') && <ClosureRequestForm organizationId={organizationId} />}
   </section></main>;
 }
