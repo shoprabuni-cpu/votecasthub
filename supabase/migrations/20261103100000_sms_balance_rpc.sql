@@ -1,0 +1,2 @@
+create or replace function public.get_organization_sms_balance(p_org uuid) returns integer language sql stable security definer set search_path='' as $$ select coalesce((select balance from public.organization_sms_credits where organization_id=p_org and private.is_org_member(p_org)),0); $$;
+revoke all on function public.get_organization_sms_balance(uuid) from public,anon; grant execute on function public.get_organization_sms_balance(uuid) to authenticated;

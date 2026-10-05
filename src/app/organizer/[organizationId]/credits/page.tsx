@@ -10,9 +10,9 @@ type Props = { params: Promise<{ organizationId: string }> };
 export default async function CreditsPage({ params }: Props) {
   const { organizationId } = await params;
   const { supabase } = await requireVerifiedUser();
-  const [{ data: organization }, { data: creditBalance,error:balanceError }] = await Promise.all([supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(), supabase.from("organization_sms_credits").select("balance").eq("organization_id", organizationId).maybeSingle()]);
+  const [{ data: organization }, { data: rpcBalance, error: balanceError }] = await Promise.all([supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(), supabase.rpc("get_organization_sms_balance", { p_org: organizationId })]);
   const [{data:purchases,error:purchaseError},{count:usageCount,error:usageError}]=await Promise.all([supabase.from("sms_credit_purchases").select("reference,credits,amount_minor,status,refunded_amount_minor,created_at").eq("organization_id",organizationId).order("created_at",{ascending:false}).limit(25),supabase.from("sms_credit_usage").select("request_hash",{count:"exact",head:true}).eq("organization_id",organizationId)]);
-  const balance = creditBalance?.balance ?? 0;
+  const balance = Number(rpcBalance ?? 0);
   const creditUnavailable = Boolean(balanceError && balanceError.code !== "PGRST116");
   return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="dashboard-content credits-page">
     <Link className="back-link" href={`/organizer/${organizationId}/events`}>← {organization?.name ?? "Workspace"}</Link>
