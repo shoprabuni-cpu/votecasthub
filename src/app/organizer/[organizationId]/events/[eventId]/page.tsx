@@ -49,6 +49,7 @@ export default async function EventSetupPage({ params }: Props) {
     ? await supabase.from("nominees").select("id, category_id, name, public_code, biography, image_path, display_order, is_active").in("category_id", categoryIds).order("display_order", { ascending: true })
     : { data: [], error: null };
   const pagePath = `/organizer/${organizationId}/events/${eventId}`;
+  const { data: reviewNotices } = await supabase.from("event_notices").select("message,created_at").eq("event_id", eventId).eq("kind", "review").order("created_at", { ascending: false }).limit(3);
   const activeNomineeCountByCategory = new Map<string, number>();
   for (const nominee of nominees ?? []) if (nominee.is_active) activeNomineeCountByCategory.set(nominee.category_id, (activeNomineeCountByCategory.get(nominee.category_id) ?? 0) + 1);
   const allCategoriesHaveNominees = activeCategories.length > 0 && activeCategories.every((category) => (activeNomineeCountByCategory.get(category.id) ?? 0) > 0);
@@ -71,7 +72,7 @@ export default async function EventSetupPage({ params }: Props) {
   const imageUrlByPath = new Map((signedImages ?? []).flatMap((image) => image.signedUrl && image.path ? [[image.path, image.signedUrl] as const] : []));
   const { data: eventImage } = event.image_path ? await supabase.storage.from("nominee-images").createSignedUrl(event.image_path, 3600) : { data: null };
 
-  return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="dashboard-content">
+  return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="dashboard-content">{reviewNotices?.map((notice) => <section className="admin-alert" role="status" key={notice.created_at}><h2>Platform review feedback</h2><p>{notice.message}</p></section>)}
     <div className="dashboard-utility"><Link className="back-link" href={`/organizer/${organizationId}/events`}>← {organization?.name ?? "Events"}</Link></div>
     <div className="event-detail-heading"><div><p className="eyebrow">EVENT SETUP</p><h1>{event.name}</h1><span className={`event-status event-status-${event.status}`}>{event.status.replaceAll("_", " ")}</span></div><div className="event-heading-actions">{event.status === "draft" && <Link className="secondary-button" href={`${pagePath}/preview`}>Preview voter page ↗</Link>}{event.status !== "draft" && event.status !== "archived" && <Link className="secondary-button" href={publicUrl}>View public page ↗</Link>}</div></div>
     {categoriesError || nomineeError ? <section className="form-message" role="alert">Some event details could not be loaded. Refresh the page to try again.</section> : <>
