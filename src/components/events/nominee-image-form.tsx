@@ -66,9 +66,22 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     const path = `${eventId}/${nomineeId}/${crypto.randomUUID()}.${imageTypes[file.type]}`;
     const supabase = createClient();
     const { error } = await supabase.storage.from("nominee-images").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-    if (error) { setMessage("We could not upload that image. Check your connection and try again."); return; }
+    if (error) {
+      const message = error.message.toLowerCase();
+      setMessage(message.includes("row-level security") || message.includes("not authorized")
+        ? "You do not have permission to upload a photo for this nominee. Refresh the page and try again."
+        : message.includes("bucket") || message.includes("mime") || message.includes("size")
+          ? "That image was rejected by storage. Use a JPEG, PNG, or WebP image smaller than 5 MB."
+          : "We could not upload that image. Check your connection and try again.");
+      return;
+    }
     const signed = await supabase.storage.from("nominee-images").createSignedUrl(path, 3600);
-    setImageUrl(signed.data?.signedUrl ?? null);
+    if (signed.error || !signed.data?.signedUrl) {
+      await supabase.storage.from("nominee-images").remove([path]);
+      setMessage("The photo uploaded but could not be previewed. Refresh the page and try again.");
+      return;
+    }
+    setImageUrl(signed.data.signedUrl);
     saveImagePath(path, path);
   }
 
