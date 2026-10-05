@@ -9,6 +9,7 @@ function PhoneCodeForm({ phone, nextPath, resendAt }: { phone: string; nextPath:
   const [verifyState, verifyCode, verifying] = useActionState<AuthFormState, FormData>(verifyVoterPhoneCodeAction, null);
   const [resendState, resendCode, resending] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
   const [now, setNow] = useState(() => Date.now());
+  const [resendCaptchaVisible, setResendCaptchaVisible] = useState(false);
   const remaining = Math.max(0, Math.ceil(((resendState?.resendAt ?? resendAt) - now) / 1000));
 
   useEffect(() => {
@@ -29,9 +30,9 @@ function PhoneCodeForm({ phone, nextPath, resendAt }: { phone: string; nextPath:
     <form action={resendCode} className="auth-form">
       <input type="hidden" name="phone" value={phone} />
       <input type="hidden" name="next" value={nextPath} />
-      {remaining === 0 && <AuthCaptcha state={resendState} />}
+      {remaining === 0 && resendCaptchaVisible && <AuthCaptcha state={resendState} />}
       {resendState?.message && <p className="form-message" role="status">{resendState.message}</p>}
-      <button className="text-button" type="submit" disabled={remaining > 0 || resending || verifying}>{resending ? "Requesting code…" : remaining > 0 ? `Resend code in ${remaining}s` : "Resend code"}</button>
+      {remaining > 0 ? <p className="auth-hint">You can request another code in {remaining}s.</p> : !resendCaptchaVisible ? <button className="text-button" type="button" onClick={() => setResendCaptchaVisible(true)}>Request a new code</button> : <button className="text-button" type="submit" disabled={resending || verifying}>{resending ? "Requesting code…" : "Send new code"}</button>}
       <button className="text-button" type="button" onClick={() => window.location.reload()}>Use another number</button>
     </form>
   </>;

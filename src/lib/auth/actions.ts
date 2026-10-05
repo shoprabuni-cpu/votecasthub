@@ -164,11 +164,7 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
     const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) {
       logAuthFailure("phone_signin", error.code);
-      // The custom Send SMS hook can report a provider/receipt error after
-      // Arkesel has already delivered the OTP. Keep the voter on the code
-      // screen so the delivered code can still be verified; an invalid or
-      // missing code is handled by verifyOtp with the normal error message.
-      return { message: "Your code may already be on its way. Enter it below, or request a new code if it does not arrive.", success: true, codeSent: true, phone: phone.data, next, resendAt: Date.now() + 60_000 };
+      return { message: "We could not create the verification challenge. Please request a new code." };
     }
   } catch {
     logAuthFailure("phone_signin");
