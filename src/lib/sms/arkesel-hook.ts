@@ -154,6 +154,9 @@ export async function handleArkeselSmsHook(request: Request, dependencies: Depen
         ? String((result as { status?: unknown }).status).toLowerCase()
         : "";
       accepted = !["error", "failed", "failure"].includes(status);
+      console.info("sms_hook_provider_result", { httpStatus: response.status, providerStatus: status || "omitted", accepted });
+    } else {
+      console.error("sms_hook_provider_http_error", { httpStatus: response.status });
     }
   } catch {
     // Do not log provider bodies, exceptions, OTPs, keys, or phone numbers.

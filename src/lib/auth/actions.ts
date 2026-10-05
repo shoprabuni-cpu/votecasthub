@@ -164,6 +164,7 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
     const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) {
       logAuthFailure("phone_signin", error.code);
+      console.error("phone_signin_supabase_error", { code: error.code ?? "unknown", status: error.status ?? null, name: error.name ?? "AuthError" });
       return { message: "We could not create the verification challenge. Please request a new code." };
     }
   } catch {
