@@ -26,6 +26,8 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
   const [reason, setReason] = useState("");
   const [imagePath, setImagePath] = useState(initialPath);
   const [imageUrl, setImageUrl] = useState(initialUrl);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [stage, setStage] = useState<"idle" | "uploading" | "saving">("idle");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -40,14 +42,17 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
       if (!result?.success) {
         if (uploadedPath) await createClient().storage.from("nominee-images").remove([uploadedPath]);
         setImageUrl(initialUrl);
+        setPendingPreviewUrl(null);
+        setStage("idle");
         setMessage(result?.message ?? "We could not save that image.");
         return;
       }
-      if (reviewRequired) { setImageUrl(initialUrl); setMessage(result.message); return; }
+      if (reviewRequired) { setImageUrl(initialUrl); setMessage(result.message); setStage("idle"); return; }
       if (imagePath && imagePath !== path) await createClient().storage.from("nominee-images").remove([imagePath]);
       setImagePath(path);
       if (!path) setImageUrl(null);
       setMessage(result.message);
+      setStage("idle");
     });
   }
 
@@ -64,10 +69,14 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     }
 
     const path = `${eventId}/${nomineeId}/${crypto.randomUUID()}.${imageTypes[file.type]}`;
+    setStage("uploading");
+    setPendingPreviewUrl(URL.createObjectURL(file));
     const supabase = createClient();
     const { error } = await supabase.storage.from("nominee-images").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
     if (error) {
       const message = error.message.toLowerCase();
+      setStage("idle");
+      setPendingPreviewUrl(null);
       setMessage(message.includes("row-level security") || message.includes("not authorized")
         ? "You do not have permission to upload a photo for this nominee. Refresh the page and try again."
         : message.includes("bucket") || message.includes("mime") || message.includes("size")
@@ -78,21 +87,28 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     const signed = await supabase.storage.from("nominee-images").createSignedUrl(path, 3600);
     if (signed.error || !signed.data?.signedUrl) {
       await supabase.storage.from("nominee-images").remove([path]);
+      setStage("idle");
+      setPendingPreviewUrl(null);
       setMessage("The photo uploaded but could not be previewed. Refresh the page and try again.");
       return;
     }
     setImageUrl(signed.data.signedUrl);
+    setStage("saving");
     saveImagePath(path, path);
   }
 
   return <section className="nominee-image-editor" aria-label={`Image for ${nomineeName}`}>
-    {imageUrl ? <div className="nominee-photo-preview" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nomineeName} photo`} /> : <span className="nominee-avatar nominee-photo-placeholder" aria-hidden="true">{nomineeName.trim().slice(0, 1).toUpperCase()}</span>}
+    <div className="nominee-image-preview-stack">
+      {imageUrl ? <div className="nominee-photo-preview" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nomineeName} photo`} /> : <span className="nominee-avatar nominee-photo-placeholder" aria-hidden="true">{nomineeName.trim().slice(0, 1).toUpperCase()}</span>}
+      {reviewRequired && pendingPreviewUrl && <div className="nominee-photo-preview nominee-photo-pending" style={{ backgroundImage: `url("${pendingPreviewUrl}")` }} role="img" aria-label="Pending replacement photo preview"><span>Pending review</span></div>}
+    </div>
     <form className="nominee-image-controls" onSubmit={handleUpload}>
       <label htmlFor={`nominee-image-${nomineeId}`}>{reviewRequired ? "Request a photo correction" : imagePath ? "Replace photo" : "Add a photo"}</label>
       <input id={`nominee-image-${nomineeId}`} name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
       <small>JPEG, PNG, or WebP · 5 MB maximum</small>
       {reviewRequired && <label>Explain the correction (same nominee only)<textarea required minLength={20} maxLength={1000} value={reason} onChange={e=>setReason(e.target.value)} /><small>The current photo stays public until platform review confirms this is the same person.</small></label>}
-      <button className="secondary-button" type="submit" disabled={pending}>{pending ? "Saving…" : reviewRequired ? "Submit photo for review" : "Upload photo"}</button>
+      {stage !== "idle" && <div className="image-upload-progress" role="status" aria-live="polite"><span className="image-upload-spinner" aria-hidden="true" />{stage === "uploading" ? "Uploading photo…" : "Saving photo…"}</div>}
+      <button className="secondary-button" type="submit" disabled={pending || stage !== "idle"}>{reviewRequired ? "Submit photo for review" : "Upload photo"}</button>
       {imagePath && !reviewRequired && <button className="image-remove-button" type="button" disabled={pending} onClick={() => saveImagePath(null)}>Remove photo</button>}
     </form>
     {message && <p className="image-form-message" role="status">{message}</p>}
