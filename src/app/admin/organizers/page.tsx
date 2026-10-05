@@ -1,0 +1,3 @@
+import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+import { OrganizerQueue } from "@/components/admin/organizer-queue";
+export default async function AdminOrganizersPage(){const {supabase}=await requirePlatformAdmin();const {data}=await supabase.rpc("get_admin_organizations");return <><header className="admin-page-head"><div><p className="eyebrow">ORGANIZERS</p><h1>Organizer accounts</h1><p>Review access, event activity, and Paystack readiness.</p></div></header><OrganizerQueue organizers={data??[]}/></>}

@@ -26,7 +26,10 @@ export async function POST(request:Request){
     const db=paymentAdmin();
     const {error}=await db.from("payment_jobs").upsert({id,kind:event.event,resource},{onConflict:"id",ignoreDuplicates:true});if(error)throw error;
     const {data:job,error:read}=await db.from("payment_jobs").select("processed_at").eq("id",id).single();if(read)throw read;
-    if(!job.processed_at){if(!await processPaymentJob(event.event,resource))throw new Error("Provider confirmation pending");const {error:e}=await db.from("payment_jobs").update({processed_at:new Date().toISOString()}).eq("id",id);if(e)throw e;}
+    if(!job.processed_at){if(!await processPaymentJob(event.event,resource))throw new Error("Provider confirmation pending");const {error:e}=await db.from("payment_jobs").update({processed_at:new Date().toISOString()}).eq("id",id);if(e)throw e;}else if(event.event==="charge.success"){
+      const {data:attempt}=await db.from("payment_attempts").select("organization_id,event_id").eq("provider_reference",resource).maybeSingle();
+      if(attempt) await db.from("moderation_flags").insert({organization_id:attempt.organization_id,event_id:attempt.event_id,kind:"duplicate_webhook",severity:2,details:"Paystack delivered a duplicate charge.success webhook for the same payment reference."});
+    }
     return Response.json({received:true});
   }catch{console.error("payment_webhook_processing_failed",{event:event.event});return new Response("Retry processing",{status:503});}
 }

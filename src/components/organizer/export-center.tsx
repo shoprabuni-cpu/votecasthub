@@ -1,0 +1,3 @@
+"use client";
+const reports=[['votes','Votes'],['nominees','Nominees'],['refunds','Refunds'],['settlements','Settlements'],['sms','SMS usage'],['moderation','Moderation report']] as const;
+export function ExportCenter({organizationId}:{organizationId:string}){return <section className="analytics-panel export-center"><div className="analytics-panel-head"><div><h2>Export center</h2><p>Download organization records as CSV files.</p></div></div><div className="export-grid">{reports.map(([kind,label])=><a className="button button-secondary" key={kind} href={`/api/organizer/${organizationId}/exports/${kind}`}>↓ {label}</a>)}</div></section>}

@@ -1,0 +1,3 @@
+"use client";
+type Organizer={id:string;name:string;moderation_status:string;event_count:number;paystack_status:string;paystack_verified:boolean};
+export function OrganizerQueue({organizers}:{organizers:Organizer[]}){return <section className="admin-queue">{organizers.map(o=><article className="admin-review-card" key={o.id}><div className="admin-review-meta"><span>{o.name}</span><span className={`status-pill status-${o.moderation_status}`}>{o.moderation_status}</span></div><h2>{o.event_count} events</h2><p>Paystack: {o.paystack_status}{o.paystack_verified?" · Verified":""}</p><div className="admin-review-actions"><a className="button button-secondary" href={`/admin/organizers/${o.id}`}>Open profile</a></div></article>)}</section>}
