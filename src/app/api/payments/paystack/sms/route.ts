@@ -21,5 +21,5 @@ export async function POST(request:Request){
   const {error}=await paymentAdmin().from("sms_credit_purchases").insert({organization_id:p.organizationId,reference:session.reference,credits:selected.credits,amount_minor:selected.amountMinor});if(error)throw error;
   const url=await initializeCheckout(session.reference,{email:user.email,amount:selected.amountMinor,currency:"GHS",callback_url:`${origin}/payments/complete`,metadata:{kind:"sms_credits"}});
   return Response.json({url});
- }catch{console.error("sms_checkout_failed");return Response.json({error:"Payment service unavailable. Retry using the same package."},{status:503});}
+ }catch(error){console.error("sms_checkout_failed",error instanceof Error?{message:error.message,stack:error.stack}:error);return Response.json({error:"Payment service unavailable. Check the Vercel function log for sms_checkout_failed."},{status:503});}
 }
