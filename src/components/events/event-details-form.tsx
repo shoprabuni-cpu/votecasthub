@@ -6,7 +6,7 @@ import { createEventAction, updateEventDraftAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
 import { votingRuleOptions, type VotingRule } from "@/lib/voting-rules";
 
-type EventValues = { name: string; description: string | null; price: number; startsAt: string; endsAt: string; resultsVisibility: string; votingMode?: "free" | "paid"; votingRule?: VotingRule; freeVoteLimit?: number | null; votingRules?: string | null };
+type EventValues = { name: string; description: string | null; price: number; startsAt: string; endsAt: string; resultsVisibility: string; votingMode?: "free" | "paid"; verificationMethod?: "phone" | "email"; votingRule?: VotingRule; freeVoteLimit?: number | null; votingRules?: string | null };
 
 function asLocalInput(value?: string) {
   return value ? new Date(value).toISOString().slice(0, 16) : "";
@@ -16,6 +16,7 @@ export function EventDetailsForm({ organizationId, eventId, initial }: { organiz
   const action = eventId ? updateEventDraftAction : createEventAction;
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(action, null);
   const [votingMode, setVotingMode] = useState<"free" | "paid">(initial?.votingMode ?? "free");
+  const [verificationMethod, setVerificationMethod] = useState<"phone" | "email">(initial?.verificationMethod === "email" ? "email" : "phone");
   const [votingRule, setVotingRule] = useState<VotingRule>(initial?.votingRule ?? "category_limit");
   const [values, setValues] = useState({
     name: initial?.name ?? "",
@@ -34,6 +35,7 @@ export function EventDetailsForm({ organizationId, eventId, initial }: { organiz
     <input type="hidden" name="organizationId" value={organizationId} />
     {eventId && <input type="hidden" name="eventId" value={eventId} />}
     <input type="hidden" name="votingRule" value={votingRule} />
+    <input type="hidden" name="verificationMethod" value={verificationMethod} />
     <div className="form-grid">
       <div className="field field-wide"><label htmlFor="event-name">Event name</label><input id="event-name" name="name" minLength={2} maxLength={160} required value={values.name} onChange={(event) => updateValue("name", event.target.value)} placeholder="e.g. AAMUSTED Student Awards" /></div>
       <div className="field field-wide"><label htmlFor="event-description">Event description <span>optional</span></label><textarea id="event-description" name="description" maxLength={5000} rows={3} value={values.description} onChange={(event) => updateValue("description", event.target.value)} placeholder="Tell voters what this event celebrates." /></div>
@@ -48,6 +50,7 @@ export function EventDetailsForm({ organizationId, eventId, initial }: { organiz
             {votingRuleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           <small>{votingRuleOptions.find((option) => option.value === votingRule)?.description}</small>
+          <label htmlFor="verification-method">Voter verification</label><select id="verification-method" value={verificationMethod} onChange={event => setVerificationMethod(event.target.value as "phone" | "email")}><option value="phone">Phone SMS verification</option><option value="email">Email verification</option></select><small>Choose how voters prove one verified identity before free voting.</small>
           {votingRule === "one_per_category" ? <input type="hidden" name="freeVoteLimit" value="1" /> : <div className="free-limit-row"><label htmlFor="free-vote-limit">Maximum votes {votingRule === "per_nominee_limit" ? "per nominee, per category" : "per category"}</label><input id="free-vote-limit" name="freeVoteLimit" type="number" min="1" max="100" step="1" required value={values.freeVoteLimit} onChange={(event) => updateValue("freeVoteLimit", event.target.value)} /><span>votes</span></div>}
           <div className="sms-credit-callout"><span aria-hidden="true">✦</span><p><strong>Free voting uses SMS credits</strong><br />Each new voter receives one verification SMS. Add credits before publishing so your event can keep accepting voters.</p><a href={`/organizer/${organizationId}/credits`}>View SMS pricing →</a></div>
         </div>

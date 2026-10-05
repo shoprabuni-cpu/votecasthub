@@ -16,7 +16,9 @@ import { CorrectionRequestForm, ReopenEventForm } from "@/components/events/fair
 import { CorrectionRequestHistory } from "@/components/events/correction-history";
 import { PublicEventEditor } from "@/components/events/public-event-editor";
 import { DeleteEventForm } from "@/components/events/delete-event-form";
+import { AccessCodeManager } from "@/components/events/access-code-manager";
 import { isVotingRule } from "@/lib/voting-rules";
+import { VoterListManager } from "@/components/events/voter-list-manager";
 
 export const metadata: Metadata = { title: "Event setup" };
 type Props = { params: Promise<{ organizationId: string; eventId: string }> };
@@ -87,6 +89,8 @@ export default async function EventSetupPage({ params }: Props) {
         {canManage && event.status === "draft" && <div className="add-category-panel"><h3>Add a category</h3><CategoryForm eventId={eventId} backTo={pagePath} /></div>}
       </section>
       {canManage && ["published", "paused", "closed"].includes(event.status) && <><PublicEventEditor event={event} startLocked={Date.parse(event.starts_at) <= requestTime} expired={Date.parse(event.ends_at) <= requestTime} /><CorrectionRequestForm eventId={eventId} /><CorrectionRequestHistory eventId={eventId} />{canRemove && ["published","paused"].includes(event.status) && Date.parse(event.ends_at) <= requestTime && <ReopenEventForm eventId={eventId} />}</>}
+      {canManage && event.status === "draft" && <AccessCodeManager eventId={eventId} />}
+      {canManage && event.status === "draft" && <VoterListManager eventId={eventId} />}
       <section className="event-publish-panel"><div className="publish-review-copy"><p className="eyebrow">STEP 3 · FINAL REVIEW</p><h2>Check readiness and publish</h2><p>Publishing makes this event page public right away. Votes open only during the dates you selected. You can preview the voter page before publishing.</p><ul className="publish-checklist">{publishChecks.map((item) => <li key={item.label} className={item.complete ? "is-complete" : item.optional ? "is-optional" : "is-pending"}><Icon name={item.complete ? "check" : item.optional ? "image" : "clock"} size={17} /><span>{item.label}</span><small>{item.complete ? "Ready" : item.optional ? "Optional" : "Needed"}</small></li>)}</ul>{event.voting_mode === "paid" && !checkoutReady && <p className="publish-blocker" role="status">Connect and verify a Paystack payment account before publishing this paid event.</p>}{!publishReady && event.voting_mode === "free" && <p className="publish-blocker" role="status">Complete the required items above before publishing.</p>}</div>
         {canManage && <div className="event-actions">{event.status === "draft" && <><Link className="secondary-button" href={`${pagePath}/preview`}>Preview voter page</Link><EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Publish event" disabled={!publishReady} disabledMessage={event.voting_mode === "paid" ? "A verified payment provider must be connected before a paid event can go online." : "Complete the required checklist items first."} confirmMessage={`Publish “${event.name}” now? Its page will become public immediately. Voting opens at the scheduled Ghana time.`} /></>}{event.status === "published" && <><EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "paused" && <><EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume event" /><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? This action cannot be undone." /></>}{event.status === "closed" && <EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive event" confirmMessage="Archive this event? Its votes, payments and audit history will be preserved." />}</div>}
       </section>
@@ -94,3 +98,6 @@ export default async function EventSetupPage({ params }: Props) {
     </>}
   </section></main>;
 }
+
+
+

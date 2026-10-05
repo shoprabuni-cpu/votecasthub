@@ -647,6 +647,11 @@ a {
 .image-upload-spinner { @apply [width:11px] [height:11px] [display:inline-block] [border:2px_solid_#d7e3d1] [border-top-color:var(--green)] [border-radius:50%]; animation: image-upload-spin .8s linear infinite; }
 @keyframes image-upload-spin { to { transform: rotate(360deg); } }
 .admin-photo-preview { @apply [width:120px] [height:120px] [margin:12px_0] [border:1px_solid_var(--line)] [border-radius:10px] [background-position:center] [background-size:cover]; }
+.verification-banner { @apply [display:flex] [align-items:center] [gap:10px] [margin:14px_0] [padding:12px_14px] [border:1px_solid_var(--line)] [border-radius:10px] [background:#f5f8f1]; }
+.verification-banner span { @apply [color:var(--muted)] [font-size:11px]; }
+.verification-verified { @apply [margin-left:auto] [color:var(--green)] [font-size:11px]; }
+.vote-form-message.is-success { @apply [color:var(--green)] [font-weight:650]; }
+@media (max-width: 640px) { .verification-banner { @apply [position:sticky] [top:8px] [z-index:5] [box-shadow:0_5px_18px_#17203312]; } }
 .edit-details {
   @apply [color:var(--green)] [font-size:10px]; }
 .edit-details summary {

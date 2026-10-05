@@ -4,6 +4,7 @@ export type AuthFormState = {
   codeSent?: boolean;
   resendAt?: number;
   phone?: string;
+  email?: string;
   next?: string;
   nextRequestKey?: string;
   inviteUrl?: string;

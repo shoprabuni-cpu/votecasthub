@@ -1,0 +1,2 @@
+import { EmailOtpForm } from "@/components/auth/email-otp-form";
+export default async function EmailSignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) { const { next } = await searchParams; return <main className="auth-page"><section className="auth-card"><p className="eyebrow">VOTER VERIFICATION</p><h1>Verify your email</h1><p className="auth-description">Use email verification for events that allow it.</p><EmailOtpForm nextPath={next?.startsWith("/") ? next : "/events"}/></section></main>; }

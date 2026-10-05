@@ -29,6 +29,7 @@ const eventFields = {
   name: z.string().trim().min(2).max(160),
   description: z.string().max(5000).optional().or(z.literal("")),
   votingMode: z.enum(["free", "paid"]),
+  verificationMethod: z.enum(["phone", "email", "invite_code"]),
   votingRule: z.enum(["one_per_category", "category_limit", "per_nominee_limit"]),
   priceGhs: z.string().max(32).optional().or(z.literal("")),
   freeVoteLimit: z.string().max(3).optional().or(z.literal("")),
@@ -80,6 +81,7 @@ function parseEventForm(formData: FormData) {
     name: formString(formData, "name"),
     description: formString(formData, "description"),
     votingMode: formString(formData, "votingMode"),
+    verificationMethod: formString(formData, "verificationMethod") || "phone",
     votingRule: formString(formData, "votingRule"),
     priceGhs: formString(formData, "priceGhs"),
     freeVoteLimit: formString(formData, "freeVoteLimit"),
@@ -188,6 +190,28 @@ export async function verifyVoterPhoneCodeAction(_previousState: AuthFormState, 
   }
   revalidatePath("/", "layout");
   redirect(next);
+}
+
+const emailSchema = z.string().trim().email().max(320);
+export async function requestVoterEmailCodeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const email = emailSchema.safeParse(formString(formData, "email"));
+  const next = safeNextPath(formString(formData, "next"), "/events");
+  if (!email.success) return { message: "Enter a valid email address." };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithOtp({ email: email.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
+    if (error) { logAuthFailure("phone_signin", error.code); return { message: "We could not send an email code. Please try again." }; }
+  } catch { return { message: "Email verification is temporarily unavailable." }; }
+  return { message: "Verification code sent. Check your email.", success: true, codeSent: true, email: email.data, next, resendAt: Date.now() + 60_000 };
+}
+
+export async function verifyVoterEmailCodeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const email = emailSchema.safeParse(formString(formData, "email"));
+  const token = z.string().regex(/^\d{6,8}$/).safeParse(formString(formData, "token"));
+  const next = safeNextPath(formString(formData, "next"), "/events");
+  if (!email.success || !token.success) return { message: "Enter your email and the verification code." };
+  try { const supabase = await createClient(); const { error } = await supabase.auth.verifyOtp({ email: email.data, token: token.data, type: "email" }); if (error) return { message: "That code is invalid or expired. Request a new one." }; } catch { return { message: "Email verification is temporarily unavailable." }; }
+  revalidatePath("/", "layout"); redirect(next);
 }
 
 export async function castFreeVotesAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -504,6 +528,10 @@ export async function createEventAction(_previousState: AuthFormState, formData:
     });
     if (error || !data) return { message: eventError(error?.code) };
     newEventId = data;
+    if (parsed.data.votingMode === "free") {
+      const methodResult = await supabase.rpc("set_event_verification_method", { p_event_id: data, p_method: parsed.data.verificationMethod });
+      if (methodResult.error) return { message: "We could not save the verification method." };
+    }
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
   }
@@ -534,6 +562,10 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
       p_voting_rules: parsed.data.votingRules || null,
     });
     if (error) return { message: eventError(error.code) };
+    if (parsed.data.votingMode === "free") {
+      const methodResult = await supabase.rpc("set_event_verification_method", { p_event_id: eventId.data, p_method: parsed.data.verificationMethod });
+      if (methodResult.error) return { message: "We could not save the verification method." };
+    }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);
     return { message: "Draft details saved.", success: true };
