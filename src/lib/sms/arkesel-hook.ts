@@ -30,7 +30,10 @@ function failure(status: number, message: string) {
 }
 
 function success() {
-  return Response.json({}, { headers: { "Cache-Control": "no-store" } });
+  // Supabase Send SMS Hooks require an empty successful response. A JSON `{}`
+  // body can be treated as an invalid hook response even when the provider
+  // has already accepted the SMS.
+  return new Response(null, { status: 200, headers: { "Cache-Control": "no-store" } });
 }
 
 async function readLimitedBody(request: Request) {
