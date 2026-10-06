@@ -43,7 +43,6 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
       {canManageTeam && <Link className={`workspace-nav-link ${active(`${root}/team`, true) ? "is-active" : ""}`} href={`${root}/team`} aria-current={active(`${root}/team`, true) ? "page" : undefined}><NavIcon name="users"/><span>Team</span></Link>}
       <Link className={`workspace-nav-link ${active(`${root}/payments`) || active(`${root}/earnings`) || active(`${root}/credits`) ? "is-active" : ""}`} href={`${root}/payments`} onClick={() => setOpen(false)}><NavIcon name="wallet"/><span>Payments</span></Link>
       <Link className={`workspace-nav-link ${active(`${root}/analytics`) ? "is-active" : ""}`} href={`${root}/analytics`} aria-current={active(`${root}/analytics`) ? "page" : undefined} onClick={() => setOpen(false)}><NavIcon name="chart"/><span>Analytics</span></Link>
-      {canCreate && <Link className="workspace-nav-link workspace-nav-link-secondary" href={`${events}/new`} onClick={() => setOpen(false)}><NavIcon name="plus"/><span>Create event</span></Link>}
     </nav>
     <div className="workspace-sidebar-bottom"><span className="workspace-avatar" aria-hidden="true">{organizationName.trim().slice(0, 1).toUpperCase()}</span><span className="workspace-bottom-copy"><strong>{organizationName}</strong><small>{role} workspace access</small></span><span className="workspace-secure" title="Protected workspace">●</span></div>
   </aside>;
