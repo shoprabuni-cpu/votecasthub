@@ -21,7 +21,7 @@ export function FreeVoteForm({ eventId, categoryId, nomineeId, nomineeName, next
 
   if (!phoneVerified) { const email = verificationMethod === "email"; return <Link className="vote-sign-in" href={`/${email ? "email-sign-in" : "phone-sign-in"}?next=${encodeURIComponent(nextPath)}`}>{email ? "Verify email to vote" : "Verify phone to vote"} <span aria-hidden="true">→</span></Link>; }
 
-  return <form action={action} className="free-vote-form">
+  return <form action={action} className={`free-vote-form${pending ? " is-submitting" : ""}`} aria-busy={pending}>
     <input type="hidden" name="eventId" value={eventId} />
     <input type="hidden" name="categoryId" value={categoryId} />
     <input type="hidden" name="nomineeId" value={nomineeId} />
@@ -31,7 +31,7 @@ export function FreeVoteForm({ eventId, categoryId, nomineeId, nomineeName, next
       {Array.from({ length: Math.max(1, Math.min(maxQuantity, 100)) }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
     </select>
     <small className="vote-limit-remaining">{maxQuantity} {maxQuantity === 1 ? "vote" : "votes"} available under this rule</small>
-    <button type="submit" disabled={pending}>{pending ? "Recording…" : "Vote free"}</button>
-    {state?.message && <p className={`vote-form-message${state.success ? " is-success" : ""}`} role={state.success ? "status" : "alert"}>{state.success ? `Vote recorded for ${nomineeName}. ${state.message}` : state.message}</p>}
+    <button type="submit" disabled={pending}>{pending ? "Recording your vote…" : "Vote free"}</button>
+    {state?.message && <p className={`vote-form-message${state.success ? " is-success" : ""}`} role={state.success ? "status" : "alert"} aria-live="polite">{state.success ? <><strong>Vote recorded</strong><br />{nomineeName} · {state.message}</> : state.message}</p>}
   </form>;
 }
