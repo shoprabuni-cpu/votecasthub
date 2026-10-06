@@ -118,7 +118,10 @@ export function SolutionsTabs() {
           </div>
         </div>
 
-        {/* Feature Cards Grid */}
+        {/* Feature Cards Grid (Mobile Horizontal Reel / Desktop 3-Col Grid) */}
+        <div className="md:hidden flex items-center justify-end text-[11px] text-emerald-800 font-semibold mb-2">
+          <span>Swipe to explore →</span>
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -126,12 +129,12 @@ export function SolutionsTabs() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+            className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory gap-4 sm:gap-8 pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid-cols-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {currentFeatures.map((item, index) => (
               <div
                 key={index}
-                className="group p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between"
+                className="group p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between w-[280px] xs:w-[300px] md:w-auto shrink-0 snap-start"
               >
                 <div>
                   <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-emerald-800 group-hover:text-white transition-all shadow-xs">

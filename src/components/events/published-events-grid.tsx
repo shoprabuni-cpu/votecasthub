@@ -93,9 +93,15 @@ export function PublishedEventsGrid({ events }: { events: PublicEventCardData[] 
         </div>
       </div>
 
-      {/* Events Shelf Grid (E-Commerce Product Display) */}
+      {/* Mobile Swipe Hint */}
+      <div className="sm:hidden flex items-center justify-between text-[11px] text-slate-500 font-medium mb-3">
+        <span>Browse {filteredEvents.length} events</span>
+        <span className="flex items-center gap-1 text-emerald-800 font-semibold">Swipe to explore →</span>
+      </div>
+
+      {/* Events Shelf Grid (Mobile Horizontal Reel / Desktop E-Commerce Product Shelf) */}
       {filteredEvents.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="flex sm:grid overflow-x-auto sm:overflow-visible snap-x snap-mandatory gap-4 sm:gap-6 pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <AnimatePresence mode="popLayout">
             {filteredEvents.map((event) => {
               const state = eventPresentation(event);
@@ -113,7 +119,7 @@ export function PublishedEventsGrid({ events }: { events: PublicEventCardData[] 
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.25 }}
-                  className="group flex flex-col rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  className="group flex flex-col w-[260px] xs:w-[280px] sm:w-auto shrink-0 snap-start rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 overflow-hidden"
                 >
                   {/* Card Cover (E-Commerce Product Image Aspect) */}
                   <Link href={`/events/${event.slug}`} className="relative aspect-[16/10] bg-slate-900 overflow-hidden block">
