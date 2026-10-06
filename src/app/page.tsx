@@ -33,7 +33,7 @@ export default async function HomePage() {
           <p className="eyebrow"><span className="status-dot" /> FOR GHANAIAN AWARDS & COMPETITIONS</p>
           <h1 id="hero-title">Good events deserve a <em>fair vote.</em></h1>
           <p className="hero-description">A dependable way to run voting for awards, competitions, and community events. Organizers stay in control. Confirmed votes leave a clear record.</p>
-          <Link className="primary-link" href="/events">Explore events <span aria-hidden="true">↗</span></Link>
+          <div className="hero-actions"><Link className="primary-link" href="/events">Browse live events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
           <p className="hero-note">Web voting first. USSD is planned for a later phase.</p>
         </div>
         <div className="hero-art" aria-label="The three stages of a verified vote">

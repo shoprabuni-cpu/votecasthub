@@ -38,3 +38,4 @@ export default async function OrganizationEventsPage({ params }: Props) {
     {['owner','admin'].includes(membership?.role ?? '') && <ClosureRequestForm organizationId={organizationId} />}
   </section></main>;
 }
+

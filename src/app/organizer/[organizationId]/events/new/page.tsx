@@ -17,7 +17,7 @@ export default async function NewEventPage({ params }: Props) {
   if (!organization && !error) notFound();
   return <main className="dashboard-page"><DashboardHeader organizationId={organizationId} /><section className="dashboard-content">
     <Link className="back-link" href={`/organizer/${organizationId}/events`}>← {organization?.name ?? "Events"}</Link>
-    <p className="eyebrow">NEW EVENT · DRAFT</p><h1>Set up your event.</h1><p className="auth-description">Start with the basics. You can add categories and nominees after saving the draft.</p>
+    <p className="eyebrow">NEW EVENT · DRAFT</p><h1>Set up your event.</h1><p className="auth-description">Start with the basics. You can add categories and nominees after saving the draft.</p><ol className="event-stepper" aria-label="Event setup steps"><li className="is-current"><b>1</b><span>Basics</span></li><li><b>2</b><span>Voting method</span></li><li><b>3</b><span>Categories &amp; nominees</span></li><li><b>4</b><span>Review &amp; submit</span></li></ol>
     {error ? <section className="empty-state"><h2>We could not load this organization.</h2><p>Please try again shortly.</p></section> : <section className="event-editor-panel"><EventDetailsForm organizationId={organizationId} /></section>}
   </section></main>;
 }
