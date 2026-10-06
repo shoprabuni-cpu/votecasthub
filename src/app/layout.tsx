@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/cookie-consent";
 import { PwaBootstrap } from "@/components/pwa-bootstrap";
 import "./globals.css";
+
+const sansFont = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +24,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-GH">
-      <body>{children}<PwaBootstrap /><CookieConsent /></body>
+    <html lang="en-GH" className={sansFont.variable}>
+      <body className="font-sans antialiased bg-[#fafbf9] text-[#0f1d16] selection:bg-[#206848]/20 selection:text-[#0f1d16] min-h-screen flex flex-col">
+        {children}
+        <PwaBootstrap />
+        <CookieConsent />
+      </body>
     </html>
   );
 }
-
-
