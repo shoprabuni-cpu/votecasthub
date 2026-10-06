@@ -182,13 +182,13 @@ export function HeroSimulator() {
                   <div className="flex items-center justify-between">
                     <p
                       className={`text-xs font-semibold tracking-tight ${
-                        isCurrent ? "text-emerald-950" : "text-slate-700"
+                        isCurrent ? "text-slate-950 font-bold" : "text-slate-700"
                       }`}
                     >
                       {s.title}
                     </p>
                     {isCurrent && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                         Active
                       </span>
                     )}

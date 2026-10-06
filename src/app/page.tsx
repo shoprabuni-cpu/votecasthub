@@ -4,7 +4,7 @@ import { TrustSection } from "@/components/home/trust-section";
 import { SolutionsTabs } from "@/components/home/solutions-tabs";
 import { MobileTabBar } from "@/components/home/mobile-tab-bar";
 import { SiteFooter } from "@/components/site-footer";
-import { PublishedEventsCarousel } from "@/components/events/published-events-carousel";
+import { PublishedEventsGrid } from "@/components/events/published-events-grid";
 import { createClient } from "@/lib/supabase/server";
 import type { PublicEventCardData } from "@/components/events/public-event-card";
 
@@ -17,7 +17,7 @@ export default async function HomePage() {
       .select("id,name,slug,description,image_path,unit_price_minor,starts_at,ends_at,status,voting_mode")
       .in("status", ["published", "paused"])
       .order("starts_at", { ascending: true })
-      .limit(8);
+      .limit(12);
 
     const paths = (data ?? []).map((e) => e.image_path).filter((p): p is string => Boolean(p));
     const { data: images } = paths.length
@@ -41,7 +41,7 @@ export default async function HomePage() {
 
         <TrustSection />
 
-        <PublishedEventsCarousel events={featured} />
+        <PublishedEventsGrid events={featured} />
 
         <SolutionsTabs />
       </main>
