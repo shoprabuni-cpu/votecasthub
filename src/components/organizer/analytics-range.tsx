@@ -1,10 +1,34 @@
+import Link from "next/link";
+
 export function AnalyticsRange({ days, event }: { days: number; event: string | null }) {
-  return <form className="flex flex-wrap items-center gap-2" method="get">
-    <input type="hidden" name="event" value={event ?? ""} />
-    <label className="text-sm text-slate-600" htmlFor="analytics-range">Activity period</label>
-    <select id="analytics-range" name="range" defaultValue={days === 0 ? "all" : String(days)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
-      <option value="all">Whole event</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="365">Last 365 days</option>
-    </select>
-    <button className="rounded-xl bg-[#1e704d] px-4 py-2 text-sm font-bold text-white" type="submit">Explore</button>
-  </form>;
+  const options = [
+    { label: "Whole Event", val: "all", num: 0 },
+    { label: "Past 7 Days", val: "7", num: 7 },
+    { label: "Past 30 Days", val: "30", num: 30 },
+    { label: "Past 365 Days", val: "365", num: 365 },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs font-semibold text-stone-500 mr-1">Time Scope:</span>
+      <div className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100 p-1">
+        {options.map((opt) => {
+          const isActive = days === opt.num;
+          return (
+            <Link
+              key={opt.val}
+              href={`?event=${encodeURIComponent(event ?? "")}&range=${opt.val}`}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition-all ${
+                isActive
+                  ? "bg-white text-stone-900 shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              {opt.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
