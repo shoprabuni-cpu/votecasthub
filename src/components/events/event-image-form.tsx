@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { updateEventImageAction } from "@/lib/auth/actions";
 import { createClient } from "@/lib/supabase/client";
+import { Icon } from "@/components/icon";
 
 const maxFileBytes = 5 * 1024 * 1024;
 const imageTypes: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -13,7 +14,13 @@ function hasValidImageHeader(type: string, bytes: Uint8Array) {
   return type === "image/webp" && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
 }
 
-export function EventImageForm({ eventId, eventName, initialPath, initialUrl, backTo }: {
+export function EventImageForm({
+  eventId,
+  eventName,
+  initialPath,
+  initialUrl,
+  backTo,
+}: {
   eventId: string;
   eventName: string;
   initialPath: string | null;
@@ -49,17 +56,31 @@ export function EventImageForm({ eventId, eventName, initialPath, initialUrl, ba
     event.preventDefault();
     setMessage("");
     const file = (new FormData(event.currentTarget).get("image") as File | null) ?? null;
-    if (!file || file.size === 0) { setMessage("Choose an event cover image to upload."); return; }
-    if (file.size > maxFileBytes) { setMessage("Choose an image smaller than 5 MB."); return; }
-    if (!(file.type in imageTypes) || !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))) {
+    if (!file || file.size === 0) {
+      setMessage("Choose an event cover image to upload.");
+      return;
+    }
+    if (file.size > maxFileBytes) {
+      setMessage("Choose an image smaller than 5 MB.");
+      return;
+    }
+    if (
+      !(file.type in imageTypes) ||
+      !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))
+    ) {
       setMessage("Use a valid JPEG, PNG, or WebP image.");
       return;
     }
 
     const path = `${eventId}/${crypto.randomUUID()}.${imageTypes[file.type]}`;
     const supabase = createClient();
-    const { error } = await supabase.storage.from("nominee-images").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-    if (error) { setMessage("We could not upload that image. Check your connection and try again."); return; }
+    const { error } = await supabase.storage
+      .from("nominee-images")
+      .upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+    if (error) {
+      setMessage("We could not upload that image. Check your connection and try again.");
+      return;
+    }
     const signed = await supabase.storage.from("nominee-images").createSignedUrl(path, 3600);
     if (signed.error || !signed.data?.signedUrl) {
       await supabase.storage.from("nominee-images").remove([path]);
@@ -70,18 +91,84 @@ export function EventImageForm({ eventId, eventName, initialPath, initialUrl, ba
     saveImagePath(path, path);
   }
 
-  return <section className="event-image-editor" aria-label={`Cover image for ${eventName}`}>
-    <div className={`event-image-preview${imageUrl ? " has-image" : ""}`} style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? `${eventName} cover image` : undefined}>
-      {!imageUrl && <span aria-hidden="true">V</span>}
-      {imageUrl && <span className="event-image-preview-title">{eventName}</span>}
+  return (
+    <div className="space-y-4">
+      {/* Cover Banner Preview or Placeholder */}
+      <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-xs aspect-21/9 min-h-[160px] sm:min-h-[220px]">
+        {imageUrl ? (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-500 hover:scale-105"
+              style={{ backgroundImage: `url("${imageUrl}")` }}
+              role="img"
+              aria-label={`${eventName} cover image`}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-4 sm:p-6">
+              <span className="text-white font-serif font-bold text-base sm:text-xl drop-shadow-sm truncate">
+                {eventName}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-stone-400">
+            <Icon name="image" size={32} className="text-stone-300" />
+            <span className="mt-2 text-xs font-medium text-stone-500">No cover image set</span>
+            <span className="text-[10px] text-stone-400">Recommended size: 1200 × 512px (Landscape)</span>
+          </div>
+        )}
+      </div>
+
+      {/* Upload Controls */}
+      <form onSubmit={handleUpload} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor={`event-image-${eventId}`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer"
+          >
+            <Icon name="image" size={13} />
+            <span>{imagePath ? "Select new cover" : "Choose image"}</span>
+          </label>
+          <input
+            id={`event-image-${eventId}`}
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            required
+            className="sr-only"
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <span className="text-[11px] text-stone-400">JPEG, PNG, WebP · Max 5MB</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {imagePath && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => saveImagePath(null)}
+              className="text-xs font-semibold text-red-700 hover:underline cursor-pointer"
+            >
+              Remove cover
+            </button>
+          )}
+          {pending && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-800 border-t-transparent" />
+              <span>Saving...</span>
+            </span>
+          )}
+        </div>
+      </form>
+
+      {message && (
+        <p className="rounded-xl bg-stone-50 p-2.5 text-xs text-stone-700 font-medium" role="status">
+          {message}
+        </p>
+      )}
     </div>
-    <form className="event-image-controls" onSubmit={handleUpload}>
-      <div><strong>{imagePath ? "Update event cover" : "Add an event cover"}</strong><small>Give your event a visual identity on its public page and event card.</small></div>
-      <label className="secondary-button" htmlFor={`event-image-${eventId}`}>{imagePath ? "Choose a new image" : "Choose image"}</label>
-      <input id={`event-image-${eventId}`} name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
-      <small>JPEG, PNG, or WebP · 5 MB maximum</small>
-      <div className="event-image-actions"><button className="primary-link" type="submit" disabled={pending}>{pending ? "Saving…" : "Upload cover"}</button>{imagePath && <button className="image-remove-button" type="button" disabled={pending} onClick={() => saveImagePath(null)}>Remove cover</button>}</div>
-    </form>
-    {message && <p className="image-form-message" role="status">{message}</p>}
-  </section>;
+  );
 }

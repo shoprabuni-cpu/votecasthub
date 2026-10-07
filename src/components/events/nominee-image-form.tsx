@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { requestEventCorrectionAction } from "@/lib/events/actions";
 import { updateNomineeImageAction } from "@/lib/auth/actions";
 import { createClient } from "@/lib/supabase/client";
+import { Icon } from "@/components/icon";
 
 const maxFileBytes = 5 * 1024 * 1024;
 const imageTypes: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -14,7 +15,15 @@ function hasValidImageHeader(type: string, bytes: Uint8Array) {
   return type === "image/webp" && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
 }
 
-export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath, initialUrl, backTo, reviewRequired = false }: {
+export function NomineeImageForm({
+  eventId,
+  nomineeId,
+  nomineeName,
+  initialPath,
+  initialUrl,
+  backTo,
+  reviewRequired = false,
+}: {
   reviewRequired?: boolean;
   eventId: string;
   nomineeId: string;
@@ -37,8 +46,13 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
       data.set("nomineeId", nomineeId);
       data.set("imagePath", path ?? "");
       data.set("backTo", backTo);
-      data.set("eventId", eventId); data.set("kind", "photo"); data.set("value", path ?? ""); data.set("reason", reason);
-      const result = reviewRequired ? await requestEventCorrectionAction(null, data) : await updateNomineeImageAction(null, data);
+      data.set("eventId", eventId);
+      data.set("kind", "photo");
+      data.set("value", path ?? "");
+      data.set("reason", reason);
+      const result = reviewRequired
+        ? await requestEventCorrectionAction(null, data)
+        : await updateNomineeImageAction(null, data);
       if (!result?.success) {
         if (uploadedPath) await createClient().storage.from("nominee-images").remove([uploadedPath]);
         setImageUrl(initialUrl);
@@ -47,7 +61,12 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
         setMessage(result?.message ?? "We could not save that image.");
         return;
       }
-      if (reviewRequired) { setImageUrl(initialUrl); setMessage(result.message); setStage("idle"); return; }
+      if (reviewRequired) {
+        setImageUrl(initialUrl);
+        setMessage(result.message);
+        setStage("idle");
+        return;
+      }
       if (imagePath && imagePath !== path) await createClient().storage.from("nominee-images").remove([imagePath]);
       setImagePath(path);
       if (!path) setImageUrl(null);
@@ -61,9 +80,18 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     setMessage("");
     const form = event.currentTarget;
     const file = (new FormData(form).get("image") as File | null) ?? null;
-    if (!file || file.size === 0) { setMessage("Choose a photo to upload."); return; }
-    if (file.size > maxFileBytes) { setMessage("Choose an image smaller than 5 MB."); return; }
-    if (!(file.type in imageTypes) || !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))) {
+    if (!file || file.size === 0) {
+      setMessage("Choose a photo to upload.");
+      return;
+    }
+    if (file.size > maxFileBytes) {
+      setMessage("Choose an image smaller than 5 MB.");
+      return;
+    }
+    if (
+      !(file.type in imageTypes) ||
+      !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))
+    ) {
       setMessage("Use a valid JPEG, PNG, or WebP image.");
       return;
     }
@@ -72,16 +100,20 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     setStage("uploading");
     setPendingPreviewUrl(URL.createObjectURL(file));
     const supabase = createClient();
-    const { error } = await supabase.storage.from("nominee-images").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+    const { error } = await supabase.storage
+      .from("nominee-images")
+      .upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
     if (error) {
-      const message = error.message.toLowerCase();
+      const msg = error.message.toLowerCase();
       setStage("idle");
       setPendingPreviewUrl(null);
-      setMessage(message.includes("row-level security") || message.includes("not authorized")
-        ? "You do not have permission to upload a photo for this nominee. Refresh the page and try again."
-        : message.includes("bucket") || message.includes("mime") || message.includes("size")
+      setMessage(
+        msg.includes("row-level security") || msg.includes("not authorized")
+          ? "You do not have permission to upload a photo for this nominee. Refresh the page and try again."
+          : msg.includes("bucket") || msg.includes("mime") || msg.includes("size")
           ? "That image was rejected by storage. Use a JPEG, PNG, or WebP image smaller than 5 MB."
-          : "We could not upload that image. Check your connection and try again.");
+          : "We could not upload that image. Check your connection and try again."
+      );
       return;
     }
     const signed = await supabase.storage.from("nominee-images").createSignedUrl(path, 3600);
@@ -97,20 +129,109 @@ export function NomineeImageForm({ eventId, nomineeId, nomineeName, initialPath,
     saveImagePath(path, path);
   }
 
-  return <section className="nominee-image-editor" aria-label={`Image for ${nomineeName}`}>
-    <div className="nominee-image-preview-stack">
-      {imageUrl ? <div className="nominee-photo-preview" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nomineeName} photo`} /> : <span className="nominee-avatar nominee-photo-placeholder" aria-hidden="true">{nomineeName.trim().slice(0, 1).toUpperCase()}</span>}
-      {reviewRequired && pendingPreviewUrl && <div className="nominee-photo-preview nominee-photo-pending" style={{ backgroundImage: `url("${pendingPreviewUrl}")` }} role="img" aria-label="Pending replacement photo preview"><span>Pending review</span></div>}
-    </div>
-    <form className="nominee-image-controls" onSubmit={handleUpload}>
-      <label htmlFor={`nominee-image-${nomineeId}`}>{reviewRequired ? "Request a photo correction" : imagePath ? "Replace photo" : "Add a photo"}</label>
-      <input id={`nominee-image-${nomineeId}`} name="image" type="file" accept="image/jpeg,image/png,image/webp" required />
-      <small>JPEG, PNG, or WebP · 5 MB maximum</small>
-      {reviewRequired && <label>Explain the correction (same nominee only)<textarea required minLength={20} maxLength={1000} value={reason} onChange={e=>setReason(e.target.value)} /><small>The current photo stays public until platform review confirms this is the same person.</small></label>}
-      {stage !== "idle" && <div className="image-upload-progress" role="status" aria-live="polite"><span className="image-upload-spinner" aria-hidden="true" />{stage === "uploading" ? "Uploading photo…" : "Saving photo…"}</div>}
-      <button className="secondary-button" type="submit" disabled={pending || stage !== "idle"}>{reviewRequired ? "Submit photo for review" : "Upload photo"}</button>
-      {imagePath && !reviewRequired && <button className="image-remove-button" type="button" disabled={pending} onClick={() => saveImagePath(null)}>Remove photo</button>}
-    </form>
-    {message && <p className="image-form-message" role="status">{message}</p>}
-  </section>;
+  return (
+    <details className="group relative">
+      <summary className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none">
+        <Icon name="image" size={12} />
+        <span>{imagePath ? "Photo" : "+ Photo"}</span>
+      </summary>
+
+      <div className="absolute right-0 top-8 z-30 w-72 sm:w-80 rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
+        <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-3">
+          <span className="text-xs font-semibold text-stone-900">
+            {reviewRequired ? "Request Photo Correction" : imagePath ? "Change Photo" : "Upload Nominee Photo"}
+          </span>
+          <span className="text-[10px] text-stone-400 truncate max-w-[120px]">{nomineeName}</span>
+        </div>
+
+        {/* Mini Preview */}
+        <div className="mb-3 flex items-center gap-3">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+            {imageUrl ? (
+              <img src={imageUrl} alt={nomineeName} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50">
+                {nomineeName.trim().slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            {reviewRequired && pendingPreviewUrl && (
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url("${pendingPreviewUrl}")` }}
+              />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-stone-800 truncate">{nomineeName}</p>
+            <p className="text-[10px] text-stone-400">JPEG, PNG, WebP · max 5MB</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpload} className="space-y-3">
+          <input
+            id={`nominee-image-${nomineeId}`}
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            required
+            className="block w-full text-[11px] text-stone-600 file:mr-2 file:rounded-lg file:border-0 file:bg-stone-100 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-stone-700 hover:file:bg-stone-200"
+          />
+
+          {reviewRequired && (
+            <div>
+              <label className="block text-[11px] font-semibold text-stone-800 mb-1">
+                Reason for change (same nominee only)
+              </label>
+              <textarea
+                required
+                minLength={20}
+                maxLength={1000}
+                rows={2}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Explain why this replacement photo is needed..."
+                className="w-full rounded-xl border border-stone-300 p-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-600 resize-none"
+              />
+            </div>
+          )}
+
+          {stage !== "idle" && (
+            <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-800 border-t-transparent" />
+              <span>{stage === "uploading" ? "Uploading image..." : "Saving..."}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            {imagePath && !reviewRequired ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => saveImagePath(null)}
+                className="text-[11px] font-semibold text-red-700 hover:underline cursor-pointer"
+              >
+                Remove photo
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <button
+              type="submit"
+              disabled={pending || stage !== "idle"}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer ml-auto"
+            >
+              {pending ? "Saving..." : reviewRequired ? "Submit for Review" : "Save Photo"}
+            </button>
+          </div>
+        </form>
+
+        {message && (
+          <p className="mt-2 text-[11px] text-stone-600 bg-stone-50 p-2 rounded-lg leading-tight" role="status">
+            {message}
+          </p>
+        )}
+      </div>
+    </details>
+  );
 }

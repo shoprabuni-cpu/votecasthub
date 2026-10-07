@@ -657,11 +657,7 @@ a {
 .event-stepper b { @apply [display:grid] [place-items:center] [width:24px] [height:24px] [border:1px_solid_#dce5d8] [border-radius:50%] [font-size:10px]; }
 .event-stepper .is-current { @apply [color:var(--green)] [font-weight:700]; }
 .event-stepper .is-current b { @apply [color:white] [border-color:var(--green)] [background:var(--green)]; }
-.event-form-stepbar { @apply [display:flex] [flex-wrap:wrap] [gap:6px] [margin-bottom:20px] [padding-bottom:12px] [border-bottom:1px_solid_var(--line)]; }
-.event-form-stepbar button { @apply [border:1px_solid_#dce5d8] [border-radius:999px] [padding:7px_11px] [color:#718077] [background:#fff] [font-size:10px] [cursor:pointer]; }
-.event-form-stepbar button.is-active { @apply [border-color:var(--green)] [color:white] [background:var(--green)]; }
-.event-form.is-step-1 .form-grid > :not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(7)):not(:nth-child(8)), .event-form.is-step-2 .form-grid > :nth-child(-n+2), .event-form.is-step-2 .form-grid > :nth-child(n+5), .event-form.is-step-3 .form-grid > :not(:nth-child(5)), .event-form.is-step-4 .form-grid > :not(:nth-child(6)) { display:none; }
-.event-form.is-step-4::after { content:"Review your event details, then save the draft. You can add categories and nominees from the event workspace."; display:block; margin:18px 0; padding:16px; border:1px solid var(--line); border-radius:10px; color:var(--muted); background:#f7faf5; font-size:12px; line-height:1.5; }
+
 @media(max-width:640px){.event-stepper{grid-template-columns:repeat(2,1fr);gap:12px}.event-stepper li{font-size:9px}}
 .verification-banner span { @apply [color:var(--muted)] [font-size:11px]; }
 .verification-verified { @apply [margin-left:auto] [color:var(--green)] [font-size:11px]; }
