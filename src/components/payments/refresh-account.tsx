@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/icon";
 
 export function RefreshAccount({ organizationId }: { organizationId: string }) {
   const router = useRouter();
@@ -35,14 +34,14 @@ export function RefreshAccount({ organizationId }: { organizationId: string }) {
         type="button"
         disabled={busy}
         onClick={refresh}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50 transition-colors"
       >
         <span className={busy ? "animate-spin" : ""}>↻</span>
         <span>{busy ? "Querying Paystack…" : "Re-sync Paystack status"}</span>
       </button>
 
       {message && (
-        <span className="text-xs text-stone-400 font-mono" role="status">
+        <span className="text-xs text-stone-500 font-mono" role="status">
           · {message}
         </span>
       )}

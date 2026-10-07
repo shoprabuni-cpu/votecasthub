@@ -164,7 +164,7 @@ export function PaystackSubaccountForm({
       <fieldset disabled={isSubmitting} className="space-y-5">
         {/* Settlement Type Selector */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-400 mb-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-2">
             Settlement Method
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -187,8 +187,8 @@ export function PaystackSubaccountForm({
                 }}
                 className={`flex items-center justify-center gap-2.5 rounded-xl border p-3.5 text-xs font-semibold transition-all ${
                   settlementType === option.value
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/40"
-                    : "border-stone-800 bg-stone-950/60 text-stone-400 hover:border-stone-700 hover:text-stone-200"
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/30 shadow-2xs"
+                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900"
                 }`}
               >
                 <Icon name={option.icon} size={15} />
@@ -202,7 +202,7 @@ export function PaystackSubaccountForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Business / Organizer Name */}
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-stone-300 mb-1.5">
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
               Settlement Account Name / Business Name
             </label>
             <input
@@ -212,13 +212,13 @@ export function PaystackSubaccountForm({
               minLength={2}
               maxLength={160}
               placeholder="e.g. Accra Arts Collective or Event Brand"
-              className="w-full rounded-xl border border-stone-800 bg-stone-950 px-3.5 py-2.5 text-xs text-stone-100 placeholder:text-stone-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-all shadow-2xs"
             />
           </div>
 
           {/* Provider / Bank Dropdown */}
           <div>
-            <label className="block text-xs font-medium text-stone-300 mb-1.5">
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
               {settlementType === "mobile_money" ? "Mobile Money Network" : "Bank Name"}
             </label>
             <select
@@ -230,7 +230,7 @@ export function PaystackSubaccountForm({
                 setVerifiedAccount(null);
                 setIsConfirmed(false);
               }}
-              className="w-full rounded-xl border border-stone-800 bg-stone-950 px-3.5 py-2.5 text-xs text-stone-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-all shadow-2xs"
             >
               <option value="">
                 {providers.length ? "Choose provider…" : "Loading providers…"}
@@ -245,7 +245,7 @@ export function PaystackSubaccountForm({
 
           {/* Account Number */}
           <div>
-            <label className="block text-xs font-medium text-stone-300 mb-1.5">
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
               {settlementType === "mobile_money" ? "MoMo Phone Number" : "Account Number"}
             </label>
             <input
@@ -260,7 +260,7 @@ export function PaystackSubaccountForm({
               inputMode="numeric"
               maxLength={24}
               placeholder={settlementType === "mobile_money" ? "0241234567" : "1234567890"}
-              className="w-full rounded-xl border border-stone-800 bg-stone-950 px-3.5 py-2.5 text-xs text-stone-100 placeholder:text-stone-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+              className="w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-all font-mono shadow-2xs"
             />
           </div>
 
@@ -269,22 +269,22 @@ export function PaystackSubaccountForm({
             <div
               className={`rounded-xl border p-4 transition-all ${
                 verifiedAccountName
-                  ? "border-emerald-500/40 bg-emerald-950/20"
+                  ? "border-emerald-200 bg-emerald-50/70"
                   : lookupStatus
-                  ? "border-amber-500/30 bg-amber-950/20 text-amber-300"
-                  : "border-stone-800/80 bg-stone-950/40 text-stone-400"
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-stone-200 bg-stone-50 text-stone-500"
               }`}
             >
               {verifiedAccountName ? (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
                     <Icon name="check" size={13} />
                     <span>Registered Account Name Confirmed</span>
                   </div>
-                  <div className="text-base font-bold text-white font-mono">
+                  <div className="text-base font-bold text-stone-900 font-mono">
                     {verifiedAccountName}
                   </div>
-                  <p className="text-[11px] text-stone-400">
+                  <p className="text-[11px] text-stone-500">
                     Verified through Paystack settlement network. Please verify this matches your bank/MoMo identity.
                   </p>
                 </div>
@@ -292,7 +292,7 @@ export function PaystackSubaccountForm({
                 <div className="flex items-center gap-2 text-xs">
                   {lookupStatus ? (
                     <>
-                      <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
                       <span>{lookupStatus}</span>
                     </>
                   ) : (
@@ -309,15 +309,15 @@ export function PaystackSubaccountForm({
           {/* Confirmation Checkbox */}
           {verifiedAccountName && (
             <div className="sm:col-span-2">
-              <label className="flex items-start gap-3 rounded-xl border border-stone-800 bg-stone-900/60 p-3.5 cursor-pointer hover:bg-stone-900 transition-colors">
+              <label className="flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-3.5 cursor-pointer hover:bg-stone-50 transition-colors shadow-2xs">
                 <input
                   type="checkbox"
                   checked={isConfirmed}
                   onChange={(e) => setIsConfirmed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-stone-700 bg-stone-950 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-stone-900"
+                  className="mt-0.5 h-4 w-4 rounded border-stone-300 bg-white text-emerald-700 focus:ring-emerald-600"
                 />
-                <span className="text-xs text-stone-300">
-                  I confirm that <strong className="text-white font-mono">{verifiedAccountName}</strong> is the legitimate recipient account for our organization’s ticket and paid vote revenues.
+                <span className="text-xs text-stone-700">
+                  I confirm that <strong className="text-stone-900 font-mono">{verifiedAccountName}</strong> is the legitimate recipient account for our organization’s ticket and paid vote revenues.
                 </span>
               </label>
             </div>
@@ -325,19 +325,19 @@ export function PaystackSubaccountForm({
 
           {/* Contact Details */}
           <div>
-            <label className="block text-xs font-medium text-stone-300 mb-1.5">Contact Name</label>
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">Contact Name</label>
             <input
               name="contactName"
               required
               minLength={2}
               maxLength={120}
               placeholder="Full name of representative"
-              className="w-full rounded-xl border border-stone-800 bg-stone-950 px-3.5 py-2.5 text-xs text-stone-100 placeholder:text-stone-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all"
+              className="w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-all shadow-2xs"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-stone-300 mb-1.5">Contact Phone</label>
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">Contact Phone</label>
             <input
               name="contactPhone"
               required
@@ -345,7 +345,7 @@ export function PaystackSubaccountForm({
               minLength={7}
               maxLength={24}
               placeholder="024XXXXXXX"
-              className="w-full rounded-xl border border-stone-800 bg-stone-950 px-3.5 py-2.5 text-xs text-stone-100 placeholder:text-stone-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+              className="w-full rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 transition-all font-mono shadow-2xs"
             />
           </div>
         </div>
@@ -353,7 +353,7 @@ export function PaystackSubaccountForm({
 
       {/* Message Output */}
       {message && (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/30 p-3 text-xs text-emerald-300" role="status">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800" role="status">
           {message}
         </div>
       )}
@@ -363,7 +363,7 @@ export function PaystackSubaccountForm({
         <button
           type="submit"
           disabled={isSubmitting || !verifiedAccountName || !isConfirmed}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-950/40 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all"
         >
           {isSubmitting ? (
             <>

@@ -42,7 +42,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
   const eventRows = (events ?? []) as EventItem[];
 
   return (
-    <main className="min-h-screen bg-stone-950 text-stone-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+    <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
       <DashboardHeader organizationId={organizationId} />
 
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
@@ -50,7 +50,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
         <div>
           <Link
             href="/organizer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-400 hover:text-white transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors"
           >
             <Icon name="arrowLeft" size={14} />
             <span>All Organizations</span>
@@ -58,19 +58,19 @@ export default async function OrganizationEventsPage({ params }: Props) {
         </div>
 
         {/* Workspace Header Strip */}
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-stone-800/80 pb-6">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-stone-200 pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-500">ORGANIZATION WORKSPACE</p>
-              <span className="rounded-md border border-stone-800 bg-stone-900 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">ORGANIZATION WORKSPACE</p>
+              <span className="rounded-md border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase text-stone-600 shadow-2xs">
                 {membership?.role ?? "member"}
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-serif font-bold tracking-tight text-stone-900 sm:text-3xl">
               {organization?.name ?? "Your organization"}
             </h1>
-            <p className="mt-1 text-xs text-stone-400">
+            <p className="mt-1 text-xs text-stone-500">
               Manage awards, nominees, categories, publication, and live voter traffic.
             </p>
           </div>
@@ -78,26 +78,26 @@ export default async function OrganizationEventsPage({ params }: Props) {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href={`/organizer/${organizationId}/analytics`}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-800 bg-stone-900/80 px-4 py-2.5 text-xs font-semibold text-stone-200 shadow-sm transition-all hover:border-stone-700 hover:bg-stone-850 hover:text-white active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 shadow-2xs transition-all hover:border-emerald-600/30 hover:bg-emerald-50/30 hover:text-emerald-900 active:scale-95"
             >
-              <Icon name="sparkle" size={14} className="text-emerald-400" />
+              <Icon name="sparkle" size={14} className="text-emerald-700" />
               <span>Analytics</span>
             </Link>
 
             <Link
               href={`/organizer/${organizationId}/payments`}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-800 bg-stone-900/80 px-4 py-2.5 text-xs font-semibold text-stone-200 shadow-sm transition-all hover:border-stone-700 hover:bg-stone-850 hover:text-white active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 shadow-2xs transition-all hover:border-amber-500/30 hover:bg-amber-50/30 hover:text-amber-900 active:scale-95"
             >
-              <Icon name="coin" size={14} className="text-amber-400" />
+              <Icon name="coin" size={14} className="text-amber-600" />
               <span>Payouts & Bank</span>
             </Link>
 
             {isManager && (
               <Link
                 href={`/organizer/${organizationId}/team`}
-                className="inline-flex items-center gap-2 rounded-xl border border-stone-800 bg-stone-900/80 px-4 py-2.5 text-xs font-semibold text-stone-200 shadow-sm transition-all hover:border-stone-700 hover:bg-stone-850 hover:text-white active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 shadow-2xs transition-all hover:bg-stone-50 hover:text-stone-900 active:scale-95"
               >
-                <Icon name="users" size={14} className="text-stone-400" />
+                <Icon name="users" size={14} className="text-stone-500" />
                 <span>Team</span>
               </Link>
             )}
@@ -105,7 +105,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
             {canCreateEvent && (
               <Link
                 href={`/organizer/${organizationId}/events/new`}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-emerald-950/40 transition-all hover:bg-emerald-500 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all hover:bg-emerald-800 active:scale-95"
               >
                 <span>Create event</span>
                 <span className="text-base leading-none">＋</span>
@@ -116,17 +116,17 @@ export default async function OrganizationEventsPage({ params }: Props) {
 
         {/* Error State */}
         {membershipError || eventsError || orgError ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-950/20 p-8 text-center backdrop-blur-md">
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-8 text-center shadow-xs">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
               <Icon name="alert" size={20} />
             </div>
-            <h2 className="text-base font-bold text-white">We could not load this workspace</h2>
-            <p className="mx-auto mt-1 max-w-sm text-xs text-stone-400">
+            <h2 className="text-base font-bold text-stone-900">We could not load this workspace</h2>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-stone-500">
               An error occurred while fetching the events. Refresh the page or try again shortly.
             </p>
             <Link
               href={`/organizer/${organizationId}/events`}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-stone-800 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-700 transition-colors"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors"
             >
               Try again ↻
             </Link>
@@ -137,15 +137,15 @@ export default async function OrganizationEventsPage({ params }: Props) {
             <OrganizationEventsList events={eventRows} organizationId={organizationId} />
 
             {/* SMS Credit Banner */}
-            <div className="overflow-hidden rounded-2xl border border-emerald-900/40 bg-gradient-to-r from-emerald-950/40 via-stone-900/60 to-stone-900/60 p-5 backdrop-blur-sm sm:p-6">
+            <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/40 p-5 shadow-xs sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200">
                     <Icon name="sparkle" size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">SMS credits for free voter verification</h3>
-                    <p className="mt-0.5 text-xs text-stone-400">
+                    <h3 className="text-sm font-bold text-stone-900">SMS credits for free voter verification</h3>
+                    <p className="mt-0.5 text-xs text-stone-600">
                       Prepay Ghana OTP verification messages, monitor real-time balance, and protect ballot integrity.
                     </p>
                   </div>
@@ -153,7 +153,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
 
                 <Link
                   href={`/organizer/${organizationId}/credits`}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition-all self-start sm:self-auto"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition-all self-start sm:self-auto"
                 >
                   <span>Manage SMS Credits</span>
                   <Icon name="arrowRight" size={14} />
@@ -163,7 +163,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
 
             {/* Organization Settings / Closure for Admins */}
             {isManager && (
-              <div className="border-t border-stone-800/80 pt-6">
+              <div className="border-t border-stone-200 pt-6">
                 <ClosureRequestForm organizationId={organizationId} />
               </div>
             )}
