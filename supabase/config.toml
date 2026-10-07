@@ -235,15 +235,17 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
+# Production email provider: Resend (configure hosted Supabase SMTP in its dashboard).
+# Leave this disabled locally to keep the development email testing inbox.
+# See docs/RESEND_EMAIL_SETUP.md. Never push local Auth URLs to production.
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "info@votecasthub.com"
+# sender_name = "VotecastHub"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

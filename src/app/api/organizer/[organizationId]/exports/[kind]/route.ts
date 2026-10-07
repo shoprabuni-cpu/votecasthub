@@ -1,5 +1,37 @@
 import { NextResponse } from "next/server";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
-const escape=(v:unknown)=>{const s=String(v??"");return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s};
-const allowed=["votes","nominees","refunds","settlements","sms","moderation"] as const;
-export async function GET(_:Request,{params}:{params:Promise<{organizationId:string;kind:string}>}){const {organizationId,kind}=await params;if(!allowed.includes(kind as never))return NextResponse.json({error:"Unsupported export"},{status:400});const {supabase}=await requireVerifiedUser();const {data:member}=await supabase.from("organization_members").select("user_id").eq("organization_id",organizationId).maybeSingle();if(!member)return NextResponse.json({error:"Forbidden"},{status:403});let rows:any[]=[];if(kind==="nominees"){const {data:events}=await supabase.from("events").select("id").eq("organization_id",organizationId);const {data:categories}=await supabase.from("categories").select("id").in("event_id",(events??[]).map(x=>x.id));const {data}=await supabase.from("nominees").select("id,name,public_code,category_id,is_active,created_at").in("category_id",(categories??[]).map(x=>x.id));rows=data??[]}else if(kind==="moderation"){const {data}=await supabase.from("moderation_flags").select("id,event_id,kind,severity,details,status,created_at").eq("organization_id",organizationId);rows=data??[]}else if(kind==="sms"){const {data}=await supabase.from("sms_credit_ledger").select("entry_type,amount,created_at,note").eq("organization_id",organizationId);rows=data??[]}else {const {data}=await supabase.rpc("get_payment_history",{p_organization_id:organizationId,p_offset:0});rows=data??[];if(kind==="refunds")rows=rows.filter(x=>Number(x.refunded_minor)>0).map(x=>({reference:x.reference,created_at:x.created_at,status:x.status,gross_minor:x.gross_minor,refunded_minor:x.refunded_minor}));if(kind==="settlements")rows=rows.map(x=>({reference:x.reference,created_at:x.created_at,status:x.status,organizer_net_minor:x.organizer_net_minor}));if(kind==="votes")rows=rows.map(x=>({reference:x.reference,created_at:x.created_at,status:x.status,gross_minor:x.gross_minor}));}const headers=rows.length?Object.keys(rows[0]):[kind];const csv=[headers,...rows.map(row=>headers.map(h=>row[h]))].map(row=>row.map(escape).join(",")).join("\n");return new NextResponse(csv,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":`attachment; filename="votecasthub-${kind}.csv"`}})}
+import { analyticsScope, csvValue, type OrganizerAnalytics } from "@/lib/analytics";
+
+export async function GET(request: Request, { params }: { params: Promise<{ organizationId: string; kind: string }> }) {
+  const { organizationId, kind } = await params;
+  if (!["votes", "nominees", "refunds", "settlements", "sms", "moderation"].includes(kind)) return NextResponse.json({ error: "Unsupported export" }, { status: 400 });
+  if (kind === "moderation") return NextResponse.json({ error: "Moderation records are restricted to platform administrators" }, { status: 403 });
+  const query = new URL(request.url).searchParams;
+  let scope: ReturnType<typeof analyticsScope>;
+  try { scope = analyticsScope({ event: query.get("event") ?? undefined, range: query.get("range") ?? undefined }); } catch { return NextResponse.json({ error: "Invalid event filter" }, { status: 400 }); }
+  const { supabase } = await requireVerifiedUser();
+  // The checked RPC validates membership and ownership, including for direct URLs.
+  const { data: overview, error: scopeError } = await supabase.rpc("get_scoped_organizer_analytics", { p_org: organizationId, ...scope.params });
+  if (scopeError || !overview) return NextResponse.json({ error: "Unable to load export scope" }, { status: scopeError?.code === "42501" ? 403 : 503 });
+  let rows: Record<string, unknown>[] = [];
+  let headers: string[];
+  if (kind === "votes" || kind === "refunds" || kind === "settlements") {
+    const { data, error } = await supabase.rpc(kind === "votes" ? "get_scoped_vote_export" : "get_scoped_payment_export", { p_org: organizationId, ...scope.params });
+    if (error) return NextResponse.json({ error: "Export unavailable" }, { status: 503 });
+    rows = (data ?? []) as Record<string, unknown>[];
+    if (kind === "refunds") rows = rows.filter(row => Number(row.refunded_minor) > 0);
+    // Preserve old URLs, but identify these as earnings, not actual payouts.
+    headers = kind === "votes" ? ["batch_id", "event_id", "event_name", "category_name", "nominee_name", "created_at", "recorded_votes", "valid_votes", "paid"] : ["reference", "event_id", "event_name", "created_at", "status", "gross_minor", "refunded_minor", "net_minor"];
+  } else if (kind === "nominees") {
+    rows = (overview as OrganizerAnalytics).nominees;
+    headers = ["event_id", "event_name", "category_id", "category_name", "nominee_id", "nominee_name", "total_votes", "paid_votes"];
+  } else {
+    if (kind === "sms" && scope.event) return NextResponse.json({ error: "SMS credits are organization-wide; select organization overview" }, { status: 400 });
+    headers = ["entry_type", "reference", "credits", "amount_minor", "refunded_minor", "status", "created_at"];
+    const { data, error } = await supabase.rpc("get_scoped_sms_export", { p_org: organizationId, p_days: scope.days });
+    if (error) return NextResponse.json({ error: "Export unavailable" }, { status: 503 });
+    rows = (data ?? []) as Record<string, unknown>[];
+  }
+  const csv = [headers, ...rows.map(row => headers.map(header => row[header]))].map(row => row.map(csvValue).join(",")).join("\r\n");
+  return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="votecasthub-${kind === "settlements" ? "earnings" : kind}-${scope.days}days.csv"`, "Cache-Control": "private, no-store" } });
+}

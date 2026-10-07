@@ -1,10 +1,25 @@
 "use client";
+import { categoryStandings, csvValue, type NomineeAnalytics } from "@/lib/analytics";
 
-type Nominee = { nominee_name: string; category_name: string; event_name: string; total_votes: number; image_url?: string | null };
-export function ResultsExportActions({ nominees }: { nominees: Nominee[] }) {
-  const ranked = [...nominees].sort((a, b) => Number(b.total_votes) - Number(a.total_votes));
-  function downloadCsv() { const csv = ["Rank,Nominee,Category,Event,Votes", ...ranked.map((row, index) => `${index + 1},"${row.nominee_name.replaceAll('"', '""')}","${row.category_name}","${row.event_name}",${row.total_votes}`)].join("\n"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = "votecasthub-results.csv"; link.click(); URL.revokeObjectURL(url); }
-  function printResults() { window.print(); }
-  async function downloadImage() { const canvas = document.createElement("canvas"); canvas.width = 1200; canvas.height = Math.max(700, 180 + ranked.slice(0, 12).length * 78); const context = canvas.getContext("2d"); if (!context) return; context.fillStyle = "#fffaf7"; context.fillRect(0, 0, canvas.width, canvas.height); context.fillStyle = "#172033"; context.font = "700 36px sans-serif"; context.fillText("VotecastHub results", 60, 70); context.font = "18px sans-serif"; context.fillStyle = "#657064"; context.fillText("Live nominee standings", 60, 105); for (const [index, row] of ranked.slice(0, 12).entries()) { const y = 165 + index * 78; if (row.image_url) { try { const image = new Image(); image.crossOrigin = "anonymous"; image.src = row.image_url; await new Promise<void>((resolve) => { image.onload = () => resolve(); image.onerror = () => resolve(); }); if (image.complete && image.naturalWidth) context.drawImage(image, 60, y - 28, 48, 48); } catch { /* initials fallback */ } } context.fillStyle = index < 3 ? "#f07b4f" : "#172033"; context.font = "700 22px sans-serif"; context.fillText(`#${index + 1}`, 125, y); context.fillStyle = "#172033"; context.font = "700 20px sans-serif"; context.fillText(row.nominee_name.slice(0, 46), 195, y); context.fillStyle = "#657064"; context.font = "16px sans-serif"; context.fillText(`${row.category_name} · ${Number(row.total_votes).toLocaleString()} votes`, 195, y + 24); } const link = document.createElement("a"); link.download = "votecasthub-results.png"; link.href = canvas.toDataURL("image/png"); link.click(); }
-  return <div className="results-export-actions" aria-label="Export results"><button type="button" onClick={downloadImage}>Download image</button><button type="button" onClick={downloadCsv}>Download Excel CSV</button><button type="button" onClick={printResults}>Print / save PDF</button></div>;
+export function ResultsExportActions({ nominees, scopeLabel }: { nominees: NomineeAnalytics[]; scopeLabel: string }) {
+  const ranked = categoryStandings(nominees);
+  function downloadCsv() {
+    const lines = [["Period", "Category rank", "Nominee", "Category", "Event", "Valid votes"], ...ranked.map(row => [scopeLabel, row.rank, row.nominee_name, row.category_name, row.event_name, row.total_votes])];
+    const url = URL.createObjectURL(new Blob([lines.map(row => row.map(csvValue).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "votecasthub-category-standings.csv"; link.click(); URL.revokeObjectURL(url);
+  }
+  function downloadImage() {
+    const canvas = document.createElement("canvas"); canvas.width = 1200; canvas.height = 180 + Math.min(12, ranked.length) * 80;
+    const context = canvas.getContext("2d"); if (!context) return;
+    context.fillStyle = "#fafbf8"; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#173d32"; context.font = "bold 32px Arial"; context.fillText("VotecastHub · Category standings", 50, 55);
+    context.font = "18px Arial"; context.fillText(scopeLabel.slice(0, 100), 50, 90);
+    context.fillText(`Showing ${Math.min(12, ranked.length)} of ${ranked.length} nominees. Download CSV for the full results.`, 50, 120);
+    ranked.slice(0, 12).forEach((row, index) => {
+      const y = 175 + index * 80; context.font = "bold 22px Arial"; context.fillText(`#${row.rank} · ${row.nominee_name.slice(0, 52)}`, 50, y);
+      context.font = "18px Arial"; context.fillText(`${row.category_name.slice(0, 60)} · ${Number(row.total_votes).toLocaleString()} valid votes`, 50, y + 28);
+    });
+    const link = document.createElement("a"); link.download = "votecasthub-category-standings.png"; link.href = canvas.toDataURL("image/png"); link.click();
+  }
+  return <div className="results-export-actions" aria-label="Export results"><button type="button" disabled={!ranked.length} onClick={downloadImage}>Download summary image</button><button type="button" disabled={!ranked.length} onClick={downloadCsv}>Download full CSV</button><button type="button" onClick={() => window.print()}>Print / save PDF</button></div>;
 }

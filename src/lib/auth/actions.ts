@@ -46,7 +46,7 @@ function formString(formData: FormData, key: string) {
 
 function captchaOptions(formData: FormData) {
   const captchaToken = formString(formData, "cf-turnstile-response");
-  if (captchaToken.length > 4096 || (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)) {
+  if (captchaToken.length > 2048 || (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)) {
     throw new Error("Complete security verification");
   }
   return captchaToken ? { captchaToken } : {};

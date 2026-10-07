@@ -1804,3 +1804,15 @@ a {
 .results-export-actions{display:flex;flex-wrap:wrap;gap:.5rem}.results-export-actions button{border:1px solid #d7dfd5;border-radius:10px;background:#fff;padding:.65rem .8rem;font-size:.8rem;font-weight:700;color:#263d31;cursor:pointer;transition:transform .2s,background .2s}.results-export-actions button:hover{background:#fff5ef;transform:translateY(-1px)}
 @media print{.dashboard-page>header,.dashboard-page nav,.results-export-actions,.export-center,.analytics-toolbar{display:none!important}.dashboard-page{background:#fff!important}.event-review-summary{break-inside:avoid}}
 .sms-credit-callout.is-empty{border-color:#e5b6a8;background:#fff5f1}.verification-setup-callout{display:flex;gap:.75rem;align-items:flex-start;margin-top:1rem;padding:.85rem;border:1px solid #c9dccc;border-radius:12px;background:#f4faf4}.verification-setup-callout p{margin:0;flex:1}.verification-setup-callout a{white-space:nowrap;font-weight:700;color:var(--accent)}
+
+.event-insights-emblem{position:relative;margin:auto;width:156px;height:156px;display:grid;place-items:center;background:radial-gradient(circle,#eaf2df 0%,#f5f8ee 65%,transparent 66%)}
+.event-insights-emblem svg{width:108px;height:108px;filter:drop-shadow(0 10px 12px #173d3218);animation:event-insights-float 4s ease-in-out infinite}
+.event-insights-orbit{position:absolute;inset:0;border:1px dashed #b8cbb7;border-radius:50%;animation:event-insights-turn 24s linear infinite}
+.event-insights-orbit:after{content:"";position:absolute;top:16px;left:17px;width:12px;height:12px;border-radius:50%;background:#c9a45c;box-shadow:0 0 0 5px #f6eddc}
+.event-insights-bar{transform-box:fill-box;transform-origin:center bottom;animation:event-insights-pulse 3s ease-in-out infinite}
+.event-insights-bar:nth-of-type(3){animation-delay:.25s}.event-insights-bar:nth-of-type(4){animation-delay:.5s}
+.event-insights-spark{position:absolute;right:7px;top:29px;color:#1e704d;font-size:26px;animation:event-insights-float 4s ease-in-out infinite reverse}
+@keyframes event-insights-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes event-insights-turn{to{transform:rotate(360deg)}}
+@keyframes event-insights-pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.7)}}
+@media(prefers-reduced-motion:reduce){.event-insights-emblem svg,.event-insights-orbit,.event-insights-bar,.event-insights-spark{animation:none}}

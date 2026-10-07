@@ -7,6 +7,7 @@ import type { AuthFormState } from "@/lib/auth/form-state";
 type Turnstile = {
   render: (element: HTMLElement, options: Record<string, unknown>) => string;
   remove: (id: string) => void;
+  reset: (id: string) => void;
 };
 
 declare global {
@@ -17,39 +18,61 @@ declare global {
 export function AuthCaptcha({ state }: { state: AuthFormState }) {
   const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const container = useRef<HTMLDivElement>(null);
+  const response = useRef<HTMLInputElement>(null);
+  const widget = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  function setFormState(token: string | null, unavailable = false) {
+  function setToken(token: string | null) {
+    if (response.current) response.current.value = token ?? "";
+  }
+
+  useEffect(() => {
+    if (!sitekey) return;
     const form = container.current?.closest("form");
     if (!form) return;
-    let field = form.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]');
-    if (!field) { field = document.createElement("input"); field.type = "hidden"; field.name = "cf-turnstile-response"; form.appendChild(field); }
-    field.value = token ?? "";
-    form.querySelectorAll<HTMLButtonElement>('button[type="submit"]').forEach((button) => { button.disabled = unavailable || !token; });
-  }
+    function guardSubmission(event: SubmitEvent) {
+      if (!response.current?.value) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setFailed(true);
+      }
+    }
+    form.addEventListener("submit", guardSubmission, true);
+    return () => form.removeEventListener("submit", guardSubmission, true);
+  }, [sitekey]);
 
   useEffect(() => {
     if (!ready || !sitekey || !container.current || !window.turnstile) return;
     const api = window.turnstile;
-    setFormState(null, false);
+    setToken(null);
     const id = api.render(container.current, {
       sitekey,
       theme: "auto",
       size: "flexible",
-      "error-callback": () => { setFailed(true); setFormState(null, true); },
-      "expired-callback": () => { setFailed(false); setFormState(null, false); },
-      callback: (token: string) => { setFailed(false); setFormState(token); },
+      "response-field": false,
+      "error-callback": () => { setFailed(true); setToken(null); },
+      "timeout-callback": () => { setFailed(true); setToken(null); },
+      "expired-callback": () => { setToken(null); api.reset(id); },
+      callback: (token: string) => { setFailed(false); setToken(token); },
     });
-    // A returned action state means the previous single-use token may be consumed.
-    return () => { setFormState(null, false); api.remove(id); };
-  }, [ready, sitekey, state]);
+    widget.current = id;
+    return () => { setToken(null); widget.current = null; api.remove(id); };
+  }, [ready, sitekey]);
+
+  useEffect(() => {
+    // Every completed attempt needs a fresh single-use token, even on errors.
+    if (state && widget.current && window.turnstile) {
+      setToken(null);
+      window.turnstile.reset(widget.current);
+    }
+  }, [state]);
 
   if (!sitekey) return null;
   return <>
-    <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setReady(true)} onError={() => setFailed(true)} />
+    <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setReady(true)} onError={() => { setToken(null); setFailed(true); }} />
     <div ref={container} aria-label="Security verification" />
-    <input type="hidden" name="cf-turnstile-response" defaultValue="" />
-    {failed && <p className="form-message" role="alert">Security verification could not load. Refresh the page and try again.</p>}
+    <input ref={response} type="hidden" name="cf-turnstile-response" defaultValue="" />
+    {failed && <p className="form-message" role="alert">Complete security verification before submitting. If it cannot load, refresh the page and try again.</p>}
   </>;
 }

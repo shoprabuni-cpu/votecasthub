@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
-function csv(value: unknown) { const text = String(value ?? ""); return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }
-export async function GET(_: Request, { params }: { params: Promise<{ organizationId: string }> }) {
-  const { organizationId } = await params; await requireVerifiedUser(); const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_organization_payment_export", { p_org: organizationId }); if (error) return NextResponse.json({ error: "Unable to export payments" }, { status: 403 });
-  const lines = [["Reference","Event","Created at","Status","Gross (minor)","Refunded (minor)","Provider fee (minor)","Platform fee (minor)","Organizer net (minor)"], ...(data ?? []).map((row: Record<string, unknown>) => [row.reference,row.event_name,row.created_at,row.status,row.gross_minor,row.refunded_minor,row.provider_fee_minor,row.platform_fee_minor,row.net_minor])].map((row) => row.map(csv).join(","));
-  return new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": "attachment; filename=\"votecasthub-payments.csv\"", "Cache-Control": "no-store" } });
+import { analyticsScope, csvValue } from "@/lib/analytics";
+
+export async function GET(request: Request, { params }: { params: Promise<{ organizationId: string }> }) {
+  const { organizationId } = await params;
+  const query = new URL(request.url).searchParams;
+  let scope: ReturnType<typeof analyticsScope>;
+  try { scope = analyticsScope({ event: query.get("event") ?? undefined, range: query.get("range") ?? undefined }); } catch { return NextResponse.json({ error: "Invalid event filter" }, { status: 400 }); }
+  const { supabase } = await requireVerifiedUser();
+  const { data, error } = await supabase.rpc("get_scoped_payment_export", { p_org: organizationId, ...scope.params });
+  if (error) return NextResponse.json({ error: "Unable to export payments" }, { status: error.code === "42501" ? 403 : 503 });
+  const headers = ["reference", "event_id", "event_name", "created_at", "status", "gross_minor", "refunded_minor", "net_minor"];
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const csv = [headers, ...rows.map(row => headers.map(header => row[header]))].map(row => row.map(csvValue).join(",")).join("\r\n");
+  return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="votecasthub-payments-${scope.days}days.csv"`, "Cache-Control": "private, no-store" } });
 }
