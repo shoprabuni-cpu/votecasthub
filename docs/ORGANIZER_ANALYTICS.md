@@ -4,12 +4,11 @@ Analytics opens with an animated event picker. No totals, standings, charts or
 analytics RPC are loaded until the organizer selects one event. The selected
 event defaults to Whole event (p_days=0), beginning at its earliest recorded
 activity or creation day. Optional filters cover 7, 30 or 365 UTC calendar days.
-Cards, trends, standings and result downloads share that event and period.
+Cards, standings, earnings and result downloads always cover the whole event. Date filters only change the chart within Explore voting activity.
 
 Category leaders, ties, vote shares and distance behind first place come before
 the voting activity chart. Zero-vote nominees have no displayed position or
-winner. Period standings are explicitly labelled; choose Whole event for overall
-results. Paid events have collapsed earnings details. Payment logs, organization
+winner. Standings always cover the whole event. Paid events have collapsed earnings details. Payment logs, organization
 comparisons, SMS reports and moderation audits are absent from this page.
 Financial records remain available through the Payments workspace and existing
 protected export endpoints. Reduced-motion preferences disable the welcome animation.
@@ -63,4 +62,22 @@ TypeScript, ESLint and production build as well. Finally verify event switching,
 date changes, empty states and downloads with an authenticated organizer on the
 hosted environment. Browser/inbox identifiers and client-reported views are
 activity estimates and do not provide a bot-proof count of people.
+
+
+## Event stages and freshness
+
+Draft, upcoming, active, paused, ended and archived events have distinct guidance.
+Upcoming events show a countdown; quiet active events offer a copy-link action.
+Category summaries explain ties and vote margins. Active margins of ten votes or
+less are described as close contests, not winner predictions.
+
+The authorized analytics RPC returns its database snapshot time, valid votes today
+(UTC), the latest valid vote/paid confirmation timestamp, and unresolved payment
+attempts separately. Pending attempts never become counted votes until confirmed.
+An ended event with unresolved attempts warns organizers before announcing results;
+this page does not certify final results or automatically close payment attempts.
+
+Active, upcoming and paused events, and events with unresolved payments, refresh
+every 30 seconds while visible. Refresh pauses during form editing and requests in
+flight. A manual refresh and elapsed snapshot age remain available for all stages.
 

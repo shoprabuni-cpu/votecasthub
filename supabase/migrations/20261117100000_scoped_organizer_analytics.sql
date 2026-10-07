@@ -62,6 +62,10 @@ begin
  trends as (select d.day,coalesce(v.total_votes,0) total_votes,coalesce(v.paid_votes,0) paid_votes,coalesce(v.total_votes-v.paid_votes,0) free_votes from days d left join daily_votes v using(day)),
  revenue as (select d.day,coalesce(m.gross_minor,0) gross_minor,coalesce(m.refunded_minor,0) refunded_minor,coalesce(m.net_minor,0) net_minor from days d left join daily_money m using(day))
  select jsonb_build_object(
+ 'as_of',now(),
+ 'votes_today',coalesce((select sum(valid_votes) from votes where created_at>=((now() at time zone 'UTC')::date::timestamp at time zone 'UTC')),0),
+ 'last_vote_at',(select max(greatest(v.created_at,l.confirmed_at)) from votes v join public.vote_batches b on b.id=v.batch_id left join public.payment_attempts p on p.id=b.payment_attempt_id left join public.paid_vote_ledger l on l.reference=p.provider_reference where v.valid_votes>0),
+ 'pending_payments',(select count(*) from public.payment_attempts p join selected_events e on e.id=p.event_id where p.status in ('created','pending')),
  'events',coalesce((select jsonb_agg(jsonb_build_object('event_id',id,'event_name',name) order by created_at desc,id) from public.events where organization_id=p_org),'[]'::jsonb),
  'rows',coalesce((select jsonb_agg(to_jsonb(r) order by event_name,event_id) from event_rows r),'[]'::jsonb),
  'nominees',coalesce((select jsonb_agg(to_jsonb(n) order by event_id,category_id,total_votes desc,nominee_id) from nominee_rows n),'[]'::jsonb),
@@ -125,3 +129,5 @@ begin
 end $$;
 revoke all on function public.get_scoped_sms_export(uuid,integer) from public,anon;
 grant execute on function public.get_scoped_sms_export(uuid,integer) to authenticated;
+
+
