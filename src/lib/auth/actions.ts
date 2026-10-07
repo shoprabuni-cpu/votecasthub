@@ -536,7 +536,10 @@ export async function createEventAction(_previousState: AuthFormState, formData:
     newEventId = data;
     if (parsed.data.votingMode === "free") {
       const methodResult = await supabase.rpc("set_event_verification_method", { p_event_id: data, p_method: parsed.data.verificationMethod });
-      if (methodResult.error) return { message: "We could not save the verification method." };
+      if (methodResult.error) {
+        console.error("set_event_verification_method failed on create:", methodResult.error);
+        return { message: "We could not save the verification method." };
+      }
     }
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
@@ -570,7 +573,10 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
     if (error) return { message: eventError(error.code) };
     if (parsed.data.votingMode === "free") {
       const methodResult = await supabase.rpc("set_event_verification_method", { p_event_id: eventId.data, p_method: parsed.data.verificationMethod });
-      if (methodResult.error) return { message: "We could not save the verification method." };
+      if (methodResult.error) {
+        console.error("set_event_verification_method failed on update:", methodResult.error);
+        return { message: "We could not save the verification method." };
+      }
     }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);
