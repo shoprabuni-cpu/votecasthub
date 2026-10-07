@@ -110,9 +110,15 @@ export default async function AnalyticsPage({
   const paid = event.voting_mode === "paid";
   const money = (amount: number) => `GH₵ ${(Number(amount) / 100).toFixed(2)}`;
 
+  // Safe number helper to prevent NaN in edge cases
+  const safeNum = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   // Product Intelligence metrics
-  const totalVotesCount = Number(row.total_votes);
-  const visitorsCount = Number(analytics.event_visitors);
+  const totalVotesCount = safeNum(row.total_votes);
+  const visitorsCount = safeNum(analytics.event_visitors);
   const conversionRate = visitorsCount > 0 ? ((totalVotesCount / visitorsCount) * 100).toFixed(1) : "0.0";
 
   return (
@@ -208,7 +214,7 @@ export default async function AnalyticsPage({
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
             </div>
             <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800">
-              {Number(analytics.votes_today).toLocaleString()}
+              {safeNum(analytics.votes_today).toLocaleString()}
             </strong>
             <p className="mt-2 text-[11px] text-stone-400">Since midnight Accra GMT</p>
           </article>
@@ -220,7 +226,7 @@ export default async function AnalyticsPage({
               {conversionRate}%
             </strong>
             <p className="mt-2 text-[11px] text-stone-400">
-              {visitorsCount.toLocaleString()} visitors ({Number(analytics.views).toLocaleString()} page views)
+              {visitorsCount.toLocaleString()} visitors ({safeNum(analytics.views).toLocaleString()} page views)
             </p>
           </article>
 
@@ -232,7 +238,7 @@ export default async function AnalyticsPage({
                 {money(row.net_minor)}
               </strong>
               <p className="mt-2 text-[11px] text-stone-500">
-                Gross: {money(row.gross_minor)} ({Number(row.paid_votes).toLocaleString()} paid votes)
+                Gross: {money(row.gross_minor)} ({safeNum(row.paid_votes).toLocaleString()} paid votes)
               </p>
             </article>
           ) : (
