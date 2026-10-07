@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { EventDetailsForm } from "@/components/events/event-details-form";
 import { EventImageForm } from "@/components/events/event-image-form";
 import { EventStatusForm } from "@/components/events/event-status-form";
 import { Icon } from "@/components/icon";
@@ -16,6 +15,7 @@ import { isVotingRule } from "@/lib/voting-rules";
 import { VoterListManager } from "@/components/events/voter-list-manager";
 import { EventReviewSummary } from "@/components/events/event-review-summary";
 import { CategoryNomineeStudio } from "@/components/events/category-nominee-studio";
+import { EventEditDrawer } from "@/components/events/event-edit-drawer";
 
 export const metadata: Metadata = { title: "Event Setup Studio · VoteHub" };
 type Props = { params: Promise<{ organizationId: string; eventId: string }> };
@@ -49,6 +49,7 @@ export default async function EventSetupPage({ params }: Props) {
     { data: categories, error: categoriesError },
     { data: organization },
     { data: smsBalance },
+    { data: eventMeta },
   ] = await Promise.all([
     supabase.rpc("get_organization_events", { p_organization_id: organizationId }),
     supabase
@@ -64,7 +65,10 @@ export default async function EventSetupPage({ params }: Props) {
       .order("display_order", { ascending: true }),
     supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(),
     supabase.rpc("get_organization_sms_balance", { p_org: organizationId }),
+    supabase.from("events").select("verification_method").eq("id", eventId).maybeSingle(),
   ]);
+
+  const verificationMethod = (eventMeta?.verification_method ?? "phone") as "phone" | "email" | "invite_code" | "voter_list";
 
   const typedEventRows = (eventRows ?? []) as OrganizationEvent[];
   if (eventError || membershipError) {
@@ -227,6 +231,26 @@ export default async function EventSetupPage({ params }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
+            {canManage && event.status === "draft" && (
+              <EventEditDrawer
+                eventId={eventId}
+                organizationId={organizationId}
+                smsBalance={typeof smsBalance === "number" ? smsBalance : null}
+                initial={{
+                  name: event.name,
+                  description: event.description,
+                  price: Number(event.unit_price_minor),
+                  startsAt: event.starts_at,
+                  endsAt: event.ends_at,
+                  resultsVisibility: event.results_visibility,
+                  votingMode: event.voting_mode,
+                  verificationMethod: verificationMethod,
+                  votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit",
+                  freeVoteLimit: event.free_vote_limit_per_phone,
+                  votingRules: event.voting_rules,
+                }}
+              />
+            )}
             {event.status === "draft" && (
               <Link
                 href={`${pagePath}/preview`}
@@ -253,30 +277,58 @@ export default async function EventSetupPage({ params }: Props) {
           </div>
         ) : (
           <>
-            {/* Step 1: Event Details & Rules (Draft mode) */}
+            {/* Event Info Summary card (draft mode) */}
             {event.status === "draft" && (
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                  Step 1 · Event Details & Rules
+              <section className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-6 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                      <Icon name="calendar" size={13} />
+                      <span>Event Details</span>
+                    </div>
+                    <p className="mt-1 text-xs text-stone-500 leading-relaxed">
+                      Voting window, rules, and verification settings for this draft.
+                    </p>
+                  </div>
                 </div>
-                <EventDetailsForm
-                  eventId={eventId}
-                  organizationId={organizationId}
-                  smsBalance={typeof smsBalance === "number" ? smsBalance : null}
-                  initial={{
-                    name: event.name,
-                    description: event.description,
-                    price: Number(event.unit_price_minor),
-                    startsAt: event.starts_at,
-                    endsAt: event.ends_at,
-                    resultsVisibility: event.results_visibility,
-                    votingMode: event.voting_mode,
-                    votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit",
-                    freeVoteLimit: event.free_vote_limit_per_phone,
-                    votingRules: event.voting_rules,
-                  }}
-                />
+                <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 border-t border-stone-100 pt-4 text-xs">
+                  <div>
+                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Opens</dt>
+                    <dd className="mt-0.5 font-semibold text-stone-800 font-mono text-[11px]">
+                      {new Date(event.starts_at).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Closes</dt>
+                    <dd className="mt-0.5 font-semibold text-stone-800 font-mono text-[11px]">
+                      {new Date(event.ends_at).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Voting Mode</dt>
+                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
+                      {event.voting_mode === "paid" ? "Paid (Paystack)" : "Free"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Verification</dt>
+                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
+                      {verificationMethod.replace(/_/g, " ")}
+                    </dd>
+                  </div>
+                  <div className="col-span-2 sm:col-span-2">
+                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Results Visibility</dt>
+                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
+                      {event.results_visibility.replace(/_/g, " ")}
+                    </dd>
+                  </div>
+                  {event.description && (
+                    <div className="col-span-2 sm:col-span-2">
+                      <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Description</dt>
+                      <dd className="mt-0.5 text-stone-600 leading-relaxed line-clamp-2">{event.description}</dd>
+                    </div>
+                  )}
+                </dl>
               </section>
             )}
 
