@@ -10,6 +10,7 @@ import { safeNextPath, type AuthFormState } from "@/lib/auth/form-state";
 import { createHmac } from "node:crypto";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { normalizeGhanaPhone } from "@/lib/auth/phone";
+import { scheduleNotificationDelivery } from "@/lib/notifications/delivery";
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -795,6 +796,7 @@ export async function setEventStatusAction(_previousState: AuthFormState, formDa
     if (error?.message.includes("Verify the organizer Paystack subaccount")) return { message: "Open Payment account and refresh verification after Paystack approves your account, then publish this event." };
     if (error?.message.includes("Paid voting cannot be published")) return { message: "Paid events can stay as drafts, but cannot go online until a payment provider is connected and confirmed." };
     if (error) return { message: error.code === "22023" ? error.message : eventError(error.code) };
+    if (action.data === "publish") scheduleNotificationDelivery();
   } catch {
     return { message: "We could not update the event status. Please try again." };
   }

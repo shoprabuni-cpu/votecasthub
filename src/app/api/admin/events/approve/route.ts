@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { scheduleNotificationDelivery } from "@/lib/notifications/delivery";
 
 export async function POST(request: Request) {
   const parsed = z.object({ id: z.uuid() }).safeParse(await request.json().catch(() => null));
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     console.error("Event approval failed", { code: error.code, message: error.message });
     return NextResponse.json({ error: "Approval failed. Please try again or contact support." }, { status: 500 });
   }
+  scheduleNotificationDelivery();
   revalidatePath("/");
   revalidatePath("/events");
   revalidatePath("/admin");

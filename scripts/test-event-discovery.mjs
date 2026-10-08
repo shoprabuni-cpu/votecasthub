@@ -113,7 +113,8 @@ try{
  await act(async()=>document.querySelector('button').click());
  assert.match(JSON.parse(calls.at(-1).options.body).note,/same competition/);
 
- let rpcError=null,authenticated=true,admin=true;
+ let rpcError=null,authenticated=true,admin=true,deliveryScheduled=0;
+ mocks['@/lib/notifications/delivery']={scheduleNotificationDelivery:()=>{deliveryScheduled++;}};
  mocks['@/lib/supabase/server']={createClient:async()=>({
   auth:{getClaims:async()=>({data:authenticated?{claims:{sub:'10000000-0000-4000-8000-000000000001'}}:null,error:null})},
   from:()=>({select:()=>({eq:()=>({eq:()=>({maybeSingle:async()=>({data:admin?{role:'admin'}:null,error:null})})})})}),
@@ -127,7 +128,8 @@ try{
  rpcError={code:'22023',message:'Import an approved voter list before submitting or publishing this event'};
  let response=await post();assert.equal(response.status,409);assert.match((await response.json()).error,/approved voter list/);
  rpcError={code:'P0002',message:'Event not found'};assert.equal((await post()).status,404);
- rpcError=null;assert.equal((await post()).status,200);
+ assert.equal(deliveryScheduled,0);
+ rpcError=null;assert.equal((await post()).status,200);assert.equal(deliveryScheduled,1);
  const {POST:returnEvent}=load('src/app/api/admin/events/reject/route.ts');
  const reject=reason=>returnEvent(new Request('http://localhost/api/admin/events/reject',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:'30000000-0000-4000-8000-000000000001',reason})}));
  assert.equal((await reject('x')).status,400);assert.equal((await reject('Update the expired dates before resubmitting.')).status,200);

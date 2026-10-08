@@ -71,5 +71,25 @@ try{
  await assert.rejects(()=>db.query('select * from event_review_messages'),/permission denied/);
  await login(owner);await db.query('select set_event_status($1,$2)',[event,'close']);await assert.rejects(()=>db.query('select set_event_status($1,$2)',[event,'unpublish']),/return to draft/);
  await login(admin);await assert.rejects(()=>db.query('select admin_set_event_status($1,$2)',[event,'draft']),/Permanently closed/);
- console.log('PASS: Expired review recovery, editable drafts, reapproval, private two-way messaging, linked notifications, live safe edits, protected identity/rules, activity locks, email reopening without SMS, and permanent closure.');
+ await service();
+ const emailJobs=await query('select * from notification_email_jobs');
+ assert.ok(emailJobs.some(job=>job.user_id===admin && job.path.startsWith('/admin/') && job.recipient==='admin@test.example'));
+ assert.ok(emailJobs.some(job=>job.user_id===owner && job.path.startsWith('/organizer/') && job.recipient==='owner@test.example'));
+ assert.ok(!emailJobs.some(job=>job.user_id===outsider));
+ await login(outsider);
+ await assert.rejects(()=>db.query('select * from notification_email_jobs'),/permission denied/);
+ await assert.rejects(()=>db.query('select * from claim_notification_emails(5)'),/permission denied/);
+ await service();
+ const claimed=await query('select * from claim_notification_emails(1)');
+ assert.equal(claimed.length,1);assert.equal(claimed[0].attempts,1);assert.ok(claimed[0].lease_id);
+ const otherClaims=await query('select * from claim_notification_emails(5)');
+ assert.ok(!otherClaims.some(job=>job.id===claimed[0].id));
+ await db.query("update notification_email_jobs set lease_until=now()-interval '1 minute',first_attempt_at=now()-interval '25 hours',delivery_uncertain=true where id=$1",[claimed[0].id]);
+ await query('select * from claim_notification_emails(5)');
+ assert.equal(await scalar('select status from notification_email_jobs where id=$1',[claimed[0].id]),'failed');
+ await db.query('update platform_admins set is_active=false where user_id=$1',[admin]);
+ await db.exec("update notification_email_jobs set status='pending',lease_until=null,first_attempt_at=null,delivery_uncertain=false where path like '/admin/%'");
+ await query('select * from claim_notification_emails(5)');
+ assert.equal(await scalar("select count(*) from notification_email_jobs where path like '/admin/%' and status<>'cancelled'"),0);
+ console.log('PASS: Event review recovery, private notifications, transactional admin/organizer email jobs, queue access control, exclusive leases, ambiguous-delivery cutoff, and inactive recipient cancellation.');
 }finally{await db.close();}
