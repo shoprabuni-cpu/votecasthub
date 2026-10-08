@@ -1,26 +1,21 @@
 import Link from "next/link";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { Icon } from "@/components/icon";
-import { PublishedEventsCarousel } from "@/components/events/published-events-carousel";
-import { createClient } from "@/lib/supabase/server";
-import type { PublicEventCardData } from "@/components/events/public-event-card";
+import { EventBrowser } from "@/components/events/event-browser";
+import { loadEventDirectory } from "@/lib/events/load-directory";
+import { directoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
 
 const voteFlow = [
   { number: "01", title: "Event published", detail: "Organizers set dates, nominees, and voting limits." },
-  { number: "02", title: "Phone verified", detail: "Free voters verify a phone number before voting." },
+  { number: "02", title: "Voter verified", detail: "Voters complete the event’s selected verification method." },
   { number: "03", title: "Vote recorded", detail: "The selected rule is checked and the vote is recorded." },
 ];
 
 export default async function HomePage() {
-  let featured: PublicEventCardData[] = [];
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.from("events").select("id,name,slug,description,image_path,unit_price_minor,starts_at,ends_at,status,voting_mode").in("status",["published","paused"]).order("starts_at",{ascending:true}).limit(8);
-    const paths=(data??[]).map(e=>e.image_path).filter((p):p is string=>Boolean(p));
-    const { data: images }=paths.length?await supabase.storage.from("nominee-images").createSignedUrls(paths,3600):{data:[]};
-    const urls=new Map((images??[]).flatMap(i=>i.signedUrl&&i.path?[[i.path,i.signedUrl] as const]:[]));
-    featured=(data??[]).map(e=>({...e,imageUrl:e.image_path?urls.get(e.image_path)??null:null})) as PublicEventCardData[];
-  } catch { featured=[]; }
+  let page: EventDirectoryPage = { events: [], total: 0, now: 0 };
+  let unavailable = false;
+  try { page = await loadEventDirectory(directoryFilters.parse({})); }
+  catch { unavailable = true; }
   return (
     <main>
       <header className="site-header">
@@ -48,9 +43,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Verified phones</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
+      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Verified voters</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
 
-      <PublishedEventsCarousel events={featured} />
+      <EventBrowser initialPage={page} unavailable={unavailable} />
 
       <section className="features" id="how-it-works" aria-labelledby="features-title">
         <div className="section-heading"><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div>

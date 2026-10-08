@@ -15,6 +15,7 @@
     "test:organization-closure": "node scripts/test-organization-closure.mjs",
     "test:admin-deletion": "node scripts/test-admin-deletion.mjs",
     "test:auth-captcha": "node scripts/test-auth-captcha.mjs",
+    "test:event-discovery": "node scripts/test-event-discovery.mjs",
     "test:verification": "node scripts/test-verification.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "supabase:start": "supabase start",

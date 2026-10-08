@@ -65,7 +65,12 @@ await login(owner);
 await db.exec(`select submit_event_for_review('${event}')`);
 assert.equal(await scalar(`select status from events where id='${event}'`),'pending_review');
 await admin();
-await db.exec(`update events set status='published' where id='${event}'`);
+await db.exec(`insert into platform_admins(user_id,role) values('${other}','admin')`);
+await login(other);
+await db.exec(`select admin_approve_event('${event}','Regression approval')`);
+assert.equal(await scalar(`select status from events where id='${event}'`),'published');
+await assert.rejects(()=>db.exec(`select admin_approve_event('${event}')`), /awaiting review/);
+await admin();
 await login(unverified);
 assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'00123456',claims.get('00123456')])).error,/Confirm your sign-in/);
 await login(voter);
@@ -154,7 +159,43 @@ assert.equal(normal.claims.length,1);
 await admin(); await db.query('delete from nominees where category_id=$1',[empty.cat]); await login(owner);
 await assert.rejects(()=>db.query('select submit_event_for_review($1)',[empty.id]),/Every active category/);
 assert.equal(await scalar(`select has_function_privilege('anon','public.verify_event_voter_identifier(uuid,text,text,text)','execute')`),false);
-console.log('PASS: CSV/index IDs, tenant boundaries, read/write privileges, publish gates, all four methods, account ownership, repeated redemption/vote requests, quota enforcement, revoked codes, and persistent rate limits.');
+await admin();
+await db.query("select set_config('request.jwt.claim.sub','',false)");
+await db.query(`insert into events(organization_id,name,slug,unit_price_minor,voting_mode,voting_rule,starts_at,ends_at,status,verification_method)
+ select $1,'Directory '||lpad(n::text,3,'0'),'directory-'||n,0,'free','category_limit',
+ case when n<=60 then now()-interval '1 hour' else now()+interval '1 day' end,
+ now()+interval '2 days',case when n>90 then 'closed' else 'published' end,'email' from generate_series(1,100) n`,[org]);
+await db.exec('set role anon');
+const directory=async(status='all',offset=0,sort='name',search='Directory')=>scalar('select get_public_event_directory($1,$2,$3,$4,$5,$6)',[search,status,'all',sort,offset,24]);
+const first=await directory();
+assert.equal(first.total,100); assert.equal(first.events.length,24);
+assert.equal(first.events[0].name,'Directory 001'); assert.equal(first.events[0].organization_name,'Roster Test');
+assert.equal('organization_id' in first.events[0],false);
+const seen=new Set();
+for(let offset=0;offset<100;offset+=24)for(const item of (await directory('all',offset)).events){assert.equal(seen.has(item.id),false);seen.add(item.id);}
+assert.equal(seen.size,100);
+assert.equal((await directory('active')).total,90);
+assert.equal((await directory('open')).total,60);
+assert.equal((await directory('upcoming')).total,30);
+assert.equal((await directory('closed')).total,10);
+assert.equal((await directory('ending')).total,60);
+assert.equal((await directory('all',0,'name','Directory 099')).total,1);
+assert.equal((await directory('all',0,'name','%')).total,0);
+await assert.rejects(()=>db.exec("select get_public_event_directory(p_limit=>1000)"),/Invalid event filters/);
+await admin();
+await db.query("update organizations set moderation_status='suspended' where id=$1",[org]);
+await db.exec('set role anon');assert.equal((await directory()).total,0);
+await admin();await db.query("update organizations set moderation_status='active' where id=$1",[org]);
+// A previously valid review can become unpublishable while awaiting admin review.
+await db.query("update events set status='draft' where id=$1",[empty.id]);
+await db.query('insert into nominees(category_id,name) values($1,$2)',[empty.cat,'Restored nominee']);
+await login(owner);await db.query('select submit_event_for_review($1)',[empty.id]);
+await admin();await db.query('delete from nominees where category_id=$1',[empty.cat]);
+await login(other);await assert.rejects(()=>db.query('select admin_approve_event($1)',[empty.id]),/Every active category/);
+await admin();
+assert.equal(await scalar('select status from events where id=$1',[empty.id]),'pending_review');
+await login(owner);await assert.rejects(()=>db.query('select admin_approve_event($1)',[empty.id]),/Platform admin access/);
+console.log('PASS: Verification safeguards, admin approval across tenants, stale/blocked reviews, and 100-event public directory pagination, timing filters, literal search, and suspended organization exclusion.');
 } finally { await db.close(); }
 
 

@@ -22,47 +22,35 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
   const [reason, setReason] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [message, setMessage] = useState("");
 
-  async function approve(id: string) {
+  async function moderate(id: string, action: string, body: Record<string, string>, nextStatus: string) {
     setBusy(id);
-    const r = await fetch("/api/admin/events/approve", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (r.ok) {
-      setRows((x) => x.map((e) => (e.id === id ? { ...e, status: "published" } : e)));
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/events/${action}`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, ...body }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error ?? "Unable to update this event. Please try again.");
+      setRows(previous => previous.map(event => event.id === id ? { ...event, status: nextStatus } : event));
+      return true;
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Unable to update this event. Please try again.");
+      return false;
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
   }
 
+  async function approve(id: string) { await moderate(id, "approve", {}, "published"); }
+  async function change(id: string, status: string) { await moderate(id, "status", { status }, status); }
   async function reject() {
     if (!rejecting || reason.trim().length < 5) return;
-    setBusy(rejecting.id);
-    const r = await fetch("/api/admin/events/reject", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: rejecting.id, reason }),
-    });
-    if (r.ok) {
-      setRows((x) => x.map((e) => (e.id === rejecting.id ? { ...e, status: "draft" } : e)));
+    if (await moderate(rejecting.id, "reject", { reason }, "draft")) {
       setRejecting(null);
       setReason("");
     }
-    setBusy(null);
-  }
-
-  async function change(id: string, status: string) {
-    setBusy(id);
-    const r = await fetch("/api/admin/events/status", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    });
-    if (r.ok) {
-      setRows((x) => x.map((e) => (e.id === id ? { ...e, status } : e)));
-    }
-    setBusy(null);
   }
 
   const filteredRows = useMemo(() => {
@@ -87,6 +75,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
 
   return (
     <div className="space-y-6">
+      {message && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{message}</p>}
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
@@ -174,7 +163,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                     <>
                       <button
                         type="button"
-                        disabled={busy === e.id}
+                        disabled={busy !== null}
                         onClick={() => approve(e.id)}
                         className="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-60 transition-all cursor-pointer"
                       >
@@ -182,7 +171,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                       </button>
                       <button
                         type="button"
-                        disabled={busy === e.id}
+                        disabled={busy !== null}
                         onClick={() => setRejecting(e)}
                         className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 transition-all cursor-pointer"
                       >
@@ -194,7 +183,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                   {e.status === "published" && (
                     <button
                       type="button"
-                      disabled={busy === e.id}
+                      disabled={busy !== null}
                       onClick={() => change(e.id, "paused")}
                       className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60 transition-all cursor-pointer"
                     >
@@ -205,7 +194,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                   {e.status === "paused" && (
                     <button
                       type="button"
-                      disabled={busy === e.id}
+                      disabled={busy !== null}
                       onClick={() => change(e.id, "published")}
                       className="rounded-lg bg-emerald-800 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 disabled:opacity-60 transition-all cursor-pointer"
                     >
@@ -216,7 +205,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                   {e.status !== "archived" && e.status !== "pending_review" && (
                     <button
                       type="button"
-                      disabled={busy === e.id}
+                      disabled={busy !== null}
                       onClick={() => change(e.id, "archived")}
                       className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-500 hover:bg-stone-50 disabled:opacity-60 transition-all cursor-pointer"
                     >
@@ -254,6 +243,7 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
         onConfirm={reject}
       >
         <div className="mt-3">
+          {message && <p role="alert" className="mb-3 text-sm text-red-800">{message}</p>}
           <textarea
             className="w-full rounded-xl border border-stone-300 p-3 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
             value={reason}
