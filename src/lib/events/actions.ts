@@ -6,6 +6,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { AuthFormState } from "@/lib/auth/form-state";
 import { cleanupEventImages } from "./image-cleanup";
 
+export async function sendEventReviewMessageAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
+  const parsed = z.object({ eventId: z.uuid(), message: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { message: "Write a message of 5–2000 characters." };
+  try {
+    const db = await createClient();
+    const { error } = await db.rpc("send_event_review_message", { p_event_id: parsed.data.eventId, p_body: parsed.data.message });
+    if (error) return { message: error.code === "22023" ? error.message : "Unable to send this message. Check your access and try again." };
+    revalidatePath("/organizer", "layout");
+    revalidatePath("/admin", "layout");
+    return { success: true, message: "Message sent. The recipient has been notified." };
+  } catch { return { message: "Messaging is temporarily unavailable. Please try again." }; }
+}
+
 export async function requestEventCorrectionAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
   const parsed = z.object({
     eventId:z.string().uuid(),kind:z.enum(["name","description","instructions","clarification","photo"]),

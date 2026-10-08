@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+import { EventReviewConversation } from "@/components/events/review-conversation";
 import { Icon } from "@/components/icon";
 import { DataDeletionPanel } from "@/components/admin/data-deletion-panel";
 
@@ -82,6 +83,7 @@ export default async function AdminEventDetail({
 
   return (
     <div className="space-y-6">
+      <EventReviewConversation eventId={eventId} />
       {/* Back Link */}
       <div>
         <Link

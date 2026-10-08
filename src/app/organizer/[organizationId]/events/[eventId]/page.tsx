@@ -15,6 +15,8 @@ import { isVotingRule } from "@/lib/voting-rules";
 import { VoterListManager } from "@/components/events/voter-list-manager";
 import { EventReviewSummary } from "@/components/events/event-review-summary";
 import { CategoryNomineeStudio } from "@/components/events/category-nominee-studio";
+import { EventReviewConversation } from "@/components/events/review-conversation";
+import { organizerEventPresentation, type EventWorkspaceState } from "@/lib/events/organizer-presentation";
 import { EventEditDrawer } from "@/components/events/event-edit-drawer";
 
 export const metadata: Metadata = { title: "Event Setup Studio · VoteHub" };
@@ -113,14 +115,8 @@ export default async function EventSetupPage({ params }: Props) {
     : { data: [], error: null };
 
   const pagePath = `/organizer/${organizationId}/events/${eventId}`;
-  const { data: reviewNotices } = await supabase
-    .from("event_notices")
-    .select("message,created_at")
-    .eq("event_id", eventId)
-    .eq("kind", "review")
-    .order("created_at", { ascending: false })
-    .limit(3);
-
+  const { data: workspaceStates } = await supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId });
+  const workspace = (workspaceStates as EventWorkspaceState[] | null)?.find(row => row.event_id === eventId);
   const activeNomineeCountByCategory = new Map<string, number>();
   for (const nominee of nominees ?? []) {
     if (nominee.is_active) {
@@ -139,6 +135,8 @@ export default async function EventSetupPage({ params }: Props) {
   const requestTime = Date.now();
   const datesReady =
     new Date(event.starts_at) < new Date(event.ends_at) && new Date(event.ends_at).getTime() > requestTime;
+  const presentation = organizerEventPresentation({ ...event, last_review_kind: workspace?.last_review_kind }, requestTime);
+  const canReturnToDraft = Boolean(workspace && !workspace.has_activity && ["pending_review", "published", "paused"].includes(event.status));
   const votingRulesReady =
     event.voting_mode === "free" &&
     isVotingRule(event.voting_rule) &&
@@ -190,20 +188,8 @@ export default async function EventSetupPage({ params }: Props) {
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 space-y-8">
         {/* Notices */}
-        {reviewNotices?.map((notice) => (
-          <div
-            key={notice.created_at}
-            role="status"
-            className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 shadow-2xs"
-          >
-            <div className="flex items-center gap-2 font-semibold">
-              <Icon name="alert" size={15} />
-              <span>Platform review feedback</span>
-            </div>
-            <p className="mt-1 leading-relaxed text-amber-800">{notice.message}</p>
-          </div>
-        ))}
-
+        {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{presentation.warning}</p>}
+        {workspace?.review_feedback && <p className="rounded-xl border border-amber-200 bg-white p-4 text-sm text-stone-800"><strong>Platform feedback: </strong>{workspace.review_feedback} <a className="font-semibold text-emerald-800 underline" href="#review-feedback">View conversation</a></p>}
         {/* Top Breadcrumb & Status Row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -229,7 +215,7 @@ export default async function EventSetupPage({ params }: Props) {
                     : "bg-stone-100 text-stone-600 border border-stone-200"
                 }`}
               >
-                {event.status.replaceAll("_", " ")}
+                {presentation.label}
               </span>
             </div>
           </div>
@@ -264,7 +250,7 @@ export default async function EventSetupPage({ params }: Props) {
                 <span>Preview Ballot ↗</span>
               </Link>
             )}
-            {event.status !== "draft" && event.status !== "archived" && (
+            {["published", "paused", "closed"].includes(event.status) && (
               <Link
                 href={publicUrl}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition-all cursor-pointer"
@@ -391,7 +377,7 @@ export default async function EventSetupPage({ params }: Props) {
               <div className="space-y-6">
                 <PublicEventEditor
                   event={event}
-                  startLocked={Date.parse(event.starts_at) <= requestTime}
+                  startLocked={Date.parse(event.starts_at) <= requestTime || Boolean(workspace?.has_activity)}
                   expired={Date.parse(event.ends_at) <= requestTime}
                 />
                 <CorrectionRequestForm eventId={eventId} />
@@ -428,6 +414,7 @@ export default async function EventSetupPage({ params }: Props) {
             {/* Step 4: Pre-Launch Readiness Review */}
             {event.status === "draft" && (
               <EventReviewSummary
+                datesReady={datesReady}
                 name={event.name}
                 startsAt={event.starts_at}
                 endsAt={event.ends_at}
@@ -450,10 +437,10 @@ export default async function EventSetupPage({ params }: Props) {
                     <span>Launchpad</span>
                   </div>
                   <h3 className="mt-1 text-xl font-serif font-medium text-stone-900 tracking-tight">
-                    {event.status === "draft" ? "Publish your event to voters" : "Manage active event status"}
+                    {event.status === "draft" ? "Submit your event for review" : "Manage active event status"}
                   </h3>
                   <p className="mt-1 text-xs text-stone-600 leading-relaxed">
-                    Publishing opens the public voting link immediately. Ballots accept votes only during your scheduled Ghana time window.
+                    Submitting sends the event to platform review. It becomes public after approval, and accepts votes during the scheduled Ghana time window.
                   </p>
 
                   <ul className="mt-4 space-y-2">
@@ -495,14 +482,14 @@ export default async function EventSetupPage({ params }: Props) {
                           eventId={eventId}
                           action="publish"
                           backTo={pagePath}
-                          label="Publish Event Now"
+                          label="Submit for review"
                           disabled={!publishReady}
                           disabledMessage={
-                            event.voting_mode === "paid"
+                            !datesReady ? "Update the voting dates so the closing time is in the future." : event.voting_mode === "paid" && !checkoutReady
                               ? "A verified payment provider must be connected before publishing."
                               : "Complete the required checklist items first."
                           }
-                          confirmMessage={`Publish “${event.name}” now? The event page will be public immediately. Voting opens at the scheduled Ghana time.`}
+                          confirmMessage={`Submit “${event.name}” for platform review? It will remain private until approved. Voting follows your scheduled Ghana dates.`}
                         />
                       </>
                     )}
@@ -544,8 +531,10 @@ export default async function EventSetupPage({ params }: Props) {
               </div>
             </section>
 
+            <EventReviewConversation eventId={eventId} canReply={canManage} />
+
             {/* Danger Zone */}
-            {canRemove && event.status !== "archived" && (
+            {(canRemove || (canManage && event.status === "pending_review")) && event.status !== "archived" && (
               <div className="rounded-2xl border border-stone-200/60 bg-stone-50/50 p-5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h4 className="font-semibold text-stone-800">Workspace Management</h4>
@@ -564,13 +553,13 @@ export default async function EventSetupPage({ params }: Props) {
                       confirmMessage="Move this draft to your archive?"
                     />
                   )}
-                  {event.status !== "draft" && (
+                  {canReturnToDraft && (event.status === "pending_review" || canRemove) && (
                     <EventStatusForm
                       eventId={eventId}
                       action="unpublish"
                       backTo={pagePath}
-                      label="Unpublish unused event"
-                      confirmMessage="Hide this event and return it to draft? This is only allowed when it has no votes or payments."
+                      label={event.status === "pending_review" ? "Withdraw review & edit" : "Return to draft & edit"}
+                      confirmMessage="Return this unused event to draft? Approval will be cleared. Update the event and submit it for a new review."
                     />
                   )}
                 </div>

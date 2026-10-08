@@ -16,6 +16,7 @@
     "test:admin-deletion": "node scripts/test-admin-deletion.mjs",
     "test:auth-captcha": "node scripts/test-auth-captcha.mjs",
     "test:event-discovery": "node scripts/test-event-discovery.mjs",
+    "test:event-review": "node scripts/test-event-review.mjs",
     "test:verification": "node scripts/test-verification.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "supabase:start": "supabase start",

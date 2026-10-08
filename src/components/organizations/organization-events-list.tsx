@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { organizerEventPresentation } from "@/lib/events/organizer-presentation";
 import { Icon } from "@/components/icon";
 
 export type EventItem = {
@@ -11,6 +12,9 @@ export type EventItem = {
   starts_at: string;
   ends_at: string;
   status: string;
+  review_feedback?: string | null;
+  last_review_kind?: string | null;
+  has_activity?: boolean;
   currency?: string;
   unit_price_minor?: number;
   voting_mode?: string;
@@ -19,9 +23,10 @@ export type EventItem = {
 type Props = {
   events: EventItem[];
   organizationId: string;
+  now: number;
 };
 
-export function OrganizationEventsList({ events, organizationId }: Props) {
+export function OrganizationEventsList({ events, organizationId, now }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -186,8 +191,8 @@ export function OrganizationEventsList({ events, organizationId }: Props) {
 
             const startDate = new Date(event.starts_at);
             const endDate = new Date(event.ends_at);
-            const now = new Date();
-            const isLiveNow = isPublished && now >= startDate && now <= endDate;
+            const presentation = organizerEventPresentation(event, now);
+            const isLiveNow = isPublished && now >= startDate.getTime() && now < endDate.getTime();
 
             return (
               <Link
@@ -210,7 +215,7 @@ export function OrganizationEventsList({ events, organizationId }: Props) {
                         }`}
                       >
                         {isLiveNow && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
-                        {isLiveNow ? "Live Now" : event.status.replaceAll("_", " ")}
+                        {presentation.label}
                       </span>
 
                       {event.voting_mode && (
@@ -236,6 +241,9 @@ export function OrganizationEventsList({ events, organizationId }: Props) {
                   )}
                 </div>
 
+                {presentation.warning && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">{presentation.warning}</p>}
+                {event.review_feedback && <p className="mt-3 line-clamp-3 text-sm text-stone-700"><strong>Platform feedback: </strong>{event.review_feedback}</p>}
+                <p className="mt-3 text-xs font-semibold text-emerald-800">{presentation.action} →</p>
                 <div className="mt-6 border-t border-stone-100 pt-4">
                   <div className="flex items-center justify-between text-xs text-stone-500">
                     <div className="flex items-center gap-1.5">

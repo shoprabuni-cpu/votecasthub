@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { ClosureRequestForm } from "@/components/organizations/closure-request-form";
 import { OrganizationEventsList, type EventItem } from "@/components/organizations/organization-events-list";
+import type { EventWorkspaceState } from "@/lib/events/organizer-presentation";
 import { Icon } from "@/components/icon";
 
 export const metadata: Metadata = { title: "Organization events — VotecastHub" };
@@ -39,7 +40,11 @@ export default async function OrganizationEventsPage({ params }: Props) {
 
   const canCreateEvent = ["owner", "admin", "editor"].includes(membership?.role ?? "");
   const isManager = ["owner", "admin"].includes(membership?.role ?? "");
-  const eventRows = (events ?? []) as EventItem[];
+  const { data: workspaceStates } = await supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId });
+  const states = new Map(((workspaceStates ?? []) as EventWorkspaceState[]).map(row => [row.event_id, row]));
+  const eventRows = (events ?? []).map((event: EventItem) => ({ ...event, ...states.get(event.id) })) as EventItem[];
+  // eslint-disable-next-line react-hooks/purity -- Evaluate voting windows once in this async Server Component.
+  const requestTime = Date.now();
 
   return (
     <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
@@ -134,7 +139,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
         ) : (
           <>
             {/* Interactive Events Section */}
-            <OrganizationEventsList events={eventRows} organizationId={organizationId} />
+            <OrganizationEventsList events={eventRows} organizationId={organizationId} now={requestTime} />
 
             {/* SMS Credit Banner */}
             <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/40 p-5 shadow-xs sm:p-6">

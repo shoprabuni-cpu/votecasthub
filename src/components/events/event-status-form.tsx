@@ -80,7 +80,7 @@ export function EventStatusForm({
           ) : (
             <>
               {isPublish && <Icon name="sparkle" size={13} />}
-              <span>{isPublish ? "Publish Event Now" : label}</span>
+              <span>{label}</span>
             </>
           )}
         </button>

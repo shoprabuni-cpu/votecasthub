@@ -15,9 +15,9 @@ export default async function OrganizationWorkspaceLayout({ children, params }: 
   const [{ data: organization }, { data: membership }, { data: notifications }] = await Promise.all([
     supabase.from("organizations").select("id, name").eq("id", organizationId).maybeSingle(),
     supabase.from("organization_members").select("role").eq("organization_id", organizationId).eq("user_id", userId).maybeSingle(),
-    supabase.from("notifications").select("id,title,body,read_at,created_at").eq("user_id", userId).eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(12),
+    supabase.from("notifications").select("id,title,body,read_at,created_at,organization_id,event_id").eq("user_id", userId).eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(20),
   ]);
   if (!organization || !membership) notFound();
 
-  return <div className="workspace-frame"><WorkspaceSidebar organizationId={organizationId} organizationName={organization.name} role={membership.role}/><div className="workspace-content"><div className="workspace-notification-bar"><NotificationBell notifications={notifications ?? []}/></div>{children}</div></div>;
+  return <div className="workspace-frame"><WorkspaceSidebar organizationId={organizationId} organizationName={organization.name} role={membership.role}/><div className="workspace-content"><div className="workspace-notification-bar"><NotificationBell notifications={notifications ?? []} organizationId={organizationId}/></div>{children}</div></div>;
 }

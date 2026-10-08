@@ -16,6 +16,7 @@ const mocks={
  'next/image':{__esModule:true,default:props=>{const attributes={...props};delete attributes.fill;delete attributes.unoptimized;return React.createElement('img',attributes);}},
  '@/components/ui/app-modal':{AppModal:()=>null},
  'next/cache':{revalidatePath:()=>{}},
+ 'next/navigation':{useRouter:()=>({refresh:()=>{}})},
 };
 function load(file){
  file=path.resolve(file);
@@ -76,6 +77,42 @@ try{
  fail=false;await act(async()=>approve.click());assert.equal(document.querySelector('[role=alert]'),null);
  assert.ok([...document.querySelectorAll('button')].some(button=>button.textContent.trim()==='Pause'));
 
+ const {OrganizationEventsList}=load('src/components/organizations/organization-events-list.tsx');
+ const expired={...event('expired','Expired review'),status:'draft',ends_at:new Date(now-1000).toISOString(),last_review_kind:'returned',review_feedback:'Please correct the voting dates.'};
+ await act(async()=>root.render(React.createElement(OrganizationEventsList,{events:[expired],organizationId:'organization',now})));
+ assert.match(document.body.textContent,/Changes requested/);assert.match(document.body.textContent,/Voting dates expired/);assert.match(document.body.textContent,/Please correct the voting dates/);assert.match(document.body.textContent,/View feedback & edit/);
+ await act(async()=>root.render(React.createElement(OrganizationEventsList,{events:[{...expired,status:'pending_review'}],organizationId:'organization',now})));
+ assert.match(document.body.textContent,/Awaiting approval/);
+ mocks['@/lib/auth/actions']={setEventStatusAction:async()=>({success:true,message:'Submitted'})};
+ const {EventStatusForm}=load('src/components/events/event-status-form.tsx');
+ await act(async()=>root.render(React.createElement(EventStatusForm,{eventId:'test-event',action:'publish',backTo:'/organizer',label:'Submit for review'})));
+ assert.equal(document.querySelector('button').textContent,'Submit for review');
+ assert.doesNotMatch(document.body.textContent,/Publish Event Now/);
+ mocks['@/lib/events/actions']={updatePublicEventAction:async()=>null,sendEventReviewMessageAction:async()=>({success:true,message:'Message sent.'})};
+ const {PublicEventEditor}=load('src/components/events/public-event-editor.tsx');
+ await act(async()=>root.render(React.createElement(PublicEventEditor,{event:{...event('live','Live event'),results_visibility:'live',voting_rules:'Existing rules'},startLocked:true,expired:false})));
+ await act(async()=>document.querySelector('button').click());
+ assert.equal(document.querySelector('textarea[name=description]').readOnly,false);
+ assert.equal(document.querySelector('textarea[name=votingRules]').readOnly,true);
+ assert.equal(document.querySelector('input[type=datetime-local]').disabled,true);
+ const {ReviewMessageForm}=load('src/components/events/review-message-form.tsx');
+ await act(async()=>root.render(React.createElement(ReviewMessageForm,{eventId:'event'})));
+ assert.equal(document.querySelector('textarea').maxLength,2000);
+ assert.equal(document.querySelector('textarea').minLength,5);
+ assert.match(document.querySelector('button').textContent,/Send private message/);
+ const {AdminReviewQueue}=load('src/components/admin/review-queue.tsx');
+ await act(async()=>root.render(React.createElement(AdminReviewQueue,{requests:[{id:'correction',event_name:'Live event',kind:'name',proposed_value:'Corrected name',original_value:'Name',reason:'Spelling correction',created_at:new Date(now).toISOString()}],previewUrls:{}})));
+ assert.equal(document.querySelector('textarea').minLength,20);
+ assert.ok([...document.querySelectorAll('button')].every(button=>button.disabled));
+ await act(async()=>{
+   const input=document.querySelector('textarea');
+   Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype,'value').set.call(input,'Confirmed the same competition identity and unchanged voting rules.');
+   input.dispatchEvent(new dom.window.Event('input',{bubbles:true}));
+ });
+ assert.equal(document.querySelector('button').disabled,false);
+ await act(async()=>document.querySelector('button').click());
+ assert.match(JSON.parse(calls.at(-1).options.body).note,/same competition/);
+
  let rpcError=null,authenticated=true,admin=true;
  mocks['@/lib/supabase/server']={createClient:async()=>({
   auth:{getClaims:async()=>({data:authenticated?{claims:{sub:'10000000-0000-4000-8000-000000000001'}}:null,error:null})},
@@ -91,5 +128,13 @@ try{
  let response=await post();assert.equal(response.status,409);assert.match((await response.json()).error,/approved voter list/);
  rpcError={code:'P0002',message:'Event not found'};assert.equal((await post()).status,404);
  rpcError=null;assert.equal((await post()).status,200);
- console.log('PASS: Actual React directory filters/pagination/retry state, responsive utility classes, visible admin approval failure/retry, and approval HTTP statuses. DOM tests do not verify rendered browser layout.');
+ const {POST:returnEvent}=load('src/app/api/admin/events/reject/route.ts');
+ const reject=reason=>returnEvent(new Request('http://localhost/api/admin/events/reject',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:'30000000-0000-4000-8000-000000000001',reason})}));
+ assert.equal((await reject('x')).status,400);assert.equal((await reject('Update the expired dates before resubmitting.')).status,200);
+ const {POST:reviewCorrection}=load('src/app/api/admin/corrections/review/route.ts');
+ const correctionRequest=note=>reviewCorrection(new Request('http://localhost/api/admin/corrections/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:'40000000-0000-4000-8000-000000000001',approve:true,note})}));
+ assert.equal((await correctionRequest(undefined)).status,400);
+ assert.equal((await correctionRequest('Confirmed identity and unchanged competition rules.')).status,200);
+ authenticated=false;assert.equal((await reject('Update the expired dates before resubmitting.')).status,401);
+ console.log('PASS: Actual React discovery and organizer feedback cards, review submission labels, live editor field locks, private message form, admin error/retry, and approval/return HTTP responses. DOM tests do not verify rendered browser layout.');
 }finally{await act(async()=>root.unmount());dom.window.close();}

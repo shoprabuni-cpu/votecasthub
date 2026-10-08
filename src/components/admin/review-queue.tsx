@@ -22,18 +22,24 @@ export function AdminReviewQueue({
 }) {
   const [items, setItems] = useState(requests);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
 
   async function review(id: string, approve: boolean) {
+    if ((notes[id] ?? "").trim().length < 20) { setError("Explain the identity and fairness checks in at least 20 characters."); return; }
     setBusy(id);
+    setError("");
+    try {
     const response = await fetch("/api/admin/corrections/review", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, approve }),
+      body: JSON.stringify({ id, approve, note: notes[id] }),
     });
-    if (response.ok) {
-      setItems((current) => current.filter((item) => item.id !== id));
-    }
-    setBusy(null);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error ?? "Unable to review this correction. Try again.");
+      setItems(current => current.filter(item => item.id !== id));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to review this correction."); }
+    finally { setBusy(null); }
   }
 
   if (!items.length) {
@@ -52,12 +58,14 @@ export function AdminReviewQueue({
 
   return (
     <div className="space-y-4">
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {items.map((item) => (
         <article
           key={item.id}
           className="rounded-2xl border border-stone-200/90 bg-white p-6 shadow-xs space-y-4"
         >
           {/* Header Row */}
+          <label className="block text-sm font-semibold text-stone-700">Review note (required)<textarea rows={3} minLength={20} maxLength={1000} value={notes[item.id] ?? ""} onChange={event => setNotes(previous => ({ ...previous, [item.id]: event.target.value }))} placeholder="Explain the identity and fairness checks, or why the change is rejected." className="mt-2 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" /></label>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -77,7 +85,7 @@ export function AdminReviewQueue({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={busy === item.id}
+                disabled={busy !== null || (notes[item.id] ?? "").trim().length < 20}
                 onClick={() => review(item.id, true)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-60 transition-all cursor-pointer"
               >
@@ -91,7 +99,7 @@ export function AdminReviewQueue({
 
               <button
                 type="button"
-                disabled={busy === item.id}
+                disabled={busy !== null || (notes[item.id] ?? "").trim().length < 20}
                 onClick={() => review(item.id, false)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 hover:border-stone-300 disabled:opacity-60 transition-all cursor-pointer"
               >

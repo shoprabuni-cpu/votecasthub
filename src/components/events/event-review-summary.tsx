@@ -5,6 +5,7 @@ import { Icon } from "@/components/icon";
 
 type Props = {
   name: string;
+  datesReady: boolean;
   startsAt: string;
   endsAt: string;
   votingMode: string;
@@ -26,6 +27,7 @@ const methodLabels: Record<string, string> = {
 };
 
 export function EventReviewSummary({
+  datesReady,
   name,
   startsAt,
   endsAt,
@@ -41,8 +43,8 @@ export function EventReviewSummary({
   const checks = [
     {
       label: "Ballot Schedule & Dates",
-      complete: Boolean(name && startsAt && endsAt),
-      detail: startsAt && endsAt ? "Scheduled in Ghana GMT window" : "Event name and dates required",
+      complete: Boolean(name && datesReady),
+      detail: datesReady ? "Valid voting dates with a future closing time" : "Update the dates: voting must end in the future",
       critical: true,
     },
     {
@@ -120,7 +122,7 @@ export function EventReviewSummary({
         <div className="sm:text-right">
           <div className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-800">
             <span className={`h-2 w-2 rounded-full ${isAllReady ? "bg-emerald-600 animate-pulse" : "bg-amber-500"}`} />
-            <span>{isAllReady ? "Ready to Publish" : `${completedRequired} of ${totalRequired} Requirements Met`}</span>
+            <span>{isAllReady ? "Ready for review" : `${completedRequired} of ${totalRequired} Requirements Met`}</span>
           </div>
           <div className="mt-2 h-1.5 w-36 sm:ml-auto rounded-full bg-stone-100 overflow-hidden">
             <motion.div
