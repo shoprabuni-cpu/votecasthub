@@ -80,6 +80,14 @@ export default async function PublicEventPage({ params }: Props) {
   let publicResults: Array<{ nominee_id: string; vote_count: number }> = [];
   let unavailable = false;
   let phoneVerified = false;
+  let emailVerified = false;
+  let voterVerified = false;
+  let voterAuthStatus = {
+    isAuthenticated: false,
+    isVerified: false,
+    hasAccessCode: false,
+    hasVoterList: false,
+  };
   let voterUserId: string | null = null;
   let voterUsage: Array<{ category_id: string; nominee_id: string; quantity: number }> = [];
   let votingOpen = false;
@@ -90,9 +98,11 @@ export default async function PublicEventPage({ params }: Props) {
       const { data: userData } = await supabase.auth.getUser();
       voterUserId = userData.user?.id ?? null;
       phoneVerified = Boolean(userData.user?.phone && userData.user.phone_confirmed_at);
+      emailVerified = Boolean(userData.user?.email && userData.user.email_confirmed_at);
     } catch {
       voterUserId = null;
       phoneVerified = false;
+      emailVerified = false;
     }
 
     const eventResult = await supabase
@@ -115,7 +125,31 @@ export default async function PublicEventPage({ params }: Props) {
       if (event.voting_mode === "free") {
         const openResult = await supabase.rpc("is_free_voting_open", { p_event_id: event.id });
         votingOpen = openResult.data === true;
-        if (votingOpen && phoneVerified && voterUserId) {
+
+        // Multi-method eligibility evaluation
+        const method = event.verification_method ?? "phone";
+        if (voterUserId) {
+          if (method === "phone") {
+            voterVerified = phoneVerified;
+          } else if (method === "email") {
+            voterVerified = emailVerified;
+          } else {
+            // For invite_code or voter_list, verify via RPC
+            const { data: eligibility } = await supabase.rpc("check_voter_event_eligibility", { p_event_id: event.id });
+            const el = eligibility as { is_verified?: boolean; has_access_code?: boolean; has_voter_list?: boolean } | null;
+            if (el) {
+              voterVerified = Boolean(el.is_verified);
+              voterAuthStatus = {
+                isAuthenticated: true,
+                isVerified: voterVerified,
+                hasAccessCode: Boolean(el.has_access_code),
+                hasVoterList: Boolean(el.has_voter_list),
+              };
+            }
+          }
+        }
+
+        if (votingOpen && voterVerified && voterUserId) {
           const usageResult = await supabase
             .from("vote_batches")
             .select("category_id, nominee_id, quantity")
@@ -340,56 +374,68 @@ export default async function PublicEventPage({ params }: Props) {
               resultsReleased={event.results_released}
             />
 
-            {/* Voter Verification Banner */}
-            <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
-                  <Icon name="shield" size={15} />
+            {/* Voter Verification Section */}
+            <div id="voter-verification" className="space-y-3">
+              <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
+                    <Icon name="shield" size={15} />
+                  </div>
+                  <div>
+                    <strong className="text-stone-900 font-semibold block">
+                      {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
+                    </strong>
+                    <span className="text-stone-500 text-[11px]">
+                      {event.voting_mode === "free"
+                        ? event.verification_method === "email"
+                          ? "Verify your email once, then cast your votes."
+                          : event.verification_method === "invite_code"
+                          ? "Enter your event access code once, then vote."
+                          : event.verification_method === "voter_list"
+                          ? "Confirm your approved voter credentials once, then vote."
+                          : "Verify your Ghana phone number once with SMS, then vote."
+                        : "Payments processed securely via Mobile Money & Cards with Paystack."}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <strong className="text-stone-900 font-semibold block">
-                    {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
-                  </strong>
-                  <span className="text-stone-500 text-[11px]">
-                    {event.voting_mode === "free"
-                      ? event.verification_method === "email"
-                        ? "Verify your email once, then cast your votes."
-                        : event.verification_method === "invite_code"
-                        ? "Enter your event access code once, then vote."
-                        : event.verification_method === "voter_list"
-                        ? "Confirm your approved voter credentials once, then vote."
-                        : "Verify your Ghana phone number once with SMS, then vote."
-                      : "Payments processed securely via Mobile Money & Cards with Paystack."}
+
+                {voterVerified && event.voting_mode === "free" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                    <Icon name="check" size={12} />
+                    <span>Verified</span>
                   </span>
-                </div>
+                )}
               </div>
 
-              {phoneVerified && event.voting_mode === "free" && event.verification_method === "phone" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
-                  <Icon name="check" size={12} />
-                  <span>Verified</span>
-                </span>
+              {/* Verification Sub-components for invite_code and voter_list */}
+              {event.voting_mode === "free" && event.verification_method === "invite_code" && (
+                <AccessCodeEntry
+                  eventId={event.id}
+                  isAuthenticated={voterAuthStatus.isAuthenticated}
+                  isVerified={voterVerified}
+                  nextPath={votePath}
+                />
+              )}
+              {event.voting_mode === "free" && event.verification_method === "voter_list" && (
+                <VoterListRedemption
+                  eventId={event.id}
+                  isAuthenticated={voterAuthStatus.isAuthenticated}
+                  isVerified={voterVerified}
+                  nextPath={votePath}
+                />
+              )}
+
+              {/* Open instructions note */}
+              {isOpen && (
+                <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
+                  {event.voting_mode === "free"
+                    ? voterVerified
+                      ? "Select a nominee below. Your remaining votes are shown on each candidate card."
+                      : "Voting is free. Verify your identity on a card below to get started."
+                    : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
+                </div>
               )}
             </div>
-
-            {/* Verification Sub-components for invite_code and voter_list */}
-            {event.voting_mode === "free" && event.verification_method === "invite_code" && (
-              <AccessCodeEntry eventId={event.id} />
-            )}
-            {event.voting_mode === "free" && event.verification_method === "voter_list" && (
-              <VoterListRedemption eventId={event.id} />
-            )}
-
-            {/* Open instructions note */}
-            {isOpen && (
-              <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
-                {event.voting_mode === "free"
-                  ? phoneVerified
-                    ? "Select a nominee below. Your remaining votes are shown on each candidate card."
-                    : "Voting is free. Verify your identity on a card below to get started."
-                  : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
-              </div>
-            )}
           </div>
         </section>
 
@@ -500,7 +546,7 @@ export default async function PublicEventPage({ params }: Props) {
                                 unitPriceMinor={event.unit_price_minor}
                               />
                             ) : event.voting_mode === "free" && votingOpen ? (
-                              phoneVerified ? (
+                              voterVerified ? (
                                 remaining > 0 ? (
                                   <FreeVoteForm
                                     eventId={event.id}
@@ -510,7 +556,7 @@ export default async function PublicEventPage({ params }: Props) {
                                     nextPath={votePath}
                                     maxQuantity={remaining}
                                     requestKey={randomUUID()}
-                                    phoneVerified
+                                    phoneVerified={true}
                                     verificationMethod={event.verification_method ?? "phone"}
                                   />
                                 ) : (

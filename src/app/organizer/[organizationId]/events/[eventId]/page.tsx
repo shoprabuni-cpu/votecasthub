@@ -398,21 +398,27 @@ export default async function EventSetupPage({ params }: Props) {
               </div>
             )}
 
-            {/* Private Voter Access Collapsible */}
-            {canManage && event.status === "draft" && (
-              <details className="group rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-all">
-                <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-emerald-900 group-open:border-b group-open:border-stone-100 group-open:pb-3">
-                  <div className="flex items-center gap-2">
-                    <Icon name="shield" size={15} />
-                    <span>Private Voter Access Controls (Optional)</span>
+            {/* Private Voter Access Management */}
+            {canManage && (
+              verificationMethod === "invite_code" ? (
+                <AccessCodeManager eventId={eventId} />
+              ) : verificationMethod === "voter_list" ? (
+                <VoterListManager eventId={eventId} />
+              ) : event.status === "draft" ? (
+                <details className="group rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-all">
+                  <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-emerald-900 group-open:border-b group-open:border-stone-100 group-open:pb-3">
+                    <div className="flex items-center gap-2">
+                      <Icon name="shield" size={15} />
+                      <span>Private Voter Access Controls (Optional)</span>
+                    </div>
+                    <span className="text-[11px] text-stone-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="pt-4 space-y-6">
+                    <AccessCodeManager eventId={eventId} />
+                    <VoterListManager eventId={eventId} />
                   </div>
-                  <span className="text-[11px] text-stone-400 group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <div className="pt-4 space-y-6">
-                  <AccessCodeManager eventId={eventId} />
-                  <VoterListManager eventId={eventId} />
-                </div>
-              </details>
+                </details>
+              ) : null
             )}
 
             {/* Step 4: Pre-Launch Readiness Review */}

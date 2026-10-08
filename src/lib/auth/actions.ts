@@ -245,10 +245,16 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
       p_request_key: parsed.data.requestKey,
     });
     if (error) {
-      if (error.code === "42501" && error.message.includes("Verify your phone")) return { message: "Verify your phone number before voting." };
+      if (error.code === "42501") {
+        if (error.message.includes("Verify your phone")) return { message: "Verify your phone number before voting." };
+        if (error.message.includes("Verify your email")) return { message: "Verify your email address before voting." };
+        if (error.message.includes("access code")) return { message: "Please redeem a valid event access code before voting." };
+        if (error.message.includes("voter-list") || error.message.includes("voter list")) return { message: "Please verify your approved voter eligibility before voting." };
+        if (error.message.includes("Authentication required")) return { message: "Please sign in before casting your vote." };
+      }
       if (error.message.includes("reached the vote limit")) return { message: error.message.includes("this nominee") ? "You have reached the vote limit for this nominee." : "You have reached the vote limit for this category." };
       if (error.message.includes("not open")) return { message: "Voting is not open for this event right now." };
-      return { message: "We could not record your vote. Refresh the page and try again." };
+      return { message: error.message || "We could not record your vote. Refresh the page and try again." };
     }
   } catch {
     return { message: "Voting is temporarily unavailable. Please try again shortly." };
