@@ -14,6 +14,8 @@ export async function POST(request:Request){
   if(!await allow(`checkout:${opaque(p.email)}`,10,600))return Response.json({error:"Too many checkout requests. Please wait before trying again."},{status:429});
   const {data:event,error}=await db.from("events").select("id,organization_id,unit_price_minor,currency,voting_mode,status,starts_at,ends_at").eq("id",p.eventId).maybeSingle();if(error)throw error;
   if(!event||event.voting_mode!=="paid"||event.status!=="published"||Date.now()<Date.parse(event.starts_at)||Date.now()>=Date.parse(event.ends_at))return Response.json({error:"Paid voting is not open."},{status:409});
+  const {data:organization,error:orgError}=await db.from("organizations").select("moderation_status,archived_at").eq("id",event.organization_id).maybeSingle();
+  if(orgError||!organization||organization.moderation_status!=="active"||organization.archived_at)return Response.json({error:"Voting is unavailable for this organization."},{status:409});
   const [{data:category},{data:nominee},{data:account}]=await Promise.all([
    db.from("categories").select("id").eq("id",p.categoryId).eq("event_id",event.id).eq("is_active",true).maybeSingle(),
    db.from("nominees").select("id").eq("id",p.nomineeId).eq("category_id",p.categoryId).eq("is_active",true).maybeSingle(),

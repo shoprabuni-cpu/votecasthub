@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icon";
 
@@ -23,6 +24,7 @@ const STATUS_CONFIG: Record<
       { value: "suspended", label: "Suspend Account", danger: true },
     ],
   },
+  closed: { label: "Closed", style: "bg-stone-100 text-stone-700 border-stone-300", nextOptions: [] },
   suspended: {
     label: "Suspended",
     style: "bg-red-50 text-red-900 border-red-200",
@@ -40,7 +42,8 @@ export function OrganizerModerationActions({
   organizationId: string;
   status: string;
 }) {
-  const [current, setCurrent] = useState(status);
+  const router = useRouter();
+  const current = status;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,9 +61,10 @@ export function OrganizerModerationActions({
         }),
       });
       if (r.ok) {
-        setCurrent(next);
+        router.refresh();
       } else {
-        setError("Failed to update status. Please try again.");
+        const result = await r.json().catch(() => null);
+        setError(result?.error ?? "Failed to update status. Please try again.");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -84,6 +88,7 @@ export function OrganizerModerationActions({
         </span>
       </div>
 
+      <p className="text-xs text-stone-500">{current === "closed" ? "Permanently deactivated. Historical records are retained." : current === "suspended" ? "Workspace access, public events, and new votes are blocked until reactivation." : current === "restricted" ? "Members can read the workspace; organizer changes, public events, and new votes are blocked." : "Reactivation restores access to events that are still within their voting window."}</p>
       <div className="flex flex-wrap gap-2">
         {config.nextOptions.map((opt) => (
           <button

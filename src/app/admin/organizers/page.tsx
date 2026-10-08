@@ -1,9 +1,10 @@
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+import { OrganizationClosureQueue } from "@/components/admin/organization-closure-review";
 import { OrganizerQueue } from "@/components/admin/organizer-queue";
 
 export default async function AdminOrganizersPage() {
-  const { supabase } = await requirePlatformAdmin();
-  const { data, error } = await supabase.rpc("get_admin_organizations");
+  const { supabase, role } = await requirePlatformAdmin();
+  const [{ data, error }, { data: closureRequests, error: closureError }] = await Promise.all([supabase.rpc("get_admin_organizations"), supabase.rpc("get_admin_organization_closure_requests")]);
 
   return (
     <div className="space-y-6">
@@ -20,6 +21,7 @@ export default async function AdminOrganizersPage() {
         </p>
       </div>
 
+      {closureError ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Closure requests could not be loaded. Apply the latest migrations and refresh.</p> : <OrganizationClosureQueue requests={closureRequests ?? []} role={role} />}
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
           <strong>Data unavailable.</strong> Organizer data could not be loaded.

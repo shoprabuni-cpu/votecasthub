@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:organization-closure": "node scripts/test-organization-closure.mjs",
     "test:verification": "node scripts/test-verification.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "supabase:start": "supabase start",

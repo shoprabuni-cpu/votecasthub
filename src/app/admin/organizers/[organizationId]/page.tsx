@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { OrganizerModerationActions } from "@/components/admin/organizer-moderation-actions";
+import { OrganizationClosureAction, OrganizationClosureQueue } from "@/components/admin/organization-closure-review";
 import { Icon } from "@/components/icon";
 
 type OrgRow = {
@@ -28,11 +29,13 @@ export default async function OrganizerProfile({
   params: Promise<{ organizationId: string }>;
 }) {
   const { organizationId } = await params;
-  const { supabase } = await requirePlatformAdmin();
+  const { supabase, role } = await requirePlatformAdmin();
 
-  const [{ data }, { data: history }] = await Promise.all([
+  const [{ data }, { data: history }, { data: closureRequests, error: closureError }, { data: closureReadiness, error: readinessError }] = await Promise.all([
     supabase.rpc("get_admin_organization_profile", { p_org: organizationId }),
     supabase.rpc("get_admin_moderation_history", { p_org: organizationId }),
+    supabase.rpc("get_admin_organization_closure_requests", { p_org: organizationId }),
+    supabase.rpc("get_admin_organization_closure_readiness", { p_org: organizationId }),
   ]);
 
   const rows = (data ?? []) as OrgRow[];
@@ -103,6 +106,10 @@ export default async function OrganizerProfile({
         status={first.moderation_status}
       />
 
+      {closureError || readinessError ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Organization closure controls could not be loaded. Apply the latest migrations and refresh.</p> : <>
+        {first.moderation_status === "closed" ? <div className="rounded-xl border border-stone-200 bg-stone-50 p-5 text-sm"><p className="font-semibold">This organization is permanently closed.</p><p className="mt-2 text-stone-600">{closureReadiness?.reason}</p></div> : <section className="space-y-3 rounded-2xl border border-red-200 bg-white p-5"><h2 className="font-serif font-bold">Close organization</h2><OrganizationClosureAction organizationId={organizationId} organizationName={first.name} blocker={closureReadiness?.blocker ?? null} canClose={role === "admin"} /></section>}
+        <OrganizationClosureQueue requests={closureRequests ?? []} role={role} />
+      </>}
       {/* Event History */}
       <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden">
         <div className="px-5 py-4 border-b border-stone-100">
