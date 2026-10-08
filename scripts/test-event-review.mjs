@@ -16,7 +16,10 @@ try{
  create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
  create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,owner uuid);alter table storage.objects enable row level security;
  grant usage on schema public,auth,storage to anon,authenticated,service_role;grant all on all tables in schema auth,storage to service_role;alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`);
- for(const file of (await fs.readdir('supabase/migrations')).filter(name=>name.endsWith('.sql')).sort())await db.exec(await fs.readFile(`supabase/migrations/${file}`,'utf8'));
+ for(const file of (await fs.readdir('supabase/migrations')).filter(name=>name.endsWith('.sql')).sort()){
+  if(file==='20261124100000_event_review_recovery.sql' && process.env.TEST_MISSING_NOTIFICATIONS==='1')await db.exec('drop table public.notifications');
+  await db.exec(await fs.readFile(`supabase/migrations/${file}`,'utf8'));
+ }
  await db.query(`insert into auth.users(id,email,email_confirmed_at) values($1,'owner@test.example',now()),($2,'admin@test.example',now()),($3,'voter@test.example',now())`,[owner,admin,outsider]);
  await db.query("insert into platform_admins(user_id,role) values($1,'admin')",[admin]);
  await db.query("insert into organizations(id,name,slug,created_by) values($1,'Review organization','review-org',$2)",[org,owner]);

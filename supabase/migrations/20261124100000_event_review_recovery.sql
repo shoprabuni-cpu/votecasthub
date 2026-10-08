@@ -28,7 +28,23 @@ grant execute on function private.can_read_event_notice(uuid,text) to anon,authe
 drop policy event_notices_read on public.event_notices;
 create policy event_notices_read on public.event_notices for select using(private.can_read_event_notice(event_id,kind));
 
-alter table public.notifications add column event_id uuid references public.events(id) on delete set null;
+-- Restore the notification foundation on databases where the earlier table is missing.
+create table if not exists public.notifications(
+ id uuid primary key default gen_random_uuid(),
+ user_id uuid not null references auth.users(id) on delete cascade,
+ organization_id uuid references public.organizations(id) on delete cascade,
+ kind text not null,title text not null,body text not null,
+ read_at timestamptz,created_at timestamptz not null default now()
+);
+alter table public.notifications enable row level security;
+revoke all on public.notifications from public,anon,authenticated;
+grant select,update on public.notifications to authenticated;
+grant all on public.notifications to service_role;
+drop policy if exists notification_owner_read on public.notifications;
+create policy notification_owner_read on public.notifications for select to authenticated using(user_id=auth.uid());
+drop policy if exists notification_owner_update on public.notifications;
+create policy notification_owner_update on public.notifications for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
+alter table public.notifications add column if not exists event_id uuid references public.events(id) on delete set null;
 
 create function private.event_has_activity(p_event_id uuid) returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.vote_batches where event_id=p_event_id) or exists(select 1 from public.payment_attempts where event_id=p_event_id);
