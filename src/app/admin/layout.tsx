@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { PRIVATE_ROBOTS } from "@/lib/seo/metadata";
+export const metadata = { robots: PRIVATE_ROBOTS };
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";

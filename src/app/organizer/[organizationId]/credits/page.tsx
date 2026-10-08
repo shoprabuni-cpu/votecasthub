@@ -5,7 +5,7 @@ import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { PaystackCreditButton } from "@/components/payments/paystack-credit-button";
 import { Icon } from "@/components/icon";
 
-export const metadata: Metadata = { title: "SMS Credits · VoteHub" };
+export const metadata: Metadata = { title: "SMS credits" };
 type Props = { params: Promise<{ organizationId: string }> };
 
 export default async function CreditsPage({ params }: Props) {

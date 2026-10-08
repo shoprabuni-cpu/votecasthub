@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { Icon } from "@/components/icon";
+import { SiteHeader } from "@/components/site-header";
 import { EventBrowser } from "@/components/events/event-browser";
 import { loadEventDirectory } from "@/lib/events/load-directory";
 import { directoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
+import { ResourceLinks } from "@/components/seo/resource-links";
+import { StructuredData } from "@/components/seo/structured-data";
+import { absoluteUrl, publicMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo/metadata";
+
+export const metadata = { ...publicMetadata("Online voting for awards and competitions in Ghana", SITE_DESCRIPTION, "/"), title: { absolute: "VotecastHub GH | Online voting for awards in Ghana" } };
 
 const voteFlow = [
   { number: "01", title: "Event published", detail: "Organizers set dates, nominees, and voting limits." },
@@ -18,16 +24,13 @@ export default async function HomePage() {
   catch { unavailable = true; }
   return (
     <main>
-      <header className="site-header">
-        <Link className="brand" href="/" aria-label="VotecastHub GH home"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link>
-        <nav className="header-nav" aria-label="Main navigation"><Link className="header-link" href="/events">Browse events</Link><Link className="header-link" href="/sign-in">Organizer sign in</Link><Link className="header-cta" href="/sign-up">Get started</Link></nav>
-      </header>
+      <SiteHeader />
 
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-copy">
           <p className="eyebrow"><span className="status-dot" /> FOR GHANAIAN AWARDS & COMPETITIONS</p>
           <h1 id="hero-title">Good events deserve a <em>fair vote.</em></h1>
-          <p className="hero-description">A dependable way to run voting for awards, competitions, and community events. Organizers stay in control. Confirmed votes leave a clear record.</p>
+          <p className="hero-description">Online voting for awards, competitions, and community events in Ghana. Set up nominees, choose voter verification, and share clear voting rules with your community.</p>
           <div className="hero-actions"><Link className="primary-link" href="/events">Browse live events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
           <p className="hero-note">Web voting first. USSD is planned for a later phase.</p>
         </div>
@@ -56,7 +59,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>Voting for events and awards.</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a><CookieSettingsLink /></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>
+      <ResourceLinks />
+      <StructuredData data={{ "@context": "https://schema.org", "@graph": [
+        { "@type": "Organization", "@id": absoluteUrl("/#organization"), name: SITE_NAME, url: absoluteUrl("/"), logo: absoluteUrl("/icons/icon-192.png"), email: "info@votecasthub.com", description: SITE_DESCRIPTION },
+        { "@type": "WebSite", "@id": absoluteUrl("/#website"), name: SITE_NAME, url: absoluteUrl("/"), inLanguage: "en-GH", publisher: { "@id": absoluteUrl("/#organization") } },
+      ] }} />
+      <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><span>Voting for events and awards.</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/guides">Guides</Link><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a><CookieSettingsLink /></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>
     </main>
   );
 }

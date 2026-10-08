@@ -15,7 +15,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+    return [
+      { source: "/:path*", headers: [...securityHeaders, ...(process.env.VERCEL_ENV === "preview" ? noIndex : [])] },
+      { source: "/:section(admin|organizer|sign-in|sign-up|email-sign-in|phone-sign-in|forgot-password|reset-password|resend-confirmation|invite|auth|payments|api)/:path*", headers: noIndex },
+    ];
   },
 };
 

@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 
-export const metadata: Metadata = { title: "About", description: "Learn about VotecastHub GH and how it supports event organizers and voters." };
+export const metadata = publicMetadata("About VotecastHub", "Learn about VotecastHub GH and how it supports event organizers and voters across Ghana.", "/about");
 
 export default function AboutPage() {
   return <main className="public-page"><SiteHeader /><article className="legal-page about-page mx-auto w-full motion-safe:animate-[page-in_.35s_ease-out_both]">

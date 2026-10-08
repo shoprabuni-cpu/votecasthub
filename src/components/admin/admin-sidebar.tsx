@@ -41,7 +41,7 @@ export function AdminSidebar() {
             </span>
             <div>
               <span className="font-serif font-bold text-stone-900 text-sm tracking-tight block leading-tight">
-                VoteHub GH
+                VotecastHub GH
               </span>
               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800">
                 Platform Admin

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { EventBrowser } from "@/components/events/event-browser";
 import { loadEventDirectory } from "@/lib/events/load-directory";
 import { directoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
 
-export const metadata: Metadata = { title: "Browse events" };
+export const metadata = publicMetadata("Browse awards and voting events in Ghana", "Find public awards, competitions and community voting events on VotecastHub GH. Explore nominees, voting dates and participation rules.", "/events");
 
 export default async function EventsPage() {
   let page: EventDirectoryPage = { events: [], total: 0, now: 0 };

@@ -46,7 +46,7 @@ export function ResultsExportActions({
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#173d32";
     context.font = "bold 32px Arial";
-    context.fillText("VoteHub · Category Standings Summary", 50, 55);
+    context.fillText("VotecastHub GH · Category Standings Summary", 50, 55);
     context.font = "18px Arial";
     context.fillText(scopeLabel.slice(0, 100), 50, 90);
     context.fillText(

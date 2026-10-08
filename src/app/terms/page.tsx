@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 
-export const metadata: Metadata = { title: "Terms & Conditions", description: "Terms for organizers and participants using VotecastHub GH." };
+export const metadata = publicMetadata("Terms & Conditions", "Terms for organizers and participants using VotecastHub GH.", "/terms");
 
 export default function TermsPage() {
   return <main className="public-page"><SiteHeader /><article className="legal-page mx-auto w-full motion-safe:animate-[page-in_.35s_ease-out_both]">

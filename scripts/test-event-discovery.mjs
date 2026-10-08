@@ -138,5 +138,14 @@ try{
  assert.equal((await correctionRequest(undefined)).status,400);
  assert.equal((await correctionRequest('Confirmed identity and unchanged competition rules.')).status,200);
  authenticated=false;assert.equal((await reject('Update the expired dates before resubmitting.')).status,401);
- console.log('PASS: Actual React discovery and organizer feedback cards, review submission labels, live editor field locks, private message form, admin error/retry, and approval/return HTTP responses. DOM tests do not verify rendered browser layout.');
+ let copied='';
+ Object.defineProperty(globalThis.navigator,'clipboard',{configurable:true,value:{writeText:async value=>{copied=value;}}});
+ const {EventPromotionTools}=load('src/components/sharing/event-promotion-tools.tsx');
+ await act(async()=>root.render(React.createElement(EventPromotionTools,{name:'Awards </a><script>alert(1)</script>',url:'https://www.votecasthub.com/events/awards'})));
+ await act(async()=>[...document.querySelectorAll('button')].find(button=>button.textContent==='Copy website link HTML').click());
+ assert.match(copied,/&lt;script&gt;/);assert.ok(!copied.includes('<script>'));
+ await act(async()=>[...document.querySelectorAll('button')].find(button=>button.textContent==='Copy event link').click());
+ assert.equal(copied,'https://www.votecasthub.com/events/awards');
+ assert.match(document.querySelector('[role=status]').textContent,/Event link copied/);
+ console.log('PASS: React discovery/review screens, approval responses, background dispatch hooks and promotion copy tools with escaped website HTML. DOM tests do not verify rendered browser layout.');
 }finally{await act(async()=>root.unmount());dom.window.close();}

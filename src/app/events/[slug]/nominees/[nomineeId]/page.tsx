@@ -7,20 +7,18 @@ import { VotingNotice } from "@/components/events/voting-notice";
 import { eventPresentation } from "@/lib/events/presentation";
 import { ShareButton } from "@/components/sharing/share-buttons";
 import { createClient } from "@/lib/supabase/server";
+import { loadPublicSearchMetadata } from "@/lib/seo/public-data";
+import { publicMetadata, PRIVATE_ROBOTS } from "@/lib/seo/metadata";
 
 type Props = { params: Promise<{ slug: string; nomineeId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, nomineeId } = await params;
   try {
-    const supabase = await createClient();
-    const { data: event } = await supabase.from("events").select("id").eq("slug", slug).in("status", ["published", "paused", "closed"]).maybeSingle();
-    if (!event) return { title: "Nominee" };
-    const { data: nominee } = await supabase.from("nominees").select("name, biography, category_id").eq("id", nomineeId).eq("is_active", true).maybeSingle();
-    if (!nominee) return { title: "Nominee" };
-    const { data: category } = await supabase.from("categories").select("id").eq("id", nominee.category_id).eq("event_id", event.id).eq("is_active", true).maybeSingle();
-    return category ? { title: nominee.name, description: nominee.biography ?? "Nominee profile" } : { title: "Nominee" };
-  } catch { return { title: "Nominee" }; }
+    const data = await loadPublicSearchMetadata(slug, nomineeId);
+    if (!data) return { title: "Nominee unavailable", robots: PRIVATE_ROBOTS };
+    return publicMetadata(`${data.name} — ${data.event_name}`, data.description || `Meet ${data.name}, a nominee in ${data.event_name}, on VotecastHub GH. Explore the event and voting rules.`, data.path, `/api/og?event=${encodeURIComponent(slug)}&nominee=${encodeURIComponent(nomineeId)}`);
+  } catch { return { title: "Nominee temporarily unavailable", robots: PRIVATE_ROBOTS }; }
 }
 
 export default async function NomineePage({ params }: Props) {

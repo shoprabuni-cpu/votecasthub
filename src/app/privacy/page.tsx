@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { SiteHeader } from "@/components/site-header";
 
-export const metadata: Metadata = { title: "Privacy Policy", description: "How VotecastHub GH handles account, organization, event, and preference information." };
+export const metadata = publicMetadata("Privacy Policy", "How VotecastHub GH handles account, organization, event, and preference information.", "/privacy");
 
 export default function PrivacyPage() {
   return <main className="public-page"><SiteHeader /><article className="legal-page mx-auto w-full motion-safe:animate-[page-in_.35s_ease-out_both]">

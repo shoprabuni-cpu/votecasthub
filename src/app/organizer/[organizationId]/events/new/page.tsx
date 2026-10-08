@@ -6,7 +6,7 @@ import { EventDetailsForm } from "@/components/events/event-details-form";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { Icon } from "@/components/icon";
 
-export const metadata: Metadata = { title: "Create an event · VoteHub" };
+export const metadata: Metadata = { title: "Create an event" };
 type Props = { params: Promise<{ organizationId: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

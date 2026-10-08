@@ -6,7 +6,7 @@ import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { votingRuleSummary, type VotingRule } from "@/lib/voting-rules";
 import { Icon } from "@/components/icon";
 
-export const metadata: Metadata = { title: "Private Event Preview · VoteHub", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Private event preview", robots: { index: false, follow: false } };
 type Props = { params: Promise<{ organizationId: string; eventId: string }> };
 
 type OrganizationEvent = {

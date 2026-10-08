@@ -18,6 +18,7 @@
     "test:event-discovery": "node scripts/test-event-discovery.mjs",
     "test:event-review": "node scripts/test-event-review.mjs",
     "test:notification-delivery": "node scripts/test-notification-delivery.mjs",
+    "test:seo": "node scripts/test-seo.mjs",
     "test:verification": "node scripts/test-verification.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "supabase:start": "supabase start",

@@ -15,25 +15,20 @@ import { eventPresentation } from "@/lib/events/presentation";
 import { ShareButton } from "@/components/sharing/share-buttons";
 import { EventViewTracker } from "@/components/analytics/event-view-tracker";
 import { Icon } from "@/components/icon";
+import { loadPublicSearchMetadata } from "@/lib/seo/public-data";
+import { publicMetadata, PRIVATE_ROBOTS, breadcrumbs } from "@/lib/seo/metadata";
+import { StructuredData } from "@/components/seo/structured-data";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("events")
-      .select("name, description")
-      .eq("slug", slug)
-      .in("status", ["published", "paused", "closed"])
-      .maybeSingle();
-    return {
-      title: data?.name ? `${data.name} · VoteHub` : "Event · VoteHub",
-      description: data?.description ?? "Explore this event on VoteHub GH.",
-    };
+    const data = await loadPublicSearchMetadata(slug);
+    if (!data) return { title: "Event unavailable", robots: PRIVATE_ROBOTS };
+    return publicMetadata(data.name, data.description || `Explore ${data.name} on VotecastHub GH. Meet nominees and read the voting rules and schedule.`, data.path, `/api/og?event=${encodeURIComponent(slug)}`);
   } catch {
-    return { title: "Event · VoteHub" };
+    return { title: "Event temporarily unavailable", robots: PRIVATE_ROBOTS };
   }
 }
 
@@ -258,6 +253,7 @@ export default async function PublicEventPage({ params }: Props) {
   return (
     <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900">
       <SiteHeader />
+      <StructuredData data={breadcrumbs([{ name: "Home", path: "/" }, { name: "Events", path: "/events" }, { name: event.name, path: `/events/${slug}` }])} />
       <EventViewTracker eventId={event.id} />
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 space-y-8">
@@ -625,13 +621,13 @@ export default async function PublicEventPage({ params }: Props) {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-stone-500">
           <div className="flex items-center gap-3">
             <Link href="/" className="font-serif font-bold text-stone-900 text-sm">
-              VoteHub <span className="text-emerald-800">GH</span>
+              VotecastHub <span className="text-emerald-800">GH</span>
             </Link>
             <span>· Trusted ballot verification for Ghana</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
-            <span>© {new Date().getFullYear()} VoteHub GH</span>
+            <span>© {new Date().getFullYear()} VotecastHub GH</span>
             <Link href="/about" className="hover:text-stone-900">
               About
             </Link>

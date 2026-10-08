@@ -18,8 +18,10 @@ import { CategoryNomineeStudio } from "@/components/events/category-nominee-stud
 import { EventReviewConversation } from "@/components/events/review-conversation";
 import { organizerEventPresentation, type EventWorkspaceState } from "@/lib/events/organizer-presentation";
 import { EventEditDrawer } from "@/components/events/event-edit-drawer";
+import { EventPromotionTools } from "@/components/sharing/event-promotion-tools";
+import { absoluteUrl } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "Event Setup Studio · VoteHub" };
+export const metadata: Metadata = { title: "Event setup" };
 type Props = { params: Promise<{ organizationId: string; eventId: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -260,6 +262,8 @@ export default async function EventSetupPage({ params }: Props) {
             )}
           </div>
         </div>
+
+        {["published", "paused", "closed"].includes(event.status) && <EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} />}
 
         {categoriesError || nomineeError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-xs text-red-900">
