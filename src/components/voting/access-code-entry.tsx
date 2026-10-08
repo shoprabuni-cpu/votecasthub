@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/icon";
@@ -23,6 +24,7 @@ export function AccessCodeEntry({
   isVerified?: boolean;
   nextPath?: string;
 }) {
+  const router = useRouter();
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -33,19 +35,17 @@ export function AccessCodeEntry({
     setBusy(true);
     setMessage(null);
     try {
-      const { error } = await createClient().rpc("redeem_event_access_code", {
+      const { data, error } = await createClient().rpc("verify_event_access_code", {
         p_event_id: eventId,
         p_code_hash: await digest(code.trim().toUpperCase()),
       });
-      if (error) {
-        setMessage(error.message || "Invalid or expired access code.");
+      if (error || data?.error || data?.success !== true) {
+        setMessage(error?.message || data?.error || "Invalid or expired access code.");
         setIsSuccess(false);
       } else {
         setMessage("Access code accepted! You can now cast your vote below.");
         setIsSuccess(true);
-        setTimeout(() => {
-          window.location.reload();
-        }, 1200);
+        router.refresh();
       }
     } catch {
       setMessage("Could not verify access code right now. Please try again.");

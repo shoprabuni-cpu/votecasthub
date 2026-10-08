@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 
 function generateCode() {
-  return `VOTE-${crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase()}`;
+  return `VOTE-${crypto.randomUUID().replaceAll("-", "").slice(0, 24).toUpperCase()}`;
 }
 
 async function digest(v: string) {
@@ -21,9 +22,11 @@ type AccessCodeRow = {
   redemption_count: number;
   expires_at: string | null;
   created_at?: string;
+  is_expired?: boolean;
 };
 
 export function AccessCodeManager({ eventId }: { eventId: string }) {
+  const router = useRouter();
   const [rows, setRows] = useState<AccessCodeRow[]>([]);
   const [limit, setLimit] = useState("1");
   const [newCode, setNewCode] = useState("");
@@ -31,36 +34,46 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    const { data } = await createClient()
+  const load = useCallback(async () => {
+    const { data, error } = await createClient()
       .from("event_access_codes")
       .select("id, max_redemptions, redemption_count, expires_at, created_at")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
-    setRows(data ?? []);
-  };
+    if (error) { setMessage(error.message); return; }
+    setRows((data ?? []).map((row) => ({ ...row, is_expired: Boolean(row.expires_at && Date.parse(row.expires_at) <= Date.now()) })));
+  }, [eventId]);
 
   useEffect(() => {
-    load();
+    let active = true;
+    void createClient().from("event_access_codes").select("id, max_redemptions, redemption_count, expires_at, created_at").eq("event_id", eventId).order("created_at", { ascending: false }).then(({ data, error }) => {
+      if (!active) return;
+      if (error) setMessage(error.message);
+      else setRows((data ?? []).map((row) => ({ ...row, is_expired: Boolean(row.expires_at && Date.parse(row.expires_at) <= Date.now()) })));
+    });
+    return () => { active = false; };
   }, [eventId]);
 
   const create = async () => {
     setBusy(true);
     setCopied(false);
+    const maxUses = Number(limit);
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000) { setMessage("Max uses must be a whole number from 1 to 100,000."); setBusy(false); return; }
     const value = generateCode();
     try {
-      const { error } = await createClient().from("event_access_codes").insert({
-        event_id: eventId,
-        code_hash: await digest(value),
-        max_redemptions: Math.max(1, Number(limit) || 1),
+      const { error } = await createClient().rpc("create_event_access_code", {
+        p_event_id: eventId,
+        p_code_hash: await digest(value),
+        p_max_redemptions: maxUses,
       });
       if (error) {
         setNewCode("");
-        setMessage("Could not generate access code. Please try again.");
+        setMessage(error.message || "Could not generate access code. Please try again.");
       } else {
         setNewCode(value);
         setMessage("Copy this code now to share with your voter. It will not be shown again.");
-        load();
+        await load();
+        router.refresh();
       }
     } catch {
       setMessage("An unexpected error occurred.");
@@ -70,7 +83,7 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
   };
 
   const revoke = async (id: string) => {
-    if (!confirm("Revoke this access code? Any voter who hasn't redeemed it will be locked out.")) return;
+    if (!confirm("Revoke this access code? Voters using this code will lose access to further voting.")) return;
     setBusy(true);
     try {
       const { error } = await createClient().rpc("revoke_event_access_code", { p_code_id: id });
@@ -78,9 +91,10 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
         setMessage(error.message);
       } else {
         setMessage("Code revoked successfully.");
-        load();
+        await load();
+        router.refresh();
       }
-    } finally {
+    } catch { setMessage("Could not revoke this code. Please try again."); } finally {
       setBusy(false);
     }
   };
@@ -197,7 +211,7 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
         {rows.length > 0 ? (
           <div className="divide-y divide-stone-100 rounded-xl border border-stone-200/90 overflow-hidden">
             {rows.map((row) => {
-              const isRevoked = Boolean(row.expires_at);
+              const isRevoked = row.is_expired === true;
               const isFullyUsed = row.redemption_count >= row.max_redemptions;
               return (
                 <div

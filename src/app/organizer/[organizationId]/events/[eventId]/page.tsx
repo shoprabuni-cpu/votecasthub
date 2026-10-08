@@ -144,15 +144,19 @@ export default async function EventSetupPage({ params }: Props) {
     isVotingRule(event.voting_rule) &&
     (event.voting_rule !== "one_per_category" || event.free_vote_limit_per_phone === 1);
   const checkoutReady = event.voting_mode === "paid" ? paidCheckoutReady === true : votingRulesReady;
+  const { data: verificationReadiness, error: verificationReadinessError } = await supabase.rpc("get_event_verification_readiness", { p_event_id: eventId });
+  const verificationReady = !verificationReadinessError && verificationReadiness?.ready === true;
   const publishReady =
     datesReady &&
     activeCategories.length > 0 &&
     allCategoriesHaveNominees &&
     checkoutReady &&
+    verificationReady &&
     !categoriesError &&
     !nomineeError;
 
   const publishChecks = [
+    { label: verificationReadiness?.message ?? "Voter verification configuration is available", complete: verificationReady },
     { label: "Voting dates are valid and close in the future", complete: datesReady },
     {
       label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",

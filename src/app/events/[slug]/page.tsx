@@ -82,6 +82,7 @@ export default async function PublicEventPage({ params }: Props) {
   let phoneVerified = false;
   let emailVerified = false;
   let voterVerified = false;
+  let rosterRemaining: number | null = null;
   let voterAuthStatus = {
     isAuthenticated: false,
     isVerified: false,
@@ -97,6 +98,7 @@ export default async function PublicEventPage({ params }: Props) {
     try {
       const { data: userData } = await supabase.auth.getUser();
       voterUserId = userData.user?.id ?? null;
+      voterAuthStatus.isAuthenticated = Boolean(voterUserId);
       phoneVerified = Boolean(userData.user?.phone && userData.user.phone_confirmed_at);
       emailVerified = Boolean(userData.user?.email && userData.user.email_confirmed_at);
     } catch {
@@ -136,9 +138,10 @@ export default async function PublicEventPage({ params }: Props) {
           } else {
             // For invite_code or voter_list, verify via RPC
             const { data: eligibility } = await supabase.rpc("check_voter_event_eligibility", { p_event_id: event.id });
-            const el = eligibility as { is_verified?: boolean; has_access_code?: boolean; has_voter_list?: boolean } | null;
+            const el = eligibility as { is_verified?: boolean; has_access_code?: boolean; has_voter_list?: boolean; voter_list_max?: number; voter_list_used?: number } | null;
             if (el) {
               voterVerified = Boolean(el.is_verified);
+              if (method === "voter_list") rosterRemaining = Math.max(0, (el.voter_list_max ?? 0) - (el.voter_list_used ?? 0));
               voterAuthStatus = {
                 isAuthenticated: true,
                 isVerified: voterVerified,
@@ -418,6 +421,7 @@ export default async function PublicEventPage({ params }: Props) {
               )}
               {event.voting_mode === "free" && event.verification_method === "voter_list" && (
                 <VoterListRedemption
+                  hasRedeemed={voterAuthStatus.hasVoterList}
                   eventId={event.id}
                   isAuthenticated={voterAuthStatus.isAuthenticated}
                   isVerified={voterVerified}
@@ -480,7 +484,7 @@ export default async function PublicEventPage({ params }: Props) {
                         event.voting_rule === "per_nominee_limit"
                           ? usedByNominee.get(nominee.id) ?? 0
                           : usedByCategory.get(category.id) ?? 0;
-                      const remaining = Math.max(0, voteCap - used);
+                      const remaining = Math.max(0, Math.min(voteCap - used, rosterRemaining ?? voteCap));
                       const imageUrl = imageUrlByPath.get(nominee.image_path ?? "");
 
                       return (
@@ -571,7 +575,7 @@ export default async function PublicEventPage({ params }: Props) {
                                   nomineeId={nominee.id}
                                   nomineeName={nominee.name}
                                   nextPath={votePath}
-                                  maxQuantity={voteCap}
+                                  maxQuantity={voterAuthStatus.hasVoterList && rosterRemaining === 0 ? 0 : voteCap}
                                   requestKey={randomUUID()}
                                   phoneVerified={false}
                                   verificationMethod={event.verification_method ?? "phone"}

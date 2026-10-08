@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { parseVoterRoster } from "@/lib/voter-roster";
 import { Icon } from "@/components/icon";
 
-async function hash(v: string) {
-  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v.trim().toLowerCase()));
-  return Array.from(new Uint8Array(b))
-    .map((x) => x.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 type VoterRow = {
   id: string;
@@ -21,6 +17,9 @@ type VoterRow = {
 };
 
 export function VoterListManager({ eventId }: { eventId: string }) {
+  const router = useRouter();
+  const [claimCodes, setClaimCodes] = useState<Array<{ identifier: string; code: string }>>([]);
+  const [identifierType, setIdentifierType] = useState("identifier");
   const [rows, setRows] = useState<VoterRow[]>([]);
   const [text, setText] = useState("");
   const [defaultVotes, setDefaultVotes] = useState("1");
@@ -29,23 +28,32 @@ export function VoterListManager({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const load = async () => {
-    const { data } = await createClient()
+  const load = useCallback(async () => {
+    const { data, error } = await createClient()
       .from("event_voter_list_entries")
       .select("id, identifier_type, label, max_votes, used_votes, redeemed_at")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
+    if (error) { setMessage(error.message); return; }
     setRows(data ?? []);
-  };
+  }, [eventId]);
 
   useEffect(() => {
-    load();
+    let active = true;
+    void createClient().from("event_voter_list_entries").select("id, identifier_type, label, max_votes, used_votes, redeemed_at").eq("event_id", eventId).order("created_at", { ascending: false }).then(({ data, error }) => {
+      if (!active) return;
+      if (error) setMessage(error.message);
+      else setRows(data ?? []);
+    });
+    return () => { active = false; };
   }, [eventId]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2_000_000) { setMessage("Upload a CSV or TXT file smaller than 2 MB."); return; }
     const reader = new FileReader();
+    reader.onerror = () => setMessage("Could not read this file. Please try again.");
     reader.onload = (event) => {
       const content = String(event.target?.result ?? "");
       setText((prev) => (prev ? `${prev}\n${content}` : content));
@@ -58,57 +66,55 @@ export function VoterListManager({ eventId }: { eventId: string }) {
     setBusy(true);
     setMessage("");
     try {
-      const values = text
-        .split(/[\n,;]+/)
-        .map((x) => x.trim())
-        .filter((x) => x.length > 2);
-
-      if (!values.length) {
-        setMessage("Please paste at least one valid email address or phone number.");
-        setBusy(false);
-        return;
-      }
-
-      const voteCap = Math.max(1, Math.min(100, Number(defaultVotes) || 1));
-      const entries = [];
-      for (const v of values) {
-        entries.push({
-          event_id: eventId,
-          identifier_hash: await hash(v),
-          identifier_type: v.includes("@") ? "email" : "phone",
-          max_votes: voteCap,
-          label: v,
-        });
-      }
-
-      const { error } = await createClient()
-        .from("event_voter_list_entries")
-        .upsert(entries, { onConflict: "event_id,identifier_hash" });
-
+      const values = parseVoterRoster(text);
+      if (!values.length) { setMessage("Enter at least one voter identifier."); return; }
+      const voteCap = Number(defaultVotes);
+      if (!Number.isInteger(voteCap) || voteCap < 1 || voteCap > 100) { setMessage("Votes per voter must be a whole number from 1 to 100."); return; }
+      const { data: imported, error } = await createClient().rpc("import_event_voters", {
+        p_event_id: eventId, p_identifiers: values, p_identifier_type: identifierType, p_max_votes: voteCap,
+      });
       if (error) {
         setMessage(`Import failed: ${error.message}`);
       } else {
-        setMessage(`Successfully imported ${entries.length} approved voter${entries.length === 1 ? "" : "s"}.`);
+        setClaimCodes(imported?.claims ?? []);
+        setMessage(`Successfully imported ${imported?.count} approved voter${imported?.count === 1 ? "" : "s"}.`);
         setText("");
-        load();
+        await load();
+        router.refresh();
       }
-    } catch {
-      setMessage("An unexpected error occurred during import.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "An unexpected error occurred during import.");
     } finally {
       setBusy(false);
     }
   }
 
   async function update(id: string, value: number) {
-    const safeVal = Math.max(1, Math.min(100, value));
-    await createClient().from("event_voter_list_entries").update({ max_votes: safeVal }).eq("id", id);
-    load();
+    if (!Number.isInteger(value) || value < 1 || value > 100) { setMessage("Enter a whole-number vote limit from 1 to 100."); return; }
+    setBusy(true);
+    try {
+      const { error } = await createClient().rpc("update_event_voter_limit", { p_entry_id: id, p_max_votes: value });
+      if (error) setMessage(error.message);
+      else { setMessage("Vote limit updated."); await load(); router.refresh(); }
+    } catch { setMessage("Could not update this voter. Please try again."); }
+    finally { setBusy(false); }
   }
 
   async function remove(id: string) {
     if (!confirm("Remove this voter from the approved roster?")) return;
-    await createClient().from("event_voter_list_entries").delete().eq("id", id);
-    load();
+    setBusy(true);
+    try {
+      const { error } = await createClient().rpc("remove_event_voter", { p_entry_id: id });
+      if (error) setMessage(error.message);
+      else { setMessage("Voter removed."); await load(); router.refresh(); }
+    } catch { setMessage("Could not remove this voter. Please try again."); }
+    finally { setBusy(false); }
+  }
+
+  function downloadClaimCodes() {
+    const csv = ["identifier,claim_code", ...claimCodes.map((r) => [r.identifier, r.code].map((v) => `"${v.replaceAll('"', '""')}"`).join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = `voter-claim-codes-${eventId}.csv`; a.click(); URL.revokeObjectURL(url);
   }
 
   function exportCsv() {
@@ -142,7 +148,7 @@ export function VoterListManager({ eventId }: { eventId: string }) {
             Approved Voter Roster
           </h3>
           <p className="text-xs text-stone-500 mt-0.5">
-            Import approved voter emails or phone numbers. Only matching identities can vote.
+            Import emails, Ghana phone numbers, index numbers, student IDs, or membership IDs.
           </p>
         </div>
         {rows.length > 0 && (
@@ -186,11 +192,22 @@ export function VoterListManager({ eventId }: { eventId: string }) {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <label htmlFor={`roster-type-${eventId}`} className="text-xs font-semibold text-stone-700">Identifier type</label>
+          <select id={`roster-type-${eventId}`} value={identifierType} disabled={busy} onChange={(e) => setIdentifierType(e.target.value)} className="ml-2 rounded-lg border border-stone-300 bg-white p-2 text-xs">
+            <option value="identifier">Index number / student ID / other identifier</option>
+            <option value="email">Email address</option>
+            <option value="phone">Ghana phone number</option>
+          </select>
+          <p className="text-xs text-stone-500">Email and phone entries require the matching verified account. Other identifiers require a private claim code and bind to the first verified account that redeems them. Reimporting an unused identifier replaces its claim code. Each account can redeem one entry per event. The roster cap applies across all categories.</p>
+          <p className="text-xs text-stone-500">Use one identifier per line or comma-separated values. CSV files can include an identifier, email, phone, index_number, student_id, or label column. Leading zeros are preserved. Import each identifier type separately.</p>
+        </div>
         <textarea
+          disabled={busy}
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={3}
-          placeholder="Paste emails or phone numbers (one per line or comma-separated)&#10;alice@school.edu&#10;0241234567&#10;bob@example.com"
+          placeholder="00123456&#10;STU/2026/001&#10;MEMBER-42"
           className="w-full rounded-xl border border-stone-300 bg-white p-3 font-mono text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15"
         />
 
@@ -237,6 +254,12 @@ export function VoterListManager({ eventId }: { eventId: string }) {
         )}
       </div>
 
+      {claimCodes.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+          <p className="text-xs text-amber-950">Download the private claim codes now and send each voter only their own code. Plain codes are shown only for this import and cannot be recovered. A later import replaces this download.</p>
+          <button type="button" onClick={downloadClaimCodes} className="rounded-lg bg-stone-900 px-3 py-2 text-xs font-semibold text-white">Download {claimCodes.length} private claim codes</button>
+        </div>
+      )}
       {/* Roster Search & Table */}
       {rows.length > 0 && (
         <div className="space-y-3">
@@ -281,6 +304,7 @@ export function VoterListManager({ eventId }: { eventId: string }) {
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-stone-400">Max:</span>
                       <input
+                        disabled={busy}
                         aria-label="Maximum votes"
                         type="number"
                         min="1"
@@ -292,6 +316,7 @@ export function VoterListManager({ eventId }: { eventId: string }) {
                     </div>
                     <button
                       type="button"
+                      disabled={busy || Boolean(r.redeemed_at)}
                       onClick={() => remove(r.id)}
                       className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:underline cursor-pointer"
                     >

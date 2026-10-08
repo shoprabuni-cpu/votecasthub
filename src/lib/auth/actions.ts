@@ -158,9 +158,8 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
   const phone = phoneSchema.safeParse(formString(formData, "phone"));
   const next = safeNextPath(formString(formData, "next"), "/events");
   if (!phone.success) return { message: "Enter a Ghana phone number such as 0241234567 or +233241234567." };
-  if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
-    return { message: "Phone verification is temporarily unavailable. Please try again later." };
-  }
+  if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) return { message: "Phone verification is temporarily unavailable. Please try again later." };
+  if (process.env.NODE_ENV === "production" && !formString(formData, "cf-turnstile-response")) return { message: "Complete security verification before requesting a phone code." };
   try {
     const supabase = await createClient();
     const eventSlug = /^\/events\/([^/?]+)(?:[/?]|$)/.exec(next)?.[1];
@@ -203,6 +202,7 @@ export async function requestVoterEmailCodeAction(_previousState: AuthFormState,
   const email = emailSchema.safeParse(formString(formData, "email"));
   const next = safeNextPath(formString(formData, "next"), "/events");
   if (!email.success) return { message: "Enter a valid email address." };
+  if (process.env.NODE_ENV === "production" && (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || !formString(formData, "cf-turnstile-response"))) return { message: "Complete security verification before requesting an email code." };
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithOtp({ email: email.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });

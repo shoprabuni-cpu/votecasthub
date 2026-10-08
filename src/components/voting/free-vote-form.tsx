@@ -30,6 +30,8 @@ export function FreeVoteForm({
   const [state, action, pending] = useActionState<AuthFormState, FormData>(castFreeVotesAction, null);
   const activeRequestKey = state?.success && state.nextRequestKey ? state.nextRequestKey : requestKey;
 
+  if (maxQuantity <= 0) return <p className="text-xs font-medium text-stone-500">Your available votes have been used.</p>;
+
   if (!phoneVerified) {
     if (verificationMethod === "email") {
       return (
