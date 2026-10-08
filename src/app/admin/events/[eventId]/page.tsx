@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { Icon } from "@/components/icon";
+import { DataDeletionPanel } from "@/components/admin/data-deletion-panel";
 
 type AdminEventRow = {
   event_name: string;
@@ -24,7 +25,7 @@ export default async function AdminEventDetail({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase } = await requirePlatformAdmin();
+  const { supabase, role } = await requirePlatformAdmin();
   const { data, error } = await supabase.rpc("get_admin_event_detail", { p_event_id: eventId });
   const rows = (data ?? []) as AdminEventRow[];
 
@@ -164,6 +165,7 @@ export default async function AdminEventDetail({
       </div>
 
       {/* Categories & Nominees Roster */}
+      <DataDeletionPanel kind="event" targetId={eventId} role={role} />
       <div className="space-y-4">
         <h2 className="text-base font-serif font-bold text-stone-900">Award Categories & Nominees</h2>
 

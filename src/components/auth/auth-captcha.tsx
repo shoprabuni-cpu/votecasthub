@@ -27,11 +27,16 @@ export function AuthCaptcha({
   const container = useRef<HTMLDivElement>(null);
   const response = useRef<HTMLInputElement>(null);
   const widget = useRef<string | null>(null);
+  const [token, setToken] = useState("");
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  function setToken(token: string | null) {
-    if (response.current) response.current.value = token ?? "";
+  function updateToken(value: string | null) {
+    const nextToken = value ?? "";
+    // Keep React and the submitted field in sync. Hidden-input defaultValue reflects
+    // its value attribute, so a parent rerender can erase an imperatively set token.
+    setToken(nextToken);
+    if (response.current) response.current.value = nextToken;
   }
 
   useEffect(() => {
@@ -53,25 +58,25 @@ export function AuthCaptcha({
   useEffect(() => {
     if (!ready || !sitekey || !container.current || !window.turnstile) return;
     const api = window.turnstile;
-    setToken(null);
+    updateToken(null);
     const id = api.render(container.current, {
       sitekey,
       theme: "auto",
       size: "flexible",
       "response-field": false,
-      "error-callback": () => { setFailed(true); setToken(null); onVerified?.(false); },
-      "timeout-callback": () => { setFailed(true); setToken(null); onVerified?.(false); },
-      "expired-callback": () => { setToken(null); onVerified?.(false); api.reset(id); },
-      callback: (token: string) => { setFailed(false); setToken(token); onVerified?.(true); },
+      "error-callback": () => { setFailed(true); updateToken(null); onVerified?.(false); },
+      "timeout-callback": () => { setFailed(true); updateToken(null); onVerified?.(false); },
+      "expired-callback": () => { updateToken(null); onVerified?.(false); api.reset(id); },
+      callback: (value: string) => { setFailed(false); updateToken(value); onVerified?.(Boolean(value)); },
     });
     widget.current = id;
-    return () => { setToken(null); onVerified?.(false); widget.current = null; api.remove(id); };
+    return () => { onVerified?.(false); widget.current = null; api.remove(id); };
   }, [ready, sitekey, onVerified]);
 
   useEffect(() => {
     // Every completed attempt needs a fresh single-use token, even on errors.
     if (state && widget.current && window.turnstile) {
-      setToken(null);
+      updateToken(null);
       onVerified?.(false);
       window.turnstile.reset(widget.current);
     }
@@ -79,9 +84,9 @@ export function AuthCaptcha({
 
   if (!sitekey) return null;
   return <>
-    <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setReady(true)} onError={() => { setToken(null); setFailed(true); onVerified?.(false); }} />
+    <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setReady(true)} onError={() => { updateToken(null); setFailed(true); onVerified?.(false); }} />
     <div ref={container} aria-label="Security verification" />
-    <input ref={response} type="hidden" name="cf-turnstile-response" defaultValue="" />
+    <input ref={response} type="hidden" name="cf-turnstile-response" value={token} readOnly />
     {failed && <p className="form-message" role="alert">Complete security verification before submitting. If it cannot load, refresh the page and try again.</p>}
   </>;
 }

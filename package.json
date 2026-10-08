@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:organization-closure": "node scripts/test-organization-closure.mjs",
+    "test:admin-deletion": "node scripts/test-admin-deletion.mjs",
+    "test:auth-captcha": "node scripts/test-auth-captcha.mjs",
     "test:verification": "node scripts/test-verification.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "supabase:start": "supabase start",
@@ -41,6 +43,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.8",
+    "jsdom": "^27.4.0",
     "supabase": "^2.119.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"

@@ -3,6 +3,7 @@ import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { OrganizerModerationActions } from "@/components/admin/organizer-moderation-actions";
 import { OrganizationClosureAction, OrganizationClosureQueue } from "@/components/admin/organization-closure-review";
 import { Icon } from "@/components/icon";
+import { DataDeletionPanel } from "@/components/admin/data-deletion-panel";
 
 type OrgRow = {
   name: string;
@@ -111,6 +112,7 @@ export default async function OrganizerProfile({
         <OrganizationClosureQueue requests={closureRequests ?? []} role={role} />
       </>}
       {/* Event History */}
+      <DataDeletionPanel kind="organization" targetId={organizationId} role={role} />
       <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden">
         <div className="px-5 py-4 border-b border-stone-100">
           <h2 className="text-sm font-serif font-bold text-stone-900">

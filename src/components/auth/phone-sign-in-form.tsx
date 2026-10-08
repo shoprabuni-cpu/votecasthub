@@ -10,18 +10,13 @@ function PhoneCodeForm({ phone, nextPath, resendAt }: { phone: string; nextPath:
   const [resendState, resendCode, resending] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
   const [now, setNow] = useState(() => Date.now());
   const [resendCaptchaVisible, setResendCaptchaVisible] = useState(false);
-  const [resendCaptchaReady, setResendCaptchaReady] = useState(false);
+  const [resendCaptchaReady, setResendCaptchaReady] = useState(!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
   const remaining = Math.max(0, Math.ceil(((resendState?.resendAt ?? resendAt) - now) / 1000));
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-
-  // Reset captcha readiness whenever the resend widget is hidden/reshown
-  useEffect(() => {
-    if (!resendCaptchaVisible) setResendCaptchaReady(false);
-  }, [resendCaptchaVisible]);
 
   return <>
     <form action={verifyCode} className="auth-form">
@@ -53,7 +48,7 @@ function PhoneCodeForm({ phone, nextPath, resendAt }: { phone: string; nextPath:
 
 export function PhoneSignInForm({ nextPath }: { nextPath: string }) {
   const [state, requestCode, requesting] = useActionState<AuthFormState, FormData>(requestVoterPhoneCodeAction, null);
-  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaReady, setCaptchaReady] = useState(!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   if (state?.codeSent && state.phone && state.resendAt) {
     return <PhoneCodeForm phone={state.phone} nextPath={nextPath} resendAt={state.resendAt} />;

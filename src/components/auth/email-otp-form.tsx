@@ -8,7 +8,7 @@ import { AuthCaptcha } from "@/components/auth/auth-captcha";
 export function EmailOtpForm({ nextPath }: { nextPath: string }) {
   const [state, send, pending] = useActionState<AuthFormState, FormData>(requestVoterEmailCodeAction, null);
   const [verify, submit, verifying] = useActionState<AuthFormState, FormData>(verifyVoterEmailCodeAction, null);
-  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaReady, setCaptchaReady] = useState(!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   // Step 2 — enter the code that was sent
   if (state?.codeSent && state.email) {

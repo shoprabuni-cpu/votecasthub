@@ -3,14 +3,18 @@ import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
 import { processPaymentJob } from "@/lib/payments/reconcile";
 import { cleanupEventImages } from "@/lib/events/image-cleanup";
+import { processAdminDeletions } from "@/lib/admin/process-deletions";
 export const runtime="nodejs";
 export const maxDuration=60;
 export async function GET(request:Request){
   const secret=process.env.CRON_SECRET;const provided=Buffer.from(request.headers.get("authorization")||"");const expected=Buffer.from(`Bearer ${secret}`);
   if(!secret||provided.length!==expected.length||!timingSafeEqual(provided,expected))return new Response("Unauthorized",{status:401});
   const started=Date.now();const db=paymentAdmin();let completed=0,failed=0;
+  let deletionCompleted=0,deletionFailed=0;
   try{
-    await cleanupEventImages().catch(() => { console.error("event_image_cleanup_pending"); });
+    try { const purges=await processAdminDeletions();deletionCompleted=purges.completed;deletionFailed=purges.failed; }
+    catch { deletionFailed++;console.error("admin_deletion_processing_failed"); }
+    await cleanupEventImages().catch(() => { deletionFailed++;console.error("event_image_cleanup_pending"); });
     // A persisted pagination cursor eventually scans every refund, including updates to older refunds.
     const {data:cursor}=await db.from("payment_operations").select("cursor_page").eq("name","refund-scan").maybeSingle();
     const page=cursor?.cursor_page||1;
@@ -28,7 +32,7 @@ export async function GET(request:Request){
     await db.from("payment_rate_limits").delete().lt("expires_at",new Date(Date.now()-86400000).toISOString());
     if(failed)console.error("payment_reconciliation_jobs_failed",{failed});
     const {error:e}=await db.from("payment_operations").upsert({name:"reconciliation",last_success_at:new Date().toISOString()});if(e)throw e;
-    return Response.json({completed,failed},{status:failed?503:200});
+    return Response.json({completed,failed,deletionCompleted,deletionFailed},{status:failed||deletionFailed?503:200});
   }catch{console.error("payment_reconciliation_failed");return Response.json({error:"Reconciliation failed"},{status:503});}
 }
 

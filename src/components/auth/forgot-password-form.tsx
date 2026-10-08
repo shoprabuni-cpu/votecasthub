@@ -8,7 +8,7 @@ import { AuthCaptcha } from "@/components/auth/auth-captcha";
 
 export function ForgotPasswordForm() {
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(requestPasswordResetAction, null);
-  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaReady, setCaptchaReady] = useState(!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   return (
     <form action={formAction} className="auth-form">
