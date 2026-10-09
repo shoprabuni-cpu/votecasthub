@@ -25,7 +25,7 @@ async function run({provider=()=>Response.json({status:'success'}),receiptError=
  return {response,tasks,calls};
 }
 try{
- let result=await run({receiptError:true});assert.equal(result.response.status,200);assert.equal(await result.response.text(),'');assert.equal(result.calls.length,2,'Receipt must not delay hook response');await result.tasks[0]();assert.ok(logs.some(([,entry])=>entry.stage==='receipt_write_failed'&&entry.errorCode==='42501'&&entry.httpStatus===403&&entry.accepted));
+ let result=await run({receiptError:true});assert.equal(result.response.status,200);assert.equal(result.response.headers.get('content-type'),'application/json');assert.deepEqual(await result.response.json(),{});assert.equal(result.calls.length,2,'Receipt must not delay hook response');await result.tasks[0]();assert.ok(logs.some(([,entry])=>entry.stage==='receipt_write_failed'&&entry.errorCode==='42501'&&entry.httpStatus===403&&entry.accepted));
  for(const response of [()=>Response.json([]),()=>new Response(null,{status:200})]){result=await run({provider:response});assert.equal(result.response.status,200);await result.tasks[0]();}
  result=await run({provider:async options=>{await new Promise(resolve=>setTimeout(resolve,2200));if(options.signal.aborted)throw options.signal.reason;return Response.json({status:'success'});}});assert.equal(result.response.status,200,'A provider response after two seconds must still succeed within the hook budget');await result.tasks[0]();
  result=await run({provider:()=>Response.json({error:'private-api-key'},{status:401})});assert.equal(result.response.status,502);await result.tasks[0]();assert.ok(logs.some(([,entry])=>entry.stage==='provider_http_error'&&entry.httpStatus===401));

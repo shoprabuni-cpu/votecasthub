@@ -26,7 +26,7 @@ type Dependencies = { env?: NodeJS.ProcessEnv; fetch?: typeof fetch; schedule?: 
 function errorDetails(error: unknown) {
   const value = error as { name?: string; code?: string; cause?: { code?: string }; httpStatus?: number };
   const safeCode = (text: unknown) => typeof text === "string" && /^(?:[0-9A-Z]{5}|PGRST[0-9]{3}|(?:E|UND_ERR_)[A-Z_]{2,50})$/.test(text) ? text : "unknown";
-  const names = ["Error", "TypeError", "TimeoutError", "AbortError", "FetchError", "WebhookVerificationError"];
+  const names = ["Error", "TypeError", "TimeoutError", "AbortError", "FetchError", "WebhookVerificationError", "SyntaxError"];
   return { errorName: names.includes(value?.name ?? "") ? value.name : "unknown", errorCode: safeCode(value?.code), networkCode: safeCode(value?.cause?.code), httpStatus: value?.httpStatus };
 }
 
@@ -38,10 +38,8 @@ function failure(status: number, message: string) {
 }
 
 function success() {
-  // Supabase Send SMS Hooks require an empty successful response. A JSON `{}`
-  // body can be treated as an invalid hook response even when the provider
-  // has already accepted the SMS.
-  return new Response(null, { status: 200, headers: { "Cache-Control": "no-store" } });
+  // Supabase Auth rejected the documented empty response for missing content type.
+  return Response.json({}, { status: 200, headers: { "Cache-Control": "no-store" } });
 }
 
 async function readLimitedBody(request: Request) {
@@ -85,7 +83,11 @@ async function rpc(config: Configuration, fetcher: typeof fetch, name: string, b
     try { code = (await response.json()).code; } catch { /* HTTP status remains available */ }
     throw Object.assign(new Error("SMS guard unavailable"), { httpStatus: response.status, code });
   }
-  return response.json() as Promise<unknown>;
+  if (response.status === 204) return null;
+  const text = await response.text();
+  if (!text.trim()) return null;
+  try { return JSON.parse(text) as unknown; }
+  catch (error) { throw Object.assign(error instanceof Error ? error : new Error("Invalid SMS guard response"), { httpStatus: response.status }); }
 }
 
 /** Supabase owns OTP generation, expiry and verification. This only delivers signed SMS requests. */
@@ -151,7 +153,8 @@ export async function handleArkeselSmsHook(request: Request, dependencies: Depen
   }
 
   let accepted = false;
-  const providerTimeoutMs = 4200 - (Date.now() - startedAt);
+  // Leave a small safety margin within Supabase Auth's five-second timeout.
+  const providerTimeoutMs = 4500 - (Date.now() - startedAt);
   if (providerTimeoutMs <= 0) {
     log("error", "hook_budget_exhausted");
     return failure(503, "SMS service is temporarily unavailable.");
