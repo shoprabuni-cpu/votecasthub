@@ -71,14 +71,26 @@ await db.exec(`select admin_approve_event('${event}','Regression approval')`);
 assert.equal(await scalar(`select status from events where id='${event}'`),'published');
 await assert.rejects(()=>db.exec(`select admin_approve_event('${event}')`), /awaiting review/);
 await admin();
+await db.exec('set role service_role');
+assert.equal((await scalar('select prepare_event_voter_verification($1,$2,$3,$4)',[event,'identifier','00123456',claims.get('00123456')])).success,true);
+assert.match((await scalar('select prepare_event_voter_verification($1,$2,$3,$4)',[event,'identifier','00123456','WRONG'])).error,/incorrect/);
+assert.match((await scalar('select prepare_event_voter_verification($1,$2,$3)',[event,'email','missing@example.test'])).error,/approved voter list/);
+await admin();await db.exec('set role anon');
+assert.deepEqual(await scalar('select get_event_voter_input_types($1)',[event]),['identifier']);
+await assert.rejects(()=>scalar('select prepare_event_voter_verification($1,$2,$3)',[event,'identifier','00123456']),/permission denied/);
+await admin();
 await login(unverified);
-assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'00123456',claims.get('00123456')])).error,/Confirm your sign-in/);
+await assert.rejects(()=>db.query('select create_organization($1,$2)',['Anonymous workspace','anonymous-workspace']),/Verify an organizer/);
+assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'00123456','WRONG'])).error,/unavailable/);
+assert.equal((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'STU/2026/001',claims.get('STU/2026/001')])).success,true);
+assert.equal((await scalar(`select check_voter_event_eligibility('${event}')`)).is_verified,true);
+await scalar('select cast_free_votes($1,$2,$3,1,$4)',[event,category,nominee,randomUUID()]);
 await login(voter);
 assert.equal((await scalar(`select check_voter_event_eligibility('${event}')`)).is_verified,false);
 assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier')`,[event,'00123456'])).error,/unavailable/);
 assert.equal((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,' 00123456 ',claims.get('00123456')])).success,true);
 assert.equal((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'00123456',claims.get('00123456')])).success,true);
-assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'STU/2026/001',claims.get('STU/2026/001')])).error,/already has/);
+assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'identifier',$3)`,[event,'STU/2026/001',claims.get('STU/2026/001')])).error,/unavailable/);
 assert.equal((await scalar(`select check_voter_event_eligibility('${event}')`)).is_verified,true);
 const key=randomUUID();
 const cast=key=>scalar(`select cast_free_votes($1,$2,$3,1,$4)`,[event,category,nominee,key]);
@@ -127,13 +139,13 @@ for(const method of ['email','phone','invite_code','voter_list']) {
  await db.query('select submit_event_for_review($1)',[id]); await admin(); await db.query(`update events set status='published' where id=$1`,[id]);
  await login(unverified);
  await assert.rejects(()=>scalar('select cast_free_votes($1,$2,$3,1,$4)',[id,cat,nom,randomUUID()]));
- await login(voter);
+ await login(method==='invite_code' ? unverified : voter);
  if(method==='invite_code') {
   assert.equal((await scalar('select verify_event_access_code($1,$2)',[id,hash('VOTE-TEST')])).success,true);
   assert.equal((await scalar('select verify_event_access_code($1,$2)',[id,hash('VOTE-TEST')])).success,true);
-  await login(other); assert.match((await scalar('select verify_event_access_code($1,$2)',[id,hash('VOTE-TEST')])).error,/limit/); await login(voter);
+  await login(other); assert.match((await scalar('select verify_event_access_code($1,$2)',[id,hash('VOTE-TEST')])).error,/limit/); await login(unverified);
  } else if(method==='voter_list') {
-  assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'phone')`,[id,'0241234568'])).error,/matching|verified email or phone/);
+  assert.match((await scalar(`select verify_event_voter_identifier($1,$2,'phone')`,[id,'0241234568'])).error,/Verify the email or phone/);
   assert.equal((await scalar(`select verify_event_voter_identifier($1,$2,'email')`,[id,'VOTER@EXAMPLE.TEST'])).success,true);
   await login(other); assert.equal((await scalar(`select verify_event_voter_identifier($1,$2,'phone')`,[id,'+233 24 123 4568'])).success,true); await login(voter);
  }
@@ -141,7 +153,7 @@ for(const method of ['email','phone','invite_code','voter_list']) {
  await scalar('select cast_free_votes($1,$2,$3,1,$4)',[id,cat,nom,randomUUID()]);
  if(method==='invite_code') {
   await login(owner); const code=await scalar('select id from event_access_codes where event_id=$1',[id]); await db.query('select revoke_event_access_code($1)',[code]);
-  await login(voter); assert.equal((await scalar('select check_voter_event_eligibility($1)',[id])).is_verified,false);
+  await login(unverified); assert.equal((await scalar('select check_voter_event_eligibility($1)',[id])).is_verified,false);
   await assert.rejects(()=>scalar('select cast_free_votes($1,$2,$3,1,$4)',[id,cat,nom,randomUUID()]),/Redeem/);
  }
 }

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { FreeVoteForm } from "@/components/voting/free-vote-form";
-import { AccessCodeEntry } from "@/components/voting/access-code-entry";
-import { VoterListRedemption } from "@/components/voting/voter-list-redemption";
+import { EventVoterVerification } from "@/components/voting/event-voter-verification";
 import { PaidVoteForm } from "@/components/voting/paid-vote-form";
 import { createClient } from "@/lib/supabase/server";
 import { votingRuleSummary, type VotingRule } from "@/lib/voting-rules";
@@ -74,6 +73,7 @@ export default async function PublicEventPage({ params }: Props) {
   let eventImageUrl: string | null = null;
   let publicResults: Array<{ nominee_id: string; vote_count: number }> = [];
   let unavailable = false;
+  let voterInputTypes: ("email" | "phone" | "identifier" | "invite_code")[] = [];
   let phoneVerified = false;
   let emailVerified = false;
   let voterVerified = false;
@@ -125,6 +125,10 @@ export default async function PublicEventPage({ params }: Props) {
 
         // Multi-method eligibility evaluation
         const method = event.verification_method ?? "phone";
+        if (method === "voter_list") {
+          const { data: types } = await supabase.rpc("get_event_voter_input_types", { p_event_id: event.id });
+          if (Array.isArray(types)) voterInputTypes = types.filter((type): type is "phone" | "email" | "identifier" => type === "phone" || type === "email" || type === "identifier");
+        }
         if (voterUserId) {
           if (method === "phone") {
             voterVerified = phoneVerified;
@@ -406,23 +410,8 @@ export default async function PublicEventPage({ params }: Props) {
                 )}
               </div>
 
-              {/* Verification Sub-components for invite_code and voter_list */}
-              {event.voting_mode === "free" && event.verification_method === "invite_code" && (
-                <AccessCodeEntry
-                  eventId={event.id}
-                  isAuthenticated={voterAuthStatus.isAuthenticated}
-                  isVerified={voterVerified}
-                  nextPath={votePath}
-                />
-              )}
-              {event.voting_mode === "free" && event.verification_method === "voter_list" && (
-                <VoterListRedemption
-                  hasRedeemed={voterAuthStatus.hasVoterList}
-                  eventId={event.id}
-                  isAuthenticated={voterAuthStatus.isAuthenticated}
-                  isVerified={voterVerified}
-                  nextPath={votePath}
-                />
+              {event.voting_mode === "free" && (
+                <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
               )}
 
               {/* Open instructions note */}
@@ -431,7 +420,7 @@ export default async function PublicEventPage({ params }: Props) {
                   {event.voting_mode === "free"
                     ? voterVerified
                       ? "Select a nominee below. Your remaining votes are shown on each candidate card."
-                      : "Voting is free. Verify your identity on a card below to get started."
+                      : "Voting is free. Complete verification above, then select your nominees below."
                     : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
                 </div>
               )}

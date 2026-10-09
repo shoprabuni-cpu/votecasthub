@@ -531,24 +531,23 @@ export function EventDetailsForm({
                   </div>
                 ) : (
                   <div className="rounded-xl border border-emerald-950/10 bg-emerald-50/30 p-4 space-y-4">
-                    {/* Verification Method */}
-                    <div>
-                      <label htmlFor="input-verification-method" className="block text-xs font-semibold text-stone-800 mb-1.5">
-                        How should voters verify identity?
-                      </label>
-                      <select
-                        id="input-verification-method"
-                        value={verificationMethod}
-                        onChange={(e) =>
-                          setVerificationMethod(e.target.value as "phone" | "email" | "invite_code" | "voter_list")
-                        }
-                        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15"
-                      >
-                        <option value="phone">Ghana Phone Number (SMS Code)</option>
-                        <option value="email">Email Address (One-time email code)</option>
-                        <option value="invite_code">Private Access Code (Shared secretly)</option>
-                        <option value="voter_list">Approved Voter List (Upload roster)</option>
+                    <div className="space-y-3">
+                      <label htmlFor="input-voter-audience" className="block text-xs font-semibold text-stone-800">Who can vote?</label>
+                      <select id="input-voter-audience" value={verificationMethod === "voter_list" ? "approved" : "open"} onChange={e => setVerificationMethod(e.target.value === "approved" ? "voter_list" : "phone")} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm">
+                        <option value="open">Anyone who completes verification</option>
+                        <option value="approved">Only people on my approved voter list</option>
                       </select>
+                      {verificationMethod === "voter_list" ? (
+                        <p className="text-xs leading-relaxed text-stone-600">Upload your list after saving the draft. Listed phones receive an SMS code; listed emails receive an email code. Index numbers and other IDs use a private code generated for each voter. Voters verify directly on the event page.</p>
+                      ) : <>
+                        <label htmlFor="input-verification-method" className="block text-xs font-semibold text-stone-800">How should voters verify?</label>
+                        <select id="input-verification-method" value={verificationMethod} onChange={e => setVerificationMethod(e.target.value as "phone" | "email" | "invite_code")} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm">
+                          <option value="phone">Phone number + SMS code</option>
+                          <option value="email">Email address + email code</option>
+                          <option value="invite_code">Private voting code from the organizer</option>
+                        </select>
+                        <p className="text-xs leading-relaxed text-stone-600">{verificationMethod === "invite_code" ? "Create a separate private code for each voter after saving your draft. Distribute codes privately; voters enter their code and vote without registering an account." : "Voters enter their details and verification code on the event page. No separate sign-in page is needed."}</p>
+                      </>}
                     </div>
 
                     {/* Voting Rule */}

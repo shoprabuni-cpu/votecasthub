@@ -9,6 +9,7 @@ import { getPublicEnvironment } from "@/lib/env";
 import { safeNextPath, type AuthFormState } from "@/lib/auth/form-state";
 import { createHmac } from "node:crypto";
 import { paymentAdmin } from "@/lib/payments/admin";
+import { createVoterAuth } from "@/lib/auth/voter-auth";
 import { normalizeGhanaPhone } from "@/lib/auth/phone";
 import { scheduleNotificationDelivery } from "@/lib/notifications/delivery";
 
@@ -162,14 +163,18 @@ export async function requestVoterPhoneCodeAction(_previousState: AuthFormState,
   if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) return { message: "Phone verification is temporarily unavailable. Please try again later." };
   if (process.env.NODE_ENV === "production" && !formString(formData, "cf-turnstile-response")) return { message: "Complete security verification before requesting a phone code." };
   try {
-    const supabase = await createClient();
     const eventSlug = /^\/events\/([^/?]+)(?:[/?]|$)/.exec(next)?.[1];
     const hookSecret = process.env.SUPABASE_SEND_SMS_HOOK_SECRET?.replace(/^v1,/, "");
     if (!eventSlug || !hookSecret) return { message: "Open the event you want to vote in before requesting a code." };
+    const admin = paymentAdmin();
+    const { data: target, error: targetError } = await admin.from("events").select("id").eq("slug", eventSlug).maybeSingle();
+    if (targetError || !target) return { message: "Voting verification is unavailable for this event." };
+    const { data: eligible, error: eligibilityError } = await admin.rpc("prepare_event_voter_verification", { p_event_id: target.id, p_identifier_type: "phone", p_identifier: phone.data });
+    if (eligibilityError || eligible?.success !== true) return { message: eligible?.error ?? "Voting verification is unavailable for this event." };
     const recipientHash = createHmac("sha256", hookSecret).update(`phone:${phone.data.replace(/^\+/, "")}`).digest("hex");
     const { data: sponsored, error: sponsorError } = await paymentAdmin().rpc("prepare_voter_sms", { p_recipient_hash: recipientHash, p_event_slug: eventSlug });
     if (sponsorError || !sponsored) return { message: "Verification is unavailable. The event must be open with SMS credits available. Wait a minute before retrying." };
-    const { error } = await supabase.auth.signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
+    const { error } = await (await createVoterAuth()).signInWithOtp({ phone: phone.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) {
       logAuthFailure("phone_signin", error.code);
       console.error("phone_signin_supabase_error", { code: error.code ?? "unknown", status: error.status ?? null, name: error.name ?? "AuthError" });
@@ -205,8 +210,15 @@ export async function requestVoterEmailCodeAction(_previousState: AuthFormState,
   if (!email.success) return { message: "Enter a valid email address." };
   if (process.env.NODE_ENV === "production" && (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || !formString(formData, "cf-turnstile-response"))) return { message: "Complete security verification before requesting an email code." };
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithOtp({ email: email.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
+    const eventSlug = /^\/events\/([^/?]+)(?:[/?]|$)/.exec(next)?.[1];
+    if (eventSlug) {
+      const admin = paymentAdmin();
+      const { data: target, error: targetError } = await admin.from("events").select("id").eq("slug", eventSlug).maybeSingle();
+      if (targetError || !target) return { message: "Voting verification is unavailable for this event." };
+      const { data: eligible, error: eligibilityError } = await admin.rpc("prepare_event_voter_verification", { p_event_id: target.id, p_identifier_type: "email", p_identifier: email.data.toLowerCase() });
+      if (eligibilityError || eligible?.success !== true) return { message: eligible?.error ?? "Voting verification is unavailable for this event." };
+    }
+    const { error } = await (await createVoterAuth()).signInWithOtp({ email: email.data, options: { shouldCreateUser: true, ...captchaOptions(formData) } });
     if (error) { logAuthFailure("phone_signin", error.code); return { message: "We could not send an email code. Please try again." }; }
   } catch { return { message: "Email verification is temporarily unavailable." }; }
   return { message: "Verification code sent. Check your email.", success: true, codeSent: true, email: email.data, next, resendAt: Date.now() + 60_000 };
@@ -251,7 +263,7 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
         if (error.message.includes("Verify your email")) return { message: "Verify your email address before voting." };
         if (error.message.includes("access code")) return { message: "Please redeem a valid event access code before voting." };
         if (error.message.includes("voter-list") || error.message.includes("voter list")) return { message: "Please verify your approved voter eligibility before voting." };
-        if (error.message.includes("Authentication required")) return { message: "Please sign in before casting your vote." };
+        if (error.message.includes("Authentication required")) return { message: "Complete verification on this event page before voting." };
       }
       if (error.message.includes("reached the vote limit")) return { message: error.message.includes("this nominee") ? "You have reached the vote limit for this nominee." : "You have reached the vote limit for this category." };
       if (error.message.includes("not open")) return { message: "Voting is not open for this event right now." };

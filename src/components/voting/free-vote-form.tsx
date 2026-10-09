@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { castFreeVotesAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
@@ -11,7 +10,6 @@ export function FreeVoteForm({
   categoryId,
   nomineeId,
   nomineeName,
-  nextPath,
   maxQuantity,
   requestKey,
   phoneVerified,
@@ -35,14 +33,14 @@ export function FreeVoteForm({
   if (!phoneVerified) {
     if (verificationMethod === "email") {
       return (
-        <Link
+        <a
           className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white py-2.5 px-3 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-all cursor-pointer"
-          href={`/email-sign-in?next=${encodeURIComponent(nextPath)}`}
+          href="#voter-verification"
         >
           <Icon name="mail" size={13} />
           <span>Verify email to vote</span>
           <span aria-hidden="true">&rarr;</span>
-        </Link>
+        </a>
       );
     }
     if (verificationMethod === "invite_code") {
@@ -70,14 +68,14 @@ export function FreeVoteForm({
       );
     }
     return (
-      <Link
+      <a
         className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white py-2.5 px-3 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-all cursor-pointer"
-        href={`/phone-sign-in?next=${encodeURIComponent(nextPath)}`}
+        href="#voter-verification"
       >
         <Icon name="phone" size={13} />
         <span>Verify phone to vote</span>
         <span aria-hidden="true">&rarr;</span>
-      </Link>
+      </a>
     );
   }
 

@@ -199,7 +199,7 @@ export function VoterListManager({ eventId }: { eventId: string }) {
             <option value="email">Email address</option>
             <option value="phone">Ghana phone number</option>
           </select>
-          <p className="text-xs text-stone-500">Email and phone entries require the matching verified account. Other identifiers require a private claim code and bind to the first verified account that redeems them. Reimporting an unused identifier replaces its claim code. Each account can redeem one entry per event. The roster cap applies across all categories.</p>
+          <p className="text-xs text-stone-500">Listed emails and phones receive a one-time verification code directly on the event page. Index numbers and other IDs use the private code generated below, without email or phone sign-in. Give each voter their own code privately. Reimporting an unused ID replaces its code. Voters should keep their original browser session. The roster allowance applies across all categories.</p>
           <p className="text-xs text-stone-500">Use one identifier per line or comma-separated values. CSV files can include an identifier, email, phone, index_number, student_id, or label column. Leading zeros are preserved. Import each identifier type separately.</p>
         </div>
         <textarea

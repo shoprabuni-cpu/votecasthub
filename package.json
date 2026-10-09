@@ -25,7 +25,9 @@
     "supabase:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:lint": "supabase db lint --local",
-    "db:test": "supabase test db"
+    "db:test": "supabase test db",
+    "test:voter-flow": "node scripts/test-voter-flow.mjs",
+    "test:voter-ui": "node scripts/test-voter-ui.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
