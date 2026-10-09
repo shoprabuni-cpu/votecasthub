@@ -49,6 +49,13 @@ try{
  const {EventBrowser}=load('src/components/events/event-browser.tsx');
  await act(async()=>root.render(React.createElement(EventBrowser,{initialPage:{events:[event('first','First event')],total:2,now}})));
  assert.equal(calls.length,0);
+ assert.equal(document.querySelector('select').value,'all');
+ const times=document.querySelectorAll('article time');
+ assert.equal(times.length,2);
+ assert.equal(times[0].getAttribute('datetime'),event('first','First event').starts_at);
+ assert.equal(times[1].getAttribute('datetime'),event('first','First event').ends_at);
+ assert.match(times[0].textContent,/\d{1,2}:\d{2}\s*[ap]m/i);
+ assert.match(document.querySelector('article').textContent,/Ghana time \(GMT\)/);
  assert.equal(document.querySelectorAll('article').length,1);
  const grid=document.querySelector('[aria-busy]');
  for(const utility of ['grid-cols-2','lg:grid-cols-4','xl:grid-cols-5','2xl:grid-cols-6'])assert.ok(grid.classList.contains(utility));

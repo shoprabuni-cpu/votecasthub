@@ -192,6 +192,11 @@ assert.equal('organization_id' in first.events[0],false);
 const seen=new Set();
 for(let offset=0;offset<100;offset+=24)for(const item of (await directory('all',offset)).events){assert.equal(seen.has(item.id),false);seen.add(item.id);}
 assert.equal(seen.size,100);
+const prioritised=[];
+for(let offset=0;offset<100;offset+=24) prioritised.push(...(await directory('all',offset,'soonest')).events);
+assert.ok(prioritised.slice(0,60).every(item=>item.status==='published' && Date.parse(item.starts_at)<Date.now()));
+assert.ok(prioritised.slice(60,90).every(item=>item.status==='published' && Date.parse(item.starts_at)>Date.now()));
+assert.ok(prioritised.slice(90).every(item=>item.status==='closed'));
 assert.equal((await directory('active')).total,90);
 assert.equal((await directory('open')).total,60);
 assert.equal((await directory('upcoming')).total,30);
