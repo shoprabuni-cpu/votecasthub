@@ -6,6 +6,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { AuthFormState } from "@/lib/auth/form-state";
 import { cleanupEventImages } from "./image-cleanup";
 
+export async function setEventVoterHelpAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
+  const parsed = z.object({ eventId: z.string().uuid(), email: z.string().trim().max(254).email().or(z.literal("")) }).safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { message: "Enter a valid help email, or leave it empty for platform support." };
+  try {
+    const db = await createClient();
+    const { error } = await db.rpc("set_event_voter_help", { p_event_id: parsed.data.eventId, p_email: parsed.data.email });
+    if (error) return { message: "Could not save the help contact. Check your access and try again." };
+    revalidatePath("/organizer", "layout");
+    revalidatePath("/events", "layout");
+    return { success: true, message: "Help contact saved. Voters can see it on the event page." };
+  } catch { return { message: "Help contact updates are temporarily unavailable." }; }
+}
+
 export async function sendEventReviewMessageAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
   const parsed = z.object({ eventId: z.uuid(), message: z.string().trim().min(5).max(2000) }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { message: "Write a message of 5–2000 characters." };

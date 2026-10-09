@@ -41,3 +41,16 @@ Supabase Auth has Turnstile enabled and custom Resend SMTP enabled at smtp.resen
 Read-only SQL found 88 organizer SMS credits, no currently open published free-voting events, and one failed SMS attempt at 2026-10-08 19:45:27 UTC. No successful SMS attempts were recorded in the last 30 days. The provider failure reason remains unverified because the historical Vercel log query failed. Supabase SMS template has a missing closing brace; the custom SMS hook constructs its own message, so causality is not established.
 
 The IP Address Forwarding switch and email OTP template body were not exposed by the CLI config comparison. They remain unverified. Browser automation failed to initialize. No live verification email/SMS was sent in this audit, despite receiving authorized test contacts. Real inbox receipt and OTP completion remain to be tested. No hosted settings were changed.
+
+## Follow-up corrections (9 October 2026)
+
+- Anonymous Sign-Ins are now enabled in the connected project; the targeted config comparison confirms there is no difference from `enable_anonymous_sign_ins = true`.
+- Hosted email and SMS request limits are now 100/hour each. These limits do not prove delivery capacity.
+- Corrected the hosted SMS template to `Your VotecastHub verification code is {{ .Code }}` using a targeted config push; all undeclared settings were preserved.
+- Applied `20261128100000_event_voter_help.sql`. Organizers explicitly choose a public help email in their event workspace. Account emails are not automatically published. Voters see organizer help beside verification, with platform support as the fallback.
+- The homepage has a compact mobile menu, contained decoration, readable call-to-action text, and a voter-oriented flow. Browser checks at 320, 390, 768 and 1440 pixels found no horizontal overflow.
+- Changing contact details is immediate; requesting another code retains its cooldown. Voter-list total allowances are explained separately from category limits, with organizer warnings when one-per-category allowances cannot cover every active category.
+- The on-page verification migration was confirmed applied. Form/action tests pass, including changing an email during the resend countdown.
+- There are no currently open published free-voting events. The user will add one and notify us. Live delivery, inbox/SMS receipt, OTP completion and duplicate-vote checks remain pending. No test messages have been sent.
+
+Deploy the application changes before using the new help-contact controls. In the organizer event workspace, save a public voter help email. Use an open test event for the pending delivery checks; do not alter existing event dates just to test.

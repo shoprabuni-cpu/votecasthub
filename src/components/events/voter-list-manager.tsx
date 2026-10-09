@@ -16,7 +16,7 @@ type VoterRow = {
   redeemed_at: string | null;
 };
 
-export function VoterListManager({ eventId }: { eventId: string }) {
+export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = false }: { eventId: string; categoryCount?: number; onePerCategory?: boolean }) {
   const router = useRouter();
   const [claimCodes, setClaimCodes] = useState<Array<{ identifier: string; code: string }>>([]);
   const [identifierType, setIdentifierType] = useState("identifier");
@@ -214,7 +214,7 @@ export function VoterListManager({ eventId }: { eventId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="flex items-center gap-2">
             <label htmlFor="default-votes" className="text-xs font-semibold text-stone-700">
-              Votes per voter:
+              Total votes per voter:
             </label>
             <input
               id="default-votes"
@@ -247,6 +247,8 @@ export function VoterListManager({ eventId }: { eventId: string }) {
           </button>
         </div>
 
+        <p className="text-sm text-stone-600">Each imported voter gets {defaultVotes || "0"} total votes across the whole event. Per-category limits still apply.</p>
+        {onePerCategory && categoryCount > 1 && (Number(defaultVotes) < categoryCount || rows.some(row => row.max_votes < categoryCount)) && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This event has {categoryCount} active categories and allows one vote per category. An allowance below {categoryCount} prevents a voter from voting in every category. The import allowance affects new entries; check existing voters too.</p>}
         {message && (
           <p className="text-xs font-medium text-emerald-800 pt-1" role="status">
             {message}

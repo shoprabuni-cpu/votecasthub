@@ -12,7 +12,7 @@ const cache=new Map(),calls=[];
 let failOtp=false;
 const mocks={
  '@/components/auth/auth-captcha':{AuthCaptcha:()=>null},
- '@/lib/auth/voter-verification':{verifyEventVoterAction:async(_,data)=>{calls.push(Object.fromEntries(data));return data.get('otp')?failOtp?{message:'Invalid code'}:{message:'Verified',success:true}:{message:'Code sent',success:true,codeSent:true,email:'voter@example.test',resendAt:Date.now()-1000};}},
+ '@/lib/auth/voter-verification':{verifyEventVoterAction:async(_,data)=>{calls.push(Object.fromEntries(data));return data.get('otp')?failOtp?{message:'Invalid code'}:{message:'Verified',success:true}:{message:'Code sent',success:true,codeSent:true,email:'voter@example.test',resendAt:Date.now()+60000};}},
 };
 function load(file){file=path.resolve(file);if(cache.has(file))return cache.get(file).exports;const compiled={exports:{}};cache.set(file,compiled);const source=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;new Function('require','module','exports',source)(name=>mocks[name]??require(name),compiled,compiled.exports);return compiled.exports;}
 const {EventVoterVerification}=load('src/components/voting/event-voter-verification.tsx');const root=createRoot(document.getElementById('root'));
@@ -31,6 +31,7 @@ try{
  const input=document.querySelector('[name=identifier]');await act(async()=>{Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype,'value').set.call(input,'voter@example.test');input.dispatchEvent(new dom.window.Event('input',{bubbles:true}));});
  await act(async()=>document.querySelector('form').requestSubmit());
  assert.equal(calls.length,1);assert.ok(document.querySelector('[name=otp]'));assert.equal(document.querySelector('[name=identifier]').readOnly,true);
+ const change=[...document.querySelectorAll('button')].find(b=>b.textContent.startsWith('Change email'));const resend=[...document.querySelectorAll('button')].find(b=>b.textContent.startsWith('Request another'));assert.equal(change.disabled,false);assert.equal(resend.disabled,true);await act(async()=>change.click());assert.equal(document.querySelector('[name=otp]'),null);assert.equal(document.querySelector('[name=identifier]').readOnly,false);await act(async()=>{const field=document.querySelector('[name=identifier]');Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype,'value').set.call(field,'voter@example.test');field.dispatchEvent(new dom.window.Event('input',{bubbles:true}));});await act(async()=>document.querySelector('form').requestSubmit());
  document.querySelector('[name=otp]').value='123456';failOtp=true;await act(async()=>document.querySelector('form').requestSubmit());assert.match(document.querySelector('[role=status]').textContent,/Invalid code/);assert.ok(document.querySelector('[name=otp]'));
  failOtp=false;document.querySelector('[name=otp]').value='654321';await act(async()=>document.querySelector('form').requestSubmit());assert.match(document.querySelector('[role=status]').textContent,/Verified/);
  assert.equal(calls.at(-1).identifier,'voter@example.test');assert.equal(calls.at(-1).otp,'654321');

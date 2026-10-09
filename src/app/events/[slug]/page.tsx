@@ -53,6 +53,7 @@ export default async function PublicEventPage({ params }: Props) {
     voting_mode: "free" | "paid";
     voting_rule: VotingRule;
     voting_rules: string | null;
+    voter_help_email?: string | null;
     free_vote_limit_per_phone: number | null;
     verification_method?: "phone" | "email" | "invite_code" | "voter_list";
     results_visibility: string;
@@ -105,7 +106,7 @@ export default async function PublicEventPage({ params }: Props) {
     const eventResult = await supabase
       .from("events")
       .select(
-        "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, free_vote_limit_per_phone, verification_method, results_visibility, results_released"
+        "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released"
       )
       .eq("slug", slug)
       .in("status", ["published", "paused", "closed"])
@@ -140,7 +141,7 @@ export default async function PublicEventPage({ params }: Props) {
             const el = eligibility as { is_verified?: boolean; has_access_code?: boolean; has_voter_list?: boolean; voter_list_max?: number; voter_list_used?: number } | null;
             if (el) {
               voterVerified = Boolean(el.is_verified);
-              if (method === "voter_list") rosterRemaining = Math.max(0, (el.voter_list_max ?? 0) - (el.voter_list_used ?? 0));
+              if (method === "voter_list" && el.has_voter_list) rosterRemaining = Math.max(0, (el.voter_list_max ?? 0) - (el.voter_list_used ?? 0));
               voterAuthStatus = {
                 isAuthenticated: true,
                 isVerified: voterVerified,
@@ -352,7 +353,7 @@ export default async function PublicEventPage({ params }: Props) {
             {event.voting_mode === "free" && (
               <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1">
                 <p className="font-semibold text-emerald-950">
-                  Fairness Rule: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
+                  Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
                 </p>
                 {event.voting_rules && (
                   <p className="text-stone-600 leading-relaxed">
@@ -395,7 +396,7 @@ export default async function PublicEventPage({ params }: Props) {
                           : event.verification_method === "invite_code"
                           ? "Enter your event access code once, then vote."
                           : event.verification_method === "voter_list"
-                          ? "Confirm your approved voter credentials once, then vote."
+                          ? "Verify the details provided by your organizer, then vote."
                           : "Verify your Ghana phone number once with SMS, then vote."
                         : "Payments processed securely via Mobile Money & Cards with Paystack."}
                     </span>
@@ -409,11 +410,12 @@ export default async function PublicEventPage({ params }: Props) {
                   </span>
                 )}
               </div>
-
+              {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
               {event.voting_mode === "free" && (
                 <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
               )}
 
+              <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800! underline" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
               {/* Open instructions note */}
               {isOpen && (
                 <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">

@@ -12,6 +12,7 @@ import { PublicEventEditor } from "@/components/events/public-event-editor";
 import { DeleteEventForm } from "@/components/events/delete-event-form";
 import { AccessCodeManager } from "@/components/events/access-code-manager";
 import { isVotingRule } from "@/lib/voting-rules";
+import { VoterHelpSettings } from "@/components/events/voter-help-settings";
 import { VoterListManager } from "@/components/events/voter-list-manager";
 import { EventReviewSummary } from "@/components/events/event-review-summary";
 import { CategoryNomineeStudio } from "@/components/events/category-nominee-studio";
@@ -39,6 +40,7 @@ type OrganizationEvent = {
   free_vote_limit_per_phone: number | null;
   voting_rule: string;
   voting_rules: string | null;
+  voter_help_email?: string | null;
   image_path: string | null;
 };
 
@@ -69,7 +71,7 @@ export default async function EventSetupPage({ params }: Props) {
       .order("display_order", { ascending: true }),
     supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(),
     supabase.rpc("get_organization_sms_balance", { p_org: organizationId }),
-    supabase.from("events").select("verification_method").eq("id", eventId).maybeSingle(),
+    supabase.from("events").select("verification_method, voter_help_email").eq("id", eventId).maybeSingle(),
   ]);
 
   const verificationMethod = (eventMeta?.verification_method ?? "phone") as "phone" | "email" | "invite_code" | "voter_list";
@@ -392,12 +394,13 @@ export default async function EventSetupPage({ params }: Props) {
               </div>
             )}
 
+            {canManage && <VoterHelpSettings eventId={eventId} email={eventMeta?.voter_help_email ?? null} />}
             {/* Private Voter Access Management */}
             {canManage && (
               verificationMethod === "invite_code" ? (
                 <AccessCodeManager eventId={eventId} />
               ) : verificationMethod === "voter_list" ? (
-                <VoterListManager eventId={eventId} />
+                <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} />
               ) : event.status === "draft" ? (
                 <details className="group rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-all">
                   <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-emerald-900 group-open:border-b group-open:border-stone-100 group-open:pb-3">
@@ -409,7 +412,7 @@ export default async function EventSetupPage({ params }: Props) {
                   </summary>
                   <div className="pt-4 space-y-6">
                     <AccessCodeManager eventId={eventId} />
-                    <VoterListManager eventId={eventId} />
+                    <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} />
                   </div>
                 </details>
               ) : null

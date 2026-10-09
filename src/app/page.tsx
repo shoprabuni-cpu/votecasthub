@@ -12,9 +12,9 @@ import { absoluteUrl, publicMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/
 export const metadata = { ...publicMetadata("Online voting for awards and competitions in Ghana", SITE_DESCRIPTION, "/"), title: { absolute: "VotecastHub GH | Online voting for awards in Ghana" } };
 
 const voteFlow = [
-  { number: "01", title: "Event published", detail: "Organizers set dates, nominees, and voting limits." },
-  { number: "02", title: "Voter verified", detail: "Voters complete the event’s selected verification method." },
-  { number: "03", title: "Vote recorded", detail: "The selected rule is checked and the vote is recorded." },
+  { number: "01", title: "Open your event", detail: "Find your event and read its voting instructions." },
+  { number: "02", title: "Verify or pay", detail: "For free voting, verify your details. For paid voting, complete payment." },
+  { number: "03", title: "Your vote counts", detail: "Choose your nominee and follow the event’s voting limits." },
 ];
 
 export default async function HomePage() {
@@ -31,10 +31,10 @@ export default async function HomePage() {
           <p className="eyebrow"><span className="status-dot" /> FOR GHANAIAN AWARDS & COMPETITIONS</p>
           <h1 id="hero-title">Good events deserve a <em>fair vote.</em></h1>
           <p className="hero-description">Online voting for awards, competitions, and community events in Ghana. Set up nominees, choose voter verification, and share clear voting rules with your community.</p>
-          <div className="hero-actions"><Link className="primary-link" href="/events">Browse live events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
+          <div className="hero-actions"><Link className="primary-link" href="/events">Browse events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
           <p className="hero-note">Web voting first. USSD is planned for a later phase.</p>
         </div>
-        <div className="hero-art" aria-label="The three stages of a verified vote">
+        <div className="hero-art overflow-clip" aria-label="How to vote in three steps">
           <div className="orbit orbit-one" /><div className="orbit orbit-two" />
           <div className="flow-card">
             <div className="flow-card-top"><span className="flow-label">THE VOTING FLOW</span><span className="flow-count">3 STEPS</span></div>

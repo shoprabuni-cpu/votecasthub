@@ -42,6 +42,9 @@ await db.exec(`insert into auth.users(id,email,email_confirmed_at,phone,phone_co
  insert into public.categories(id,event_id,name) values('${category}','${event}','Category');
  insert into public.nominees(id,category_id,name) values('${nominee}','${category}','Nominee');`);
 await login(owner);
+await db.query('select set_event_voter_help($1,$2)',[event,' Help@Example.test ']);
+assert.equal(await scalar('select voter_help_email from events where id=$1',[event]),'help@example.test');
+await assert.rejects(()=>db.query('select set_event_voter_help($1,$2)',[event,'invalid']),/check constraint/);
 assert.equal(await scalar(`select has_column_privilege('authenticated','events','organization_id','select')`),false);
 await assert.rejects(()=>db.exec(`select organization_id from events`),/permission denied/);
 assert.equal((await scalar(`select get_event_verification_readiness('${event}')`)).ready,false);
@@ -59,6 +62,7 @@ assert.equal((await scalar(`select get_event_verification_readiness('${event}')`
 await assert.rejects(()=>db.exec(`insert into event_voter_list_entries(event_id,identifier_type,identifier_hash,created_by) values('${event}','identifier','x','${owner}')`),/permission denied/);
 await assert.rejects(()=>db.query(`select import_event_voters($1,$2,'phone',1)`,[event,['not-a-phone']]),/Check the roster/);
 await login(other);
+await assert.rejects(()=>db.query('select set_event_voter_help($1,$2)',[event,'other@example.test']),/cannot manage/);
 assert.equal((await query(`select id from event_voter_list_entries`)).length,0);
 await assert.rejects(()=>db.query(`select import_event_voters($1,$2,'identifier',1)`,[event,['unauthorized']]), /Organization access denied/);
 await login(owner);
@@ -76,6 +80,8 @@ assert.equal((await scalar('select prepare_event_voter_verification($1,$2,$3,$4)
 assert.match((await scalar('select prepare_event_voter_verification($1,$2,$3,$4)',[event,'identifier','00123456','WRONG'])).error,/incorrect/);
 assert.match((await scalar('select prepare_event_voter_verification($1,$2,$3)',[event,'email','missing@example.test'])).error,/approved voter list/);
 await admin();await db.exec('set role anon');
+assert.equal(await scalar('select voter_help_email from events where id=$1',[event]),'help@example.test');
+await assert.rejects(()=>db.query('select set_event_voter_help($1,$2)',[event,'other@example.test']),/permission denied/);
 assert.deepEqual(await scalar('select get_event_voter_input_types($1)',[event]),['identifier']);
 await assert.rejects(()=>scalar('select prepare_event_voter_verification($1,$2,$3)',[event,'identifier','00123456']),/permission denied/);
 await admin();
