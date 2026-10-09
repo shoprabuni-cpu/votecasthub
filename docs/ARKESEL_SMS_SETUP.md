@@ -75,3 +75,13 @@ The current approved packages are:
 500 credits   — GH₵80
 1,000 credits — GH₵150
 ```
+# SMS hook diagnostics
+
+Search Vercel runtime logs for `sms_hook`. Each signed request has a non-sensitive `reference` shared by its log entries. Logs include `stage`, `elapsedMs`, HTTP status, safe database/network error codes and whether the provider accepted the send. They exclude phone numbers, verification codes, keys and raw provider bodies.
+
+`delivery_claim_failed` identifies a database reservation failure before sending. `provider_http_error` records provider rejection; `provider_request_failed` records a network error or timeout, including `deliveryUncertain`. `receipt_write_failed` identifies failure to record the outcome after the response. A receipt failure after provider acceptance does not reject the Auth request. `completed` records the response sent to Supabase.
+
+The synchronous flow has a 4.2-second application budget, leaving headroom within Supabase's five-second HTTP-hook window. Receipt recording runs with Next.js `after` and has a separate five-second timeout. Pending delivery reservations prevent an automatic duplicate paid send if recording fails. A provider timeout still returns failure because delivery cannot be confirmed safely.
+
+Run `npm run test:sms-hook` for acceptance, a provider response taking more than two seconds, provider rejection, background receipt failures, duplicate guards and log privacy. Deploy the code before retesting live SMS request, OTP entry and voting. No database migration is required for this correction.
+
