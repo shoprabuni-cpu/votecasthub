@@ -225,7 +225,7 @@ export default async function PublicEventPage({ params }: Props) {
             </h1>
             <p className="mt-1 text-xs text-stone-500">Please refresh or try again in a little while.</p>
             <Link
-              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:underline"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               href="/events"
             >
               ← Back to all events
@@ -263,10 +263,10 @@ export default async function PublicEventPage({ params }: Props) {
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 space-y-8">
         {/* Navigation & Share Row */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/events"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-900 transition-colors"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
             <Icon name="arrowLeft" size={13} />
             <span>All events</span>
@@ -415,7 +415,7 @@ export default async function PublicEventPage({ params }: Props) {
                 <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
               )}
 
-              <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800! underline" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
+              <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
               {/* Open instructions note */}
               {isOpen && (
                 <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
@@ -482,7 +482,7 @@ export default async function PublicEventPage({ params }: Props) {
                           <div className="space-y-3">
                             <Link
                               href={`/events/${slug}/nominees/${nominee.id}`}
-                              className="group flex items-start gap-3.5"
+                              className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
                             >
                               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform">
                                 {imageUrl ? (

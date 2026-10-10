@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { EventDetailsForm } from "@/components/events/event-details-form";
 import { Icon } from "@/components/icon";
@@ -25,16 +25,14 @@ type EventEditDrawerProps = {
   };
 };
 
+const subscribe = () => () => {};
+
 /** Trigger button + slide-over drawer for editing event draft details */
 export function EventEditDrawer({ eventId, organizationId, smsBalance, initial }: EventEditDrawerProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Only render portal after hydration
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Close on Escape key
   useEffect(() => {
@@ -94,7 +92,7 @@ export function EventEditDrawer({ eventId, organizationId, smsBalance, initial }
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close edit drawer"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-2xs hover:bg-stone-50 hover:text-stone-900 transition-all active:scale-95"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-500 shadow-2xs hover:bg-stone-50 hover:text-stone-900 transition-all active:scale-95 px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="close" size={15} />
               </button>
@@ -122,7 +120,7 @@ export function EventEditDrawer({ eventId, organizationId, smsBalance, initial }
         type="button"
         onClick={() => setOpen(true)}
         id="btn-edit-event-details"
-        className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 hover:text-emerald-900 transition-all active:scale-95 cursor-pointer"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-sm font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 hover:text-emerald-900 transition-all active:scale-95 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Icon name="pencil" size={14} />
         <span>Edit Details</span>

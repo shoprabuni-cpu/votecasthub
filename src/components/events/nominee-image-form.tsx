@@ -131,12 +131,12 @@ export function NomineeImageForm({
 
   return (
     <details className="group relative">
-      <summary className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none">
+      <summary className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-2.5 text-sm font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
         <Icon name="image" size={12} />
         <span>{imagePath ? "Photo" : "+ Photo"}</span>
       </summary>
 
-      <div className="absolute right-0 top-8 z-30 w-72 sm:w-80 rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
+      <div className="absolute right-0 top-12 z-30 w-72 sm:w-80 rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-3">
           <span className="text-xs font-semibold text-stone-900">
             {reviewRequired ? "Request Photo Correction" : imagePath ? "Change Photo" : "Upload Nominee Photo"}
@@ -208,7 +208,7 @@ export function NomineeImageForm({
                 type="button"
                 disabled={pending}
                 onClick={() => saveImagePath(null)}
-                className="text-[11px] font-semibold text-red-700 hover:underline cursor-pointer"
+                className="text-sm font-semibold text-red-700 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Remove photo
               </button>
@@ -219,7 +219,7 @@ export function NomineeImageForm({
             <button
               type="submit"
               disabled={pending || stage !== "idle"}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer ml-auto min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Saving..." : reviewRequired ? "Submit for Review" : "Save Photo"}
             </button>

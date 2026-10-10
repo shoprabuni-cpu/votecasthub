@@ -34,7 +34,7 @@ export function FreeVoteForm({
     if (verificationMethod === "email") {
       return (
         <a
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white py-2.5 px-3 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-all cursor-pointer"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white py-2.5 px-3 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-all cursor-pointer min-h-11 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           href="#voter-verification"
         >
           <Icon name="mail" size={13} />
@@ -96,7 +96,7 @@ export function FreeVoteForm({
           defaultValue="1"
           aria-label={`Number of votes for ${nomineeName}`}
           disabled={pending}
-          className="rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
+          className="rounded-xl border border-stone-300 bg-white min-h-11 px-3 py-2.5 text-base sm:text-sm font-medium text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
         >
           {Array.from({ length: Math.max(1, Math.min(maxQuantity, 100)) }, (_, index) => (
             <option key={index + 1} value={index + 1}>
@@ -108,7 +108,7 @@ export function FreeVoteForm({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-sm font-semibold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
         >
           {pending ? (
             <>

@@ -104,7 +104,7 @@ export function PublishedEventsCarousel({ events }: { events: PublicEventCardDat
                 type="button"
                 aria-label="Previous event"
                 onClick={() => go((index - 1 + events.length) % events.length)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 text-white hover:bg-white/10 transition-all active:scale-90 cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 text-white hover:bg-white/10 transition-all active:scale-90 cursor-pointer border-stone-300 bg-white shadow-xs px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ←
               </button>
@@ -115,7 +115,7 @@ export function PublishedEventsCarousel({ events }: { events: PublicEventCardDat
                 type="button"
                 aria-label="Next event"
                 onClick={() => go((index + 1) % events.length)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 text-white hover:bg-white/10 transition-all active:scale-90 cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 text-white hover:bg-white/10 transition-all active:scale-90 cursor-pointer border-stone-300 bg-white shadow-xs px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 →
               </button>
@@ -219,7 +219,7 @@ export function PublishedEventsCarousel({ events }: { events: PublicEventCardDat
                 type="button"
                 aria-label={`Show ${item.name}`}
                 onClick={() => go(i)}
-                className={`rounded-full transition-all duration-300 cursor-pointer ${
+                className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-full transition-all duration-300 cursor-pointer ${
                   i === index
                     ? "h-2 w-6 bg-emerald-400"
                     : "h-2 w-2 bg-white/25 hover:bg-white/50"

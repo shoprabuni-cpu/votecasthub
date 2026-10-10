@@ -134,5 +134,17 @@ try{
  assert.equal((await scalar('select get_public_search_pages(0,1000)')).total,2);
  await service();await db.query('update events set purged_at=now() where id=$1',[event]);
  assert.equal((await scalar('select get_public_search_pages(0,1000)')).total,0);
+ await service();
+ const importEvent=randomUUID();
+ await db.query("insert into events(id,organization_id,name,slug,unit_price_minor,starts_at,ends_at,status) values($1,$2,'Import test','import-test',100,now(),now()+interval '1 day','draft')",[importEvent,org]);
+ await login(outsider);await assert.rejects(()=>db.query('select import_event_categories_nominees($1,$2::jsonb)',[importEvent,JSON.stringify([{category:'Awards',nominee:'Ama'}])]),/access denied/);
+ await login(owner);
+ await assert.rejects(()=>db.query('select import_event_categories_nominees($1,$2::jsonb)',[importEvent,JSON.stringify([{category:'Awards',nominee:'Ama'},{category:'Awards',nominee:'Ama'}])]),/duplicate/);
+ assert.equal(await scalar('select count(*) from categories where event_id=$1',[importEvent]),0,'Failed import rolls back every row');
+ assert.equal(await scalar('select import_event_categories_nominees($1,$2::jsonb)',[importEvent,JSON.stringify([{category:'Awards',nominee:'Ama'},{category:'awards',nominee:'Kojo'}])]),2);
+ assert.equal(await scalar('select count(*) from categories where event_id=$1',[importEvent]),1);
+ assert.equal(await scalar('select import_event_categories_nominees($1,$2::jsonb)',[importEvent,JSON.stringify([{category:'Awards',nominee:'Abena'}])]),1);
+ await service();await db.query("update events set status='archived',archived_at=now() where id=$1",[importEvent]);await login(owner);
+ await assert.rejects(()=>db.query('select import_event_categories_nominees($1,$2::jsonb)',[importEvent,JSON.stringify([{category:'Awards',nominee:'Yaw'}])]),/Draft event not found/);
  console.log('PASS: Event review/email recovery and public search metadata: anonymous access, real timestamps, pagination, private draft exclusion, inactive nominees/categories, restricted organizations and purged events.');
 }finally{await db.close();}

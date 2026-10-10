@@ -614,10 +614,10 @@ export async function addEventCategoryAction(_previousState: AuthFormState, form
   if (!eventId.success || !parsed.success) return { message: "Enter a category name up to 120 characters." };
   try {
     const supabase = await createClient();
-    const { error } = await supabase.rpc("add_event_category", { p_event_id: eventId.data, p_name: parsed.data.name, p_description: parsed.data.description || null, p_display_order: null });
+    const { data, error } = await supabase.rpc("add_event_category", { p_event_id: eventId.data, p_name: parsed.data.name, p_description: parsed.data.description || null, p_display_order: null });
     if (error) return { message: eventError(error.code) };
     revalidatePath(backTo);
-    return { message: "Category added.", success: true };
+    return { message: "Category added. You can now add nominees below.", success: true, createdId: String(data) };
   } catch {
     return { message: "We could not add that category right now. Please try again." };
   }
@@ -626,30 +626,22 @@ export async function addEventCategoryAction(_previousState: AuthFormState, form
 export async function importEventCategoriesNomineesAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const eventId = z.string().uuid().safeParse(formString(formData, "eventId"));
   const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
+  let inputRows: unknown;
+  try { inputRows = JSON.parse(formString(formData, "rows") || "[]"); } catch { return { message: "This import could not be read. Choose the file again." }; }
   const rows = z.array(z.object({
     category: z.string().trim().min(1).max(120),
     categoryDescription: z.string().max(2000).optional().default(""),
     nominee: z.string().trim().min(1).max(160),
     publicCode: z.string().trim().max(32).regex(/^[A-Za-z0-9-]*$/).optional().default(""),
     biography: z.string().max(3000).optional().default(""),
-  })).min(1).max(1000).safeParse(JSON.parse(formString(formData, "rows") || "[]"));
+  })).min(1).max(1000).safeParse(inputRows);
   if (!eventId.success || !rows.success) return { message: "Use the template columns and add at least one valid row." };
   try {
     const supabase = await createClient();
-    const categoryIds = new Map<string, string>();
-    for (const row of rows.data) {
-      let categoryId = categoryIds.get(row.category.toLowerCase());
-      if (!categoryId) {
-        const result = await supabase.rpc("add_event_category", { p_event_id: eventId.data, p_name: row.category, p_description: row.categoryDescription || null, p_display_order: null });
-        if (result.error) return { message: `Could not import category “${row.category}”. ${eventError(result.error.code)}` };
-        categoryId = String(result.data);
-        categoryIds.set(row.category.toLowerCase(), categoryId);
-      }
-      const nomineeResult = await supabase.rpc("add_category_nominee", { p_category_id: categoryId, p_name: row.nominee, p_public_code: row.publicCode || null, p_biography: row.biography || null, p_display_order: null });
-      if (nomineeResult.error) return { message: `Could not import nominee “${row.nominee}”. ${eventError(nomineeResult.error.code)}` };
-    }
+    const { data, error } = await supabase.rpc("import_event_categories_nominees", { p_event_id: eventId.data, p_rows: rows.data });
+    if (error) return { message: error.code === "23505" ? "A nominee name or code is repeated in a category. No entries were imported. Correct the file and try again." : "No entries were imported. Check the file and confirm your event is still a draft." };
     revalidatePath(backTo);
-    return { message: `Imported ${rows.data.length} nominee${rows.data.length === 1 ? "" : "s"} across ${categoryIds.size} categor${categoryIds.size === 1 ? "y" : "ies"}.`, success: true };
+    return { message: `Imported ${data} nominees.`, success: true };
   } catch {
     return { message: "We could not import this file right now. Check the preview and try again." };
   }

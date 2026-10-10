@@ -64,7 +64,7 @@ export function EventStatusForm({
         <button
           type="submit"
           disabled={pending || disabled}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             isPublish
               ? "bg-emerald-900 text-white shadow-xs hover:bg-emerald-800"
               : isDanger
@@ -92,7 +92,7 @@ export function EventStatusForm({
 
       <EventDialog open={confirmOpen} title={label} onClose={() => setConfirmOpen(false)} busy={pending}>
         <p className="text-sm text-stone-600">{confirmMessage ?? "Are you sure you want to continue?"}</p>
-        <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={pending} className={`min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${isDanger ? "bg-red-700 hover:bg-red-800" : "bg-emerald-900 hover:bg-emerald-800"}`} onClick={() => { approved.current = true; setConfirmOpen(false); formRef.current?.requestSubmit(); }}>{label}</button><button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancel</button></div>
+        <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={pending} className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${isDanger ? "bg-red-700 hover:bg-red-800" : "bg-emerald-900 hover:bg-emerald-800"}`} onClick={() => { approved.current = true; setConfirmOpen(false); formRef.current?.requestSubmit(); }}>{label}</button><button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold bg-white shadow-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button></div>
       </EventDialog>
     </>
   );

@@ -16,7 +16,8 @@ const cache = new Map();
 const publicSaves = [], corrections = [];
 const navigations = [];
 let failSave = false;
-const mocks = { '@/lib/events/actions': {
+const photoUploads=[];
+const mocks = { '@/lib/supabase/client': { createClient: () => ({ storage: { from: () => ({ upload: async (path,file) => { photoUploads.push(file.name); return { error:null }; }, remove:async()=>({error:null}) }) } }) }, '@/lib/auth/actions': { addEventCategoryAction: async () => ({success:true,message:'Category added.',createdId:'new-category'}), updateNomineeImageAction: async () => ({success:true,message:'Saved'}), addCategoryNomineeAction: async () => ({success:true,message:'Nominee added.'}) }, '@/lib/events/actions': {
   updatePublicEventAction: async (_, data) => { publicSaves.push(Object.fromEntries(data)); return failSave ? { message: 'Saving failed. Please try again.' } : { success: true, message: 'Saved' }; },
   requestEventCorrectionAction: async (_, data) => { corrections.push(Object.fromEntries(data)); return { success: true, message: 'Correction sent' }; },
 }, 'next/link': { __esModule: true, default: ({ children, ...props }) => React.createElement('a', props, children) }, 'next/navigation': { useRouter: () => ({ push: href => navigations.push(href) }) } };
@@ -49,6 +50,32 @@ const render = async (component, props) => act(async () => root.render(React.cre
 const click = async button => act(async () => button.click());
 const button = text => [...document.querySelectorAll('button')].find(item => item.textContent === text);
 try {
+  const { CategoryForm } = load('src/components/events/category-form.tsx');
+  const { NomineeForm } = load('src/components/events/nominee-form.tsx');
+  let added;
+  for (const [component, props, message] of [[CategoryForm,{eventId:event.id,backTo:'/organizer',onAdded:id=>added=id},'Category added.'],[NomineeForm,{categoryId:'category',backTo:'/organizer'},'Nominee added.']]) {
+    await render(component, props);
+    document.querySelector('[name=name]').value='Ama';
+    await act(async()=>document.querySelector('form').requestSubmit());
+    assert.ok(document.body.textContent.includes(message));
+    await act(async()=>document.querySelector('[name=name]').dispatchEvent(new dom.window.Event('input',{bubbles:true})));
+    assert.ok(!document.body.textContent.includes(message),'Old success clears on the next entry');
+    document.querySelector('[name=name]').value='Kojo';
+    await act(async()=>document.querySelector('form').requestSubmit());
+    assert.ok(document.body.textContent.includes(message),'Repeated success shows fresh feedback');
+  }
+  assert.equal(added,'new-category');
+  const { BulkNomineeImageUploader } = load('src/components/events/bulk-nominee-image-uploader.tsx');
+  URL.createObjectURL=()=> 'blob:preview'; URL.revokeObjectURL=()=>{};
+  await render(BulkNomineeImageUploader,{ eventId:event.id, backTo:'/organizer', nominees:[{id:'ama-1',name:'Ama',public_code:'A1'},{id:'ama-2',name:'Ama',public_code:'A2'},{id:'kojo',name:'Kojo',public_code:'K1'}] });
+  const picker=document.querySelector('input[type=file]');
+  Object.defineProperty(picker,'files',{configurable:true,value:[{name:'Ama.jpg',type:'image/jpeg',size:100},{name:'A1.jpg',type:'image/jpeg',size:100},{name:'A1.png',type:'image/png',size:100},{name:'K1.jpg',type:'text/plain',size:100}]});
+  await act(async()=>picker.dispatchEvent(new dom.window.Event('change',{bubbles:true})));
+  assert.match(document.body.textContent,/Multiple nominees match/);
+  assert.match(document.body.textContent,/Another selected photo/);
+  assert.ok(button('Upload 1 ready file'),'Only valid unambiguous photos enter the queue');
+  await click(button('Upload 1 ready file'));
+  assert.deepEqual(photoUploads,['A1.jpg']);
   for (const role of ['viewer', 'analyst', '']) assert.equal(perms({ role }).manage, false);
   assert.equal(perms({ active: false }).manage, false);
   assert.equal(perms({ hasActivity: null }).returnToDraft, false);

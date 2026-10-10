@@ -21,7 +21,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
         <p><span className="font-semibold">Ends: </span><time dateTime={event.ends_at}>{schedule.format(new Date(event.ends_at))}</time></p>
         <p className="text-[10px] text-stone-500">Ghana time (GMT)</p>
       </div>
-      <Link href={`/events/${event.slug}`} className="mt-auto flex min-h-11 items-center justify-between border-t border-stone-100 pt-2 text-xs font-semibold text-emerald-800 sm:text-sm">{presentation.key === "open" ? "Vote now" : "Explore event"}<span aria-hidden="true">↗</span></Link>
+      <Link href={`/events/${event.slug}`} className="mt-auto inline-flex min-h-11 items-center justify-between gap-2 rounded-xl border border-emerald-800 bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">{presentation.key === "open" ? "Vote now" : "Explore event"}<span aria-hidden="true">↗</span></Link>
     </div>
   </article>;
 }

@@ -21,7 +21,7 @@ export function EditCategoryForm({ category, backTo }: Props) {
 
   return (
     <details className="group relative">
-      <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none">
+      <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
         <span>Settings</span>
         <span className="text-[10px] text-stone-400 group-open:rotate-180 transition-transform">▼</span>
       </summary>
@@ -122,7 +122,7 @@ export function EditCategoryForm({ category, backTo }: Props) {
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Saving..." : "Save Category"}
             </button>

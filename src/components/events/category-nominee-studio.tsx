@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Activity, useState } from "react";
+import { motion } from "framer-motion";
 import { Icon } from "@/components/icon";
 import { EditCategoryForm } from "@/components/events/edit-category-form";
 import { EditNomineeForm } from "@/components/events/edit-nominee-form";
@@ -87,7 +87,7 @@ export function CategoryNomineeStudio({
                 setShowBulkImport(false);
                 setShowBulkPhotos(false);
               }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
                 showAddCategory
                   ? "bg-emerald-900 text-white shadow-xs"
                   : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
@@ -104,7 +104,7 @@ export function CategoryNomineeStudio({
                 setShowAddCategory(false);
                 setShowBulkPhotos(false);
               }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
                 showBulkImport
                   ? "bg-emerald-900 text-white shadow-xs"
                   : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
@@ -122,7 +122,7 @@ export function CategoryNomineeStudio({
                   setShowAddCategory(false);
                   setShowBulkImport(false);
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+                className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
                   showBulkPhotos
                     ? "bg-emerald-900 text-white shadow-xs"
                     : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
@@ -137,8 +137,9 @@ export function CategoryNomineeStudio({
       </div>
 
       {/* Expandable Drawers */}
-      <AnimatePresence>
-        {showAddCategory && canManage && isDraft && (
+      <>
+        {canManage && isDraft && (
+          <Activity mode={showAddCategory ? "visible" : "hidden"}>
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -150,16 +151,18 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowAddCategory(false)}
-                className="text-xs text-stone-500 hover:text-stone-800"
+                className="text-sm text-stone-500 hover:text-stone-800 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel ✕
               </button>
             </div>
-            <CategoryForm eventId={eventId} backTo={pagePath} />
+            <CategoryForm eventId={eventId} backTo={pagePath} onAdded={(id) => { setSelectedCategoryId(id); setShowAddCategory(false); }} />
           </motion.div>
+          </Activity>
         )}
 
-        {showBulkImport && canManage && isDraft && (
+        {canManage && isDraft && (
+          <Activity mode={showBulkImport ? "visible" : "hidden"}>
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -171,16 +174,18 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowBulkImport(false)}
-                className="text-xs text-stone-500 hover:text-stone-800"
+                className="text-sm text-stone-500 hover:text-stone-800 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Close ✕
               </button>
             </div>
             <BulkCategoryNomineeImport eventId={eventId} backTo={pagePath} />
           </motion.div>
+          </Activity>
         )}
 
-        {showBulkPhotos && canManage && isDraft && nominees.length > 0 && (
+        {canManage && isDraft && nominees.length > 0 && (
+          <div hidden={!showBulkPhotos}>
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -192,15 +197,16 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowBulkPhotos(false)}
-                className="text-xs text-stone-500 hover:text-stone-800"
+                className="text-sm text-stone-500 hover:text-stone-800 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Close ✕
               </button>
             </div>
             <BulkNomineeImageUploader eventId={eventId} nominees={nominees} backTo={pagePath} />
           </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
 
       {/* Main Categories Navigation or Empty State */}
       {categories.length === 0 ? (
@@ -219,7 +225,7 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowAddCategory(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="sparkle" size={13} />
                 <span>Add my first category</span>
@@ -227,7 +233,7 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowBulkImport(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>Import from Excel</span>
               </button>
@@ -246,7 +252,7 @@ export function CategoryNomineeStudio({
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`relative flex items-center gap-2 shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+                  className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 relative flex items-center gap-2 shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
                     isSelected
                       ? "bg-emerald-900 text-white shadow-xs"
                       : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
@@ -271,7 +277,7 @@ export function CategoryNomineeStudio({
               key="all"
               type="button"
               onClick={() => setSelectedCategoryId("all")}
-              className={`flex items-center gap-1.5 shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
                 selectedCategoryId === "all"
                   ? "bg-emerald-900 text-white shadow-xs"
                   : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
@@ -325,6 +331,12 @@ export function CategoryNomineeStudio({
             </div>
 
             {filteredNominees.length === 0 && <div className="flex items-start gap-3 rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800"><Icon name="users" size={19} /></span><div><h5 className="text-sm font-semibold text-stone-900">{canManage && isDraft ? "Add your first nominee" : "No nominees in this category yet"}</h5><p className="mt-1 text-sm leading-6 text-stone-600">{canManage && isDraft ? activeCategory ? "Enter a name in the form below. A photo and short biography are optional—you can add them later." : "Choose a category, then add the people voters can choose." : "Nominees will appear here once added."}</p></div></div>}
+              {/* Inline Add Nominee Form if a specific category is selected */}
+              {canManage && isDraft && activeCategory && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-4">
+                  <NomineeForm key={activeCategory.id} categoryId={activeCategory.id} backTo={pagePath} />
+                </div>
+              )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {filteredNominees.map((nominee) => {
                 const imageUrl = imageUrlMap[nominee.image_path ?? ""];
@@ -376,7 +388,7 @@ export function CategoryNomineeStudio({
 
                     {/* Manage & Photo Tools */}
                     {canManage && (
-                      <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+                      <div className="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-sm">
                         {isDraft && <EditNomineeForm nominee={nominee} backTo={pagePath} />}
                         <NomineeImageForm
                           eventId={eventId}
@@ -393,12 +405,7 @@ export function CategoryNomineeStudio({
                 );
               })}
 
-              {/* Inline Add Nominee Form if a specific category is selected */}
-              {canManage && isDraft && activeCategory && (
-                <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/30 p-4 flex flex-col justify-center">
-                  <NomineeForm categoryId={activeCategory.id} backTo={pagePath} />
-                </div>
-              )}
+
             </div>
           </div>
         </div>

@@ -36,13 +36,13 @@ export function EventLeaveGuard({ children }: { children: ReactNode }) {
   }, [dirty]);
   return <EditContext.Provider value={report}>{children}<EventDialog open={destination !== null} title="Leave without saving?" onClose={() => setDestination(null)}>
     <p className="text-sm leading-6 text-stone-600">You have unsaved event changes. Stay here to save them, or leave and discard your edits.</p>
-    <div className="mt-5 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => setDestination(null)} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Keep editing</button><button type="button" onClick={() => {
+    <div className="mt-5 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => setDestination(null)} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Keep editing</button><button type="button" onClick={() => {
       if (!destination) return;
       const next = new URL(destination);
       setDestination(null);
       if (next.origin === window.location.origin) router.push(next.pathname + next.search + next.hash);
       else { approved.current = true; window.location.assign(next.href); }
-    }} className="min-h-11 rounded-xl border border-red-200 px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50">Leave without saving</button></div>
+    }} className="min-h-11 rounded-xl border border-red-200 px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 border-stone-300 bg-white shadow-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Leave without saving</button></div>
   </EventDialog></EditContext.Provider>;
 }
 

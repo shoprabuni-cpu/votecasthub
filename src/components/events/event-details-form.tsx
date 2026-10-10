@@ -206,7 +206,7 @@ export function EventDetailsForm({
                 key={s.id}
                 type="button"
                 onClick={() => jumpToStep(s.id)}
-                className={`group relative flex items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-200 ${
+                className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 group relative flex items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-200 ${
                   isCurrent
                     ? "bg-emerald-900 text-white shadow-sm ring-1 ring-emerald-800"
                     : isCompleted
@@ -347,21 +347,21 @@ export function EventDetailsForm({
                         <button
                           type="button"
                           onClick={() => applyDatePreset("7days")}
-                          className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95"
+                          className="rounded-lg border border-stone-200 bg-white px-2 py-2.5 text-sm font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           7 Days
                         </button>
                         <button
                           type="button"
                           onClick={() => applyDatePreset("14days")}
-                          className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95"
+                          className="rounded-lg border border-stone-200 bg-white px-2 py-2.5 text-sm font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           14 Days
                         </button>
                         <button
                           type="button"
                           onClick={() => applyDatePreset("30days")}
-                          className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95"
+                          className="rounded-lg border border-stone-200 bg-white px-2 py-2.5 text-sm font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-800 transition-all active:scale-95 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           30 Days
                         </button>
@@ -521,7 +521,7 @@ export function EventDetailsForm({
                           key={p}
                           type="button"
                           onClick={() => updateValue("priceGhs", p)}
-                          className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                          className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all ${
                             values.priceGhs === p
                               ? "bg-emerald-800 text-white shadow-xs"
                               : "bg-white border border-stone-200 text-stone-700 hover:border-emerald-500"
@@ -622,7 +622,7 @@ export function EventDetailsForm({
                           href={`/organizer/${organizationId}/credits`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-semibold text-emerald-800 hover:underline"
+                          className="text-sm font-semibold text-emerald-800 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Top up credits →
                         </a>
@@ -831,7 +831,7 @@ export function EventDetailsForm({
                 type="button"
                 onClick={handleBack}
                 disabled={pending}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 hover:text-stone-900 transition-all active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50 hover:text-stone-900 transition-all active:scale-95 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="arrowLeft" size={14} /> Back
               </button>
@@ -843,7 +843,7 @@ export function EventDetailsForm({
               <button
                 type="button"
                 onClick={handleNext}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition-all active:scale-95 cursor-pointer ml-auto"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition-all active:scale-95 cursor-pointer ml-auto min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Continue <Icon name="arrowRight" size={14} />
               </button>
@@ -851,7 +851,7 @@ export function EventDetailsForm({
               <button
                 type="submit"
                 disabled={pending}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-900 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer ml-auto"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer ml-auto min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {pending ? (
                   <>

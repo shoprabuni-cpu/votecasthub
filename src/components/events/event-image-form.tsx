@@ -123,7 +123,7 @@ export function EventImageForm({
         <div className="flex items-center gap-2">
           <label
             htmlFor={`event-image-${eventId}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white min-h-11 px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer"
           >
             <Icon name="image" size={13} />
             <span>{imagePath ? "Select new cover" : "Choose image"}</span>
@@ -150,7 +150,7 @@ export function EventImageForm({
               type="button"
               disabled={pending}
               onClick={() => saveImagePath(null)}
-              className="text-xs font-semibold text-red-700 hover:underline cursor-pointer"
+              className="text-sm font-semibold text-red-700 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Remove cover
             </button>

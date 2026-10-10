@@ -22,12 +22,12 @@ export function EditNomineeForm({ nominee, backTo }: Props) {
 
   return (
     <details className="group relative">
-      <summary className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none">
+      <summary className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-2.5 text-sm font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all select-none min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
         <span>Edit</span>
         <span className="text-[9px] text-stone-400 group-open:rotate-180 transition-transform">▼</span>
       </summary>
 
-      <div className="absolute left-0 sm:left-auto sm:right-0 top-8 z-30 w-72 sm:w-80 rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
+      <div className="absolute left-0 sm:left-auto sm:right-0 top-12 z-30 w-72 sm:w-80 rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="nomineeId" value={nominee.id} />
           <input type="hidden" name="backTo" value={backTo} />
@@ -145,7 +145,7 @@ export function EditNomineeForm({ nominee, backTo }: Props) {
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Saving..." : "Save Details"}
             </button>

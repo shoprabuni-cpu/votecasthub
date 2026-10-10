@@ -156,7 +156,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
             <button
               type="button"
               onClick={exportCsv}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50 shadow-2xs cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Icon name="arrowRight" size={13} className="rotate-90" />
               <span>Export CSV</span>
@@ -185,7 +185,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-xs font-semibold text-emerald-800 hover:underline cursor-pointer"
+              className="text-sm font-semibold text-emerald-800 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               📂 Upload .csv or .txt file
             </button>
@@ -231,7 +231,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
             type="button"
             disabled={busy || !text.trim()}
             onClick={importRows}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed"
           >
             {busy ? (
               <>
@@ -259,7 +259,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
       {claimCodes.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
           <p className="text-xs text-amber-950">Download the private claim codes now and send each voter only their own code. Plain codes are shown only for this import and cannot be recovered. A later import replaces this download.</p>
-          <button type="button" onClick={downloadClaimCodes} className="rounded-lg bg-stone-900 px-3 py-2 text-xs font-semibold text-white">Download {claimCodes.length} private claim codes</button>
+          <button type="button" onClick={downloadClaimCodes} className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Download {claimCodes.length} private claim codes</button>
         </div>
       )}
       {/* Roster Search & Table */}
@@ -320,7 +320,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
                       type="button"
                       disabled={busy || Boolean(r.redeemed_at)}
                       onClick={() => remove(r.id)}
-                      className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:underline cursor-pointer"
+                      className="text-sm font-semibold text-red-600 hover:text-red-800 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Remove
                     </button>

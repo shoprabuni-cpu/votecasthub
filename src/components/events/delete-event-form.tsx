@@ -28,7 +28,7 @@ export function DeleteEventForm({ eventId, name }: { eventId: string; name: stri
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-700 shadow-2xs hover:bg-red-50 hover:border-red-300 disabled:opacity-60 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-700 shadow-2xs hover:bg-red-50 hover:border-red-300 disabled:opacity-60 transition-all cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? "Deleting..." : "Delete unused draft"}
         </button>
