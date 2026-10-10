@@ -67,13 +67,13 @@ export function CategoryNomineeStudio({
         <div>
           <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-            Step 2 · Category & Nominee Studio
+            Categories & nominees
           </div>
           <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
-            Build your ballot roster
+            Your voting ballot
           </h2>
           <p className="mt-0.5 text-xs text-stone-500">
-            Create award categories, assign nominees, and upload candidate photos.
+            {isDraft ? "Add categories, nominees and their photos." : "View the categories and nominees in this event."}
           </p>
         </div>
 
@@ -204,32 +204,32 @@ export function CategoryNomineeStudio({
 
       {/* Main Categories Navigation or Empty State */}
       {categories.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 p-10 text-center">
+        <div className="rounded-2xl border border-dashed border-emerald-200 bg-linear-to-br from-emerald-50/80 to-white px-5 py-8 text-center sm:p-10">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
             <Icon name="award" size={24} />
           </div>
           <h3 className="mt-4 text-base font-serif font-semibold text-stone-900">
-            Start with your first award category
+            {canManage && isDraft ? "Let’s add your first category" : "No categories added yet"}
           </h3>
-          <p className="mt-1 text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-            Categories are the sections voters will browse, such as “Best New Artist”, “Student Leader of the Year”, or “Department Choice”.
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-600">
+            {canManage && isDraft ? "A category groups the people voters can choose. Try “Best New Artist” or “Student Leader”, then add your nominees." : "Categories and nominees will appear here once they have been added."}
           </p>
           {canManage && isDraft && (
-            <div className="mt-5 flex justify-center gap-3">
+            <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setShowAddCategory(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition-all active:scale-95 cursor-pointer"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800"
               >
                 <Icon name="sparkle" size={13} />
-                <span>Create Category</span>
+                <span>Add my first category</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowBulkImport(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-all cursor-pointer"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50"
               >
-                <span>Import Excel Template</span>
+                <span>Import from Excel</span>
               </button>
             </div>
           )}
@@ -324,6 +324,7 @@ export function CategoryNomineeStudio({
               </h4>
             </div>
 
+            {filteredNominees.length === 0 && <div className="flex items-start gap-3 rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800"><Icon name="users" size={19} /></span><div><h5 className="text-sm font-semibold text-stone-900">{canManage && isDraft ? "Add your first nominee" : "No nominees in this category yet"}</h5><p className="mt-1 text-sm leading-6 text-stone-600">{canManage && isDraft ? activeCategory ? "Enter a name in the form below. A photo and short biography are optional—you can add them later." : "Choose a category, then add the people voters can choose." : "Nominees will appear here once added."}</p></div></div>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {filteredNominees.map((nominee) => {
                 const imageUrl = imageUrlMap[nominee.image_path ?? ""];

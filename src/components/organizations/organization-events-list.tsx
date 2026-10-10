@@ -99,7 +99,7 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
           </div>
           <div className="mt-3">
             <span className="text-2xl font-bold font-mono text-emerald-800 sm:text-3xl">{publishedCount}</span>
-            <p className="mt-0.5 text-[11px] text-stone-400">Active and open to voters</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Approved public events</p>
           </div>
         </button>
 

@@ -97,8 +97,9 @@ try{
  assert.doesNotMatch(document.body.textContent,/Publish Event Now/);
  mocks['@/lib/events/actions']={updatePublicEventAction:async()=>null,sendEventReviewMessageAction:async()=>({success:true,message:'Message sent.'})};
  const {PublicEventEditor}=load('src/components/events/public-event-editor.tsx');
- await act(async()=>root.render(React.createElement(PublicEventEditor,{event:{...event('live','Live event'),results_visibility:'live',voting_rules:'Existing rules'},startLocked:true,expired:false})));
- await act(async()=>document.querySelector('button').click());
+ const {eventEditPermissions}=load('src/lib/events/edit-permissions.ts');
+ const liveEvent={...event('live','Live event'),results_visibility:'live',voting_rules:'Existing rules'};
+ await act(async()=>root.render(React.createElement(PublicEventEditor,{event:liveEvent,permissions:eventEditPermissions({event:liveEvent,role:'owner',active:true,hasActivity:true,now})})));
  assert.equal(document.querySelector('textarea[name=description]').readOnly,false);
  assert.equal(document.querySelector('textarea[name=votingRules]').readOnly,true);
  assert.equal(document.querySelector('input[type=datetime-local]').disabled,true);

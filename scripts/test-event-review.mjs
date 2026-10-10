@@ -61,6 +61,14 @@ try{
  assert.equal(await scalar('select name from events where id=$1',[event]),'Review event corrected');
  await login(outsider);await db.query('select cast_free_votes($1,$2,$3,1,$4)',[event,cat,nom,randomUUID()]);
  await login(owner);await assert.rejects(()=>db.query('select set_event_status($1,$2)',[event,'unpublish']),/votes or payment attempts/);
+ // An opening-date change must also fail when activity exists before a future opening.
+ await service();await db.query("update events set starts_at=now()+interval '1 hour' where id=$1",[event]);
+ await login(owner);
+ await assert.rejects(()=>db.query(`select update_event_details($1,name,description,starts_at+interval '1 hour',ends_at,results_visibility,voting_rules) from events where id=$1`,[event]),/opening time is locked/);
+ await db.query(`select update_event_details($1,name,'Description still editable',starts_at,ends_at,results_visibility,voting_rules) from events where id=$1`,[event]);
+ assert.equal(await scalar('select description from events where id=$1',[event]),'Description still editable');
+ await assert.rejects(()=>db.query('select update_event_details_before_opening_guard($1,null,null,null,null,null,null)',[event]),/permission denied/);
+ await service();await db.query("update events set starts_at=now()-interval '1 hour' where id=$1",[event]);
  await login(admin);await assert.rejects(()=>db.query('select admin_set_event_status($1,$2)',[event,'draft']),/votes or payment attempts/);
  await service();await db.query("update events set ends_at=now()-interval '1 minute' where id=$1",[event]);
  await login(owner);await db.query("select reopen_event_voting($1,now()+interval '1 day','Voting reopened to give participants more time to vote.')",[event]);

@@ -6,7 +6,7 @@ import { EventImageForm } from "@/components/events/event-image-form";
 import { EventStatusForm } from "@/components/events/event-status-form";
 import { Icon } from "@/components/icon";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
-import { CorrectionRequestForm, ReopenEventForm } from "@/components/events/fairness-controls";
+import { ReopenEventForm } from "@/components/events/fairness-controls";
 import { CorrectionRequestHistory } from "@/components/events/correction-history";
 import { PublicEventEditor } from "@/components/events/public-event-editor";
 import { DeleteEventForm } from "@/components/events/delete-event-form";
@@ -14,11 +14,14 @@ import { AccessCodeManager } from "@/components/events/access-code-manager";
 import { isVotingRule } from "@/lib/voting-rules";
 import { VoterHelpSettings } from "@/components/events/voter-help-settings";
 import { VoterListManager } from "@/components/events/voter-list-manager";
-import { EventReviewSummary } from "@/components/events/event-review-summary";
 import { CategoryNomineeStudio } from "@/components/events/category-nominee-studio";
 import { EventReviewConversation } from "@/components/events/review-conversation";
 import { organizerEventPresentation, type EventWorkspaceState } from "@/lib/events/organizer-presentation";
-import { EventEditDrawer } from "@/components/events/event-edit-drawer";
+import { EventDetailsForm } from "@/components/events/event-details-form";
+import { EventWorkspace } from "@/components/events/event-workspace";
+import { eventEditPermissions } from "@/lib/events/edit-permissions";
+import { eventNextStep } from "@/lib/events/next-step";
+import { ghanaDate } from "@/lib/events/presentation";
 import { EventPromotionTools } from "@/components/sharing/event-promotion-tools";
 import { absoluteUrl } from "@/lib/seo/metadata";
 
@@ -69,7 +72,7 @@ export default async function EventSetupPage({ params }: Props) {
       .select("id, name, description, display_order, is_active")
       .eq("event_id", eventId)
       .order("display_order", { ascending: true }),
-    supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle(),
+    supabase.from("organizations").select("name, moderation_status, archived_at").eq("id", organizationId).maybeSingle(),
     supabase.rpc("get_organization_sms_balance", { p_org: organizationId }),
     supabase.from("events").select("verification_method, voter_help_email").eq("id", eventId).maybeSingle(),
   ]);
@@ -105,8 +108,8 @@ export default async function EventSetupPage({ params }: Props) {
       ? await supabase.rpc("can_publish_paid_event", { p_event_id: eventId })
       : { data: true };
 
-  const canManage = ["owner", "admin", "editor"].includes(membership?.role ?? "");
-  const canRemove = ["owner", "admin"].includes(membership?.role ?? "");
+  const canManage = organization?.moderation_status === "active" && !organization.archived_at && ["owner", "admin", "editor"].includes(membership?.role ?? "");
+  const canRemove = canManage && ["owner", "admin"].includes(membership?.role ?? "");
   const activeCategories = (categories ?? []).filter((category) => category.is_active);
   const categoryIds = (categories ?? []).map((category) => category.id);
 
@@ -140,7 +143,7 @@ export default async function EventSetupPage({ params }: Props) {
   const datesReady =
     new Date(event.starts_at) < new Date(event.ends_at) && new Date(event.ends_at).getTime() > requestTime;
   const presentation = organizerEventPresentation({ ...event, last_review_kind: workspace?.last_review_kind }, requestTime);
-  const canReturnToDraft = Boolean(workspace && !workspace.has_activity && ["pending_review", "published", "paused"].includes(event.status));
+  const permissions = eventEditPermissions({ event, role: membership?.role ?? "", active: Boolean(canManage), hasActivity: workspace?.has_activity ?? null, now: requestTime });
   const votingRulesReady =
     event.voting_mode === "free" &&
     isVotingRule(event.voting_rule) &&
@@ -158,15 +161,15 @@ export default async function EventSetupPage({ params }: Props) {
     !nomineeError;
 
   const publishChecks = [
-    { label: verificationReadiness?.message ?? "Voter verification configuration is available", complete: verificationReady },
-    { label: "Voting dates are valid and close in the future", complete: datesReady },
+    { label: verificationReadiness?.message ?? "Voter verification is ready", complete: verificationReady, section: "voting" },
+    { label: "Voting dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
     {
       label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",
-      complete: checkoutReady,
+      complete: checkoutReady, section: "details", editor: true,
     },
-    { label: "At least one category is visible to voters", complete: activeCategories.length > 0 },
-    { label: "Every active category has an active nominee", complete: allCategoriesHaveNominees },
-    { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true },
+    { label: "Add at least one category", complete: activeCategories.length > 0, section: "nominees" },
+    { label: "Add a nominee to each category", complete: allCategoriesHaveNominees, section: "nominees" },
+    { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
   ];
 
   const publicUrl = `/events/${event.slug}`;
@@ -186,395 +189,59 @@ export default async function EventSetupPage({ params }: Props) {
     ? await supabase.storage.from("nominee-images").createSignedUrl(event.image_path, 3600)
     : { data: null };
 
-  return (
-    <main className="min-h-screen bg-stone-50/60 pb-20">
-      <DashboardHeader organizationId={organizationId} />
+  const requiredChecks = publishChecks.filter(check => !check.optional);
+  const nextStep = eventNextStep({ status: event.status, expired: permissions.expired, scheduled: Date.parse(event.starts_at) > requestTime, datesReady, categoryCount: activeCategories.length, nomineesReady: allCategoriesHaveNominees, checkoutReady, verificationReady, votingMode: event.voting_mode, canReopen: permissions.reopen, organizationId });
+  const panel = "rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6";
+  const returnToDraft = permissions.returnToDraft ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+    <h3 className="text-sm font-semibold text-amber-950">{event.status === "pending_review" ? "Change your event before approval" : "Need to change competition settings?"}</h3>
+    <p className="text-sm text-amber-900">{event.status === "pending_review" ? "Withdraw your event from review, edit it, then submit it again." : "Full editing removes your event from the public listing and clears approval. After editing, submit it for approval again."}</p>
+    <EventStatusForm eventId={eventId} action="unpublish" backTo={pagePath} label={event.status === "pending_review" ? "Withdraw and edit" : "Continue to full editing"} confirmMessage={event.status === "pending_review" ? "Withdraw this event from review? Your saved details stay intact. Submit it again after editing." : "Remove this event from the public listing and return it to draft? Approval will be cleared. Submit it again after editing."} />
+  </div> : null;
 
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 space-y-8">
-        {/* Notices */}
-        {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{presentation.warning}</p>}
-        {workspace?.review_feedback && <p className="rounded-xl border border-amber-200 bg-white p-4 text-sm text-stone-800"><strong>Platform feedback: </strong>{workspace.review_feedback} <a className="font-semibold text-emerald-800 underline" href="#review-feedback">View conversation</a></p>}
-        {/* Top Breadcrumb & Status Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <Link
-              href={`/organizer/${organizationId}/events`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-900 transition-colors"
-            >
-              <Icon name="arrowLeft" size={13} />
-              <span>Back to {organization?.name ?? "Events"}</span>
-            </Link>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-serif font-medium text-stone-900 tracking-tight">
-                {event.name}
-              </h1>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
-                  event.status === "published"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : event.status === "paused"
-                    ? "bg-amber-100 text-amber-800"
-                    : event.status === "closed"
-                    ? "bg-stone-200 text-stone-700"
-                    : "bg-stone-100 text-stone-600 border border-stone-200"
-                }`}
-              >
-                {presentation.label}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {canManage && event.status === "draft" && (
-              <EventEditDrawer
-                eventId={eventId}
-                organizationId={organizationId}
-                smsBalance={typeof smsBalance === "number" ? smsBalance : null}
-                initial={{
-                  name: event.name,
-                  description: event.description,
-                  price: Number(event.unit_price_minor),
-                  startsAt: event.starts_at,
-                  endsAt: event.ends_at,
-                  resultsVisibility: event.results_visibility,
-                  votingMode: event.voting_mode,
-                  verificationMethod: verificationMethod,
-                  votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit",
-                  freeVoteLimit: event.free_vote_limit_per_phone,
-                  votingRules: event.voting_rules,
-                }}
-              />
-            )}
-            {event.status === "draft" && (
-              <Link
-                href={`${pagePath}/preview`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer"
-              >
-                <Icon name="eye" size={14} />
-                <span>Preview Ballot ↗</span>
-              </Link>
-            )}
-            {["published", "paused", "closed"].includes(event.status) && (
-              <Link
-                href={publicUrl}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition-all cursor-pointer"
-              >
-                <span>View Public Page ↗</span>
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {["published", "paused", "closed"].includes(event.status) && <EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} />}
-
-        {categoriesError || nomineeError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-xs text-red-900">
-            Some event details could not be loaded. Refresh the page to try again.
-          </div>
-        ) : (
-          <>
-            {/* Event Info Summary card (draft mode) */}
-            {event.status === "draft" && (
-              <section className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-6 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-800">
-                      <Icon name="calendar" size={13} />
-                      <span>Event Details</span>
-                    </div>
-                    <p className="mt-1 text-xs text-stone-500 leading-relaxed">
-                      Voting window, rules, and verification settings for this draft.
-                    </p>
-                  </div>
-                </div>
-                <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 border-t border-stone-100 pt-4 text-xs">
-                  <div>
-                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Opens</dt>
-                    <dd className="mt-0.5 font-semibold text-stone-800 font-mono text-[11px]">
-                      {new Date(event.starts_at).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" })}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Closes</dt>
-                    <dd className="mt-0.5 font-semibold text-stone-800 font-mono text-[11px]">
-                      {new Date(event.ends_at).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" })}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Voting Mode</dt>
-                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
-                      {event.voting_mode === "paid" ? "Paid (Paystack)" : "Free"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Verification</dt>
-                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
-                      {verificationMethod.replace(/_/g, " ")}
-                    </dd>
-                  </div>
-                  <div className="col-span-2 sm:col-span-2">
-                    <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Results Visibility</dt>
-                    <dd className="mt-0.5 font-semibold text-stone-800 capitalize">
-                      {event.results_visibility.replace(/_/g, " ")}
-                    </dd>
-                  </div>
-                  {event.description && (
-                    <div className="col-span-2 sm:col-span-2">
-                      <dt className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">Description</dt>
-                      <dd className="mt-0.5 text-stone-600 leading-relaxed line-clamp-2">{event.description}</dd>
-                    </div>
-                  )}
-                </dl>
-              </section>
-            )}
-
-            {/* Event Cover Banner */}
-            <section className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4 mb-4">
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-800">
-                    <Icon name="image" size={13} />
-                    <span>Event Cover Banner</span>
-                  </div>
-                  <h3 className="text-lg font-serif font-medium text-stone-900 tracking-tight">
-                    Set your public artwork
-                  </h3>
-                  <p className="text-xs text-stone-500">
-                    This image appears as the banner of your voting page and in the public directory.
-                  </p>
-                </div>
-              </div>
-
-              {event.status !== "archived" && canManage ? (
-                <EventImageForm
-                  eventId={eventId}
-                  eventName={event.name}
-                  initialPath={event.image_path}
-                  initialUrl={eventImage?.signedUrl ?? null}
-                  backTo={pagePath}
-                />
-              ) : eventImage?.signedUrl ? (
-                <div
-                  className="h-48 w-full rounded-xl bg-cover bg-center border border-stone-200"
-                  style={{ backgroundImage: `url("${eventImage.signedUrl}")` }}
-                  role="img"
-                  aria-label={`${event.name} cover image`}
-                />
-              ) : (
-                <p className="text-xs text-stone-400">No cover image has been added.</p>
-              )}
-            </section>
-
-            {/* Step 2: Categories and Nominees Studio */}
-            <section className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs">
-              <CategoryNomineeStudio
-                categories={categories ?? []}
-                nominees={nominees ?? []}
-                imageUrlMap={imageUrlMap}
-                eventId={eventId}
-                canManage={canManage}
-                isDraft={event.status === "draft"}
-                pagePath={pagePath}
-              />
-            </section>
-
-            {/* Public Event Editor & Fairness Controls (for published events) */}
-            {canManage && ["published", "paused", "closed"].includes(event.status) && (
-              <div className="space-y-6">
-                <PublicEventEditor
-                  event={event}
-                  startLocked={Date.parse(event.starts_at) <= requestTime || Boolean(workspace?.has_activity)}
-                  expired={Date.parse(event.ends_at) <= requestTime}
-                />
-                <CorrectionRequestForm eventId={eventId} />
-                <CorrectionRequestHistory eventId={eventId} />
-                {canRemove && ["published", "paused"].includes(event.status) && Date.parse(event.ends_at) <= requestTime && (
-                  <ReopenEventForm eventId={eventId} />
-                )}
-              </div>
-            )}
-
-            {canManage && <VoterHelpSettings eventId={eventId} email={eventMeta?.voter_help_email ?? null} />}
-            {/* Private Voter Access Management */}
-            {canManage && (
-              verificationMethod === "invite_code" ? (
-                <AccessCodeManager eventId={eventId} />
-              ) : verificationMethod === "voter_list" ? (
-                <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} />
-              ) : event.status === "draft" ? (
-                <details className="group rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-all">
-                  <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-emerald-900 group-open:border-b group-open:border-stone-100 group-open:pb-3">
-                    <div className="flex items-center gap-2">
-                      <Icon name="shield" size={15} />
-                      <span>Private Voter Access Controls (Optional)</span>
-                    </div>
-                    <span className="text-[11px] text-stone-400 group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="pt-4 space-y-6">
-                    <AccessCodeManager eventId={eventId} />
-                    <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} />
-                  </div>
-                </details>
-              ) : null
-            )}
-
-            {/* Step 4: Pre-Launch Readiness Review */}
-            {event.status === "draft" && (
-              <EventReviewSummary
-                datesReady={datesReady}
-                name={event.name}
-                startsAt={event.starts_at}
-                endsAt={event.ends_at}
-                votingMode={event.voting_mode}
-                categoryCount={activeCategories.length}
-                nomineeCount={nominees?.filter((nominee) => nominee.is_active).length ?? 0}
-                allCategoriesHaveNominees={allCategoriesHaveNominees}
-                checkoutReady={checkoutReady}
-                smsReady={true}
-                imageAdded={Boolean(event.image_path)}
-              />
-            )}
-
-            {/* Final Launchpad & Publishing Panel */}
-            <section className="rounded-2xl border border-stone-200/90 bg-gradient-to-br from-stone-50 via-white to-stone-50 p-6 sm:p-8 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="max-w-xl">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-800">
-                    <Icon name="sparkle" size={13} />
-                    <span>Launchpad</span>
-                  </div>
-                  <h3 className="mt-1 text-xl font-serif font-medium text-stone-900 tracking-tight">
-                    {event.status === "draft" ? "Submit your event for review" : "Manage active event status"}
-                  </h3>
-                  <p className="mt-1 text-xs text-stone-600 leading-relaxed">
-                    Submitting sends the event to platform review. It becomes public after approval, and accepts votes during the scheduled Ghana time window.
-                  </p>
-
-                  <ul className="mt-4 space-y-2">
-                    {publishChecks.map((item) => (
-                      <li key={item.label} className="flex items-center gap-2 text-xs">
-                        <span
-                          className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${
-                            item.complete ? "bg-emerald-700 text-white" : "bg-stone-200 text-stone-500"
-                          }`}
-                        >
-                          {item.complete ? "✓" : "·"}
-                        </span>
-                        <span className={item.complete ? "text-stone-800 font-medium" : "text-stone-500"}>
-                          {item.label}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {event.voting_mode === "paid" && !checkoutReady && (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-medium text-amber-900">
-                      Connect and verify a Paystack payment account in Organization Settings before publishing.
-                    </div>
-                  )}
-                </div>
-
-                {canManage && (
-                  <div className="flex flex-col gap-2 shrink-0">
-                    {event.status === "draft" && (
-                      <>
-                        <Link
-                          href={`${pagePath}/preview`}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 transition-all active:scale-95 text-center"
-                        >
-                          <Icon name="eye" size={14} />
-                          <span>Preview voter page</span>
-                        </Link>
-                        <EventStatusForm
-                          eventId={eventId}
-                          action="publish"
-                          backTo={pagePath}
-                          label="Submit for review"
-                          disabled={!publishReady}
-                          disabledMessage={
-                            !datesReady ? "Update the voting dates so the closing time is in the future." : event.voting_mode === "paid" && !checkoutReady
-                              ? "A verified payment provider must be connected before publishing."
-                              : "Complete the required checklist items first."
-                          }
-                          confirmMessage={`Submit “${event.name}” for platform review? It will remain private until approved. Voting follows your scheduled Ghana dates.`}
-                        />
-                      </>
-                    )}
-                    {event.status === "published" && (
-                      <div className="flex flex-col gap-2">
-                        <EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause Voting" />
-                        <EventStatusForm
-                          eventId={eventId}
-                          action="close"
-                          backTo={pagePath}
-                          label="Close Event"
-                          confirmMessage="Close this event? This action cannot be undone."
-                        />
-                      </div>
-                    )}
-                    {event.status === "paused" && (
-                      <div className="flex flex-col gap-2">
-                        <EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume Voting" />
-                        <EventStatusForm
-                          eventId={eventId}
-                          action="close"
-                          backTo={pagePath}
-                          label="Close Event"
-                          confirmMessage="Close this event? This action cannot be undone."
-                        />
-                      </div>
-                    )}
-                    {event.status === "closed" && (
-                      <EventStatusForm
-                        eventId={eventId}
-                        action="archive"
-                        backTo={`/organizer/${organizationId}/events`}
-                        label="Archive Event"
-                        confirmMessage="Archive this event? Its votes, payments, and audit history will be preserved."
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <EventReviewConversation eventId={eventId} canReply={canManage} />
-
-            {/* Danger Zone */}
-            {(canRemove || (canManage && event.status === "pending_review")) && event.status !== "archived" && (
-              <div className="rounded-2xl border border-stone-200/60 bg-stone-50/50 p-5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-semibold text-stone-800">Workspace Management</h4>
-                  <p className="text-stone-500 mt-0.5">
-                    Unused drafts can be deleted permanently. Events with recorded ballots must be archived to preserve history.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {event.status === "draft" && <DeleteEventForm eventId={eventId} name={event.name} />}
-                  {event.status === "draft" && (
-                    <EventStatusForm
-                      eventId={eventId}
-                      action="archive"
-                      backTo={`/organizer/${organizationId}/events`}
-                      label="Archive Draft"
-                      confirmMessage="Move this draft to your archive?"
-                    />
-                  )}
-                  {canReturnToDraft && (event.status === "pending_review" || canRemove) && (
-                    <EventStatusForm
-                      eventId={eventId}
-                      action="unpublish"
-                      backTo={pagePath}
-                      label={event.status === "pending_review" ? "Withdraw review & edit" : "Return to draft & edit"}
-                      confirmMessage="Return this unused event to draft? Approval will be cleared. Update the event and submit it for a new review."
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </main>
-  );
+  return <main className="min-h-screen bg-stone-50/60 pb-20">
+    <DashboardHeader organizationId={organizationId} />
+    <div className="mx-auto max-w-5xl space-y-6 px-4 pt-6 sm:px-6">
+      <header className="space-y-3">
+        <Link href={`/organizer/${organizationId}/events`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-stone-600 hover:text-emerald-900"><Icon name="arrowLeft" size={15} />Back to {organization?.name ?? "events"}</Link>
+        <div className="flex flex-wrap items-center gap-3"><h1 className="break-words font-serif text-2xl font-medium text-stone-900 sm:text-3xl">{event.name}</h1><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900">{presentation.label}</span></div>
+        <p className="text-sm text-stone-600">{ghanaDate(event.starts_at)} → {ghanaDate(event.ends_at)} · Ghana time</p>
+      </header>
+      {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{presentation.warning}</p>}
+      {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
+      {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold underline">Read feedback</a></div>}
+      <EventWorkspace
+        nextStep={canManage ? nextStep : undefined}
+        progress={canManage && event.status === "draft" ? { completed: requiredChecks.filter(check => check.complete).length, total: requiredChecks.length } : undefined}
+        canEdit={permissions.editDraft || permissions.editPublic || (canManage && event.status === "pending_review")}
+        canManageVoting={canManage && event.status !== "archived"}
+        viewLink={event.status === "draft" ? <Link href={`${pagePath}/preview`} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50">Preview event</Link> : ["published", "paused", "closed"].includes(event.status) ? <Link href={publicUrl} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50">View voter page ↗</Link> : null}
+        editor={<>
+          {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
+          {returnToDraft}
+          {!permissions.returnToDraft && permissions.editPublic && event.status !== "closed" && <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-600">Competition settings stay fixed while published. Full editing requires no voting or payment history and owner/admin access.</p>}
+        </>}
+        details={<>
+          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Event details</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm text-stone-600">{event.description || "Add a description to introduce your event to voters."}</p>
+            <dl className="mt-5 grid gap-4 border-t border-stone-100 pt-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voting</dt><dd className="mt-1 font-semibold text-stone-900">{event.voting_mode === "paid" ? `Paid · GH₵${(event.unit_price_minor / 100).toFixed(2)} per vote` : "Free voting"}</dd></div><div><dt className="text-stone-500">Results</dt><dd className="mt-1 font-semibold capitalize text-stone-900">{event.results_visibility.replace(/_/g, " ")}</dd></div></dl>
+          </section>
+          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Cover image</h2><p className="mb-4 mt-1 text-sm text-stone-600">{event.status === "pending_review" ? "Withdraw from review to change the cover image." : "Shown on your voter page and the event directory."}</p>{permissions.editCover ? <EventImageForm eventId={eventId} eventName={event.name} initialPath={event.image_path} initialUrl={eventImage?.signedUrl ?? null} backTo={pagePath} /> : eventImage?.signedUrl ? <div className="h-48 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover`} /> : <p className="text-sm text-stone-500">No cover image added.</p>}</section>
+          {canManage && event.status !== "archived" && <VoterHelpSettings eventId={eventId} email={eventMeta?.voter_help_email ?? null} />}
+          {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
+        </>}
+        nominees={<section className={panel}>{categoriesError || nomineeError ? <p role="alert" className="text-sm text-red-800">Categories or nominees could not load. Refresh to try again.</p> : <><CategoryNomineeStudio categories={categories ?? []} nominees={nominees ?? []} imageUrlMap={imageUrlMap} eventId={eventId} canManage={canManage} isDraft={event.status === "draft"} pagePath={pagePath} />{event.status !== "draft" && <div className="mt-5 border-t border-stone-100 pt-4"><p className="mb-3 text-sm text-stone-600">Categories and nominees are protected outside draft editing.</p>{returnToDraft}</div>}</>}</section>}
+        voting={<>
+          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Complete setup, preview your event, then submit it for approval." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
+            <div className="mt-4 flex flex-wrap gap-3">{permissions.pause && <EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause voting" />}{permissions.resume && <EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume voting" />}</div>
+            {permissions.extend && <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-900">Extend deadline / edit schedule</summary><PublicEventEditor key={event.id} event={event} permissions={permissions} scheduleOnly /></details>}
+            {permissions.reopen && <div className="mt-5 border-t border-stone-100 pt-5"><ReopenEventForm eventId={eventId} /></div>}
+            {event.status === "draft" && <div className="mt-5 space-y-4"><ul className="space-y-2">{publishChecks.map(item => <li key={item.label} className="flex items-start gap-2 text-sm"><span className={item.complete ? "text-emerald-700" : "text-amber-700"}>{item.complete ? "✓" : "○"}</span><span className="flex flex-1 flex-wrap items-center justify-between gap-2 text-stone-700">{item.label}{!item.complete && canManage && <button type="button" data-workspace-section={item.section} data-workspace-editor={item.editor ? "true" : "false"} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-emerald-800 underline">{item.optional ? "Add image" : "Complete setup"}</button>}</span></li>)}</ul>{event.voting_mode === "paid" && !checkoutReady && <Link href={`/organizer/${organizationId}/payments`} className="text-sm font-semibold text-emerald-800 underline">Connect your payment account</Link>}{canManage && <EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Submit for approval" disabled={!publishReady} disabledMessage="Complete the required setup items above." confirmMessage={`Submit “${event.name}” for approval? It stays private until approved. Voting follows your scheduled Ghana dates.`} />}</div>}
+          </section>
+          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>
+          {canManage && event.status !== "archived" && (verificationMethod === "invite_code" ? <AccessCodeManager eventId={eventId} /> : verificationMethod === "voter_list" ? <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} /> : event.status === "draft" ? <details className={panel}><summary className="cursor-pointer text-sm font-semibold text-stone-800">Optional voter access tools</summary><div className="mt-4 space-y-5"><AccessCodeManager eventId={eventId} /><VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} /></div></details> : null)}
+          {canManage && ["published", "paused", "closed", "draft"].includes(event.status) && <details className={panel}><summary className="cursor-pointer text-sm font-semibold text-stone-600">More actions</summary><div className="mt-4 space-y-4">{["published", "paused"].includes(event.status) && <><p className="text-sm text-stone-600">Permanent closure stops voting and cannot be undone. Use Pause for a temporary break.</p><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close permanently" confirmMessage="Permanently close this event? Voting will stop and this event cannot reopen. Existing votes and payments stay preserved." /></>}{event.status === "closed" && <EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive event" confirmMessage="Archive this event? Votes, payments and audit history are preserved." />}{canRemove && event.status === "draft" && <><DeleteEventForm eventId={eventId} name={event.name} /><EventStatusForm eventId={eventId} action="archive" backTo={`/organizer/${organizationId}/events`} label="Archive draft" confirmMessage="Move this draft to the archive?" /></>}</div></details>}
+        </>}
+      />
+      <EventReviewConversation eventId={eventId} canReply={canManage && event.status !== "archived"} />
+    </div>
+  </main>;
 }

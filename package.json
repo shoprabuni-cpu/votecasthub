@@ -17,6 +17,7 @@
     "test:auth-captcha": "node scripts/test-auth-captcha.mjs",
     "test:event-discovery": "node scripts/test-event-discovery.mjs",
     "test:event-review": "node scripts/test-event-review.mjs",
+    "test:event-workspace": "node scripts/test-event-workspace.mjs",
     "test:notification-delivery": "node scripts/test-notification-delivery.mjs",
     "test:seo": "node scripts/test-seo.mjs",
     "test:verification": "node scripts/test-verification.mjs",

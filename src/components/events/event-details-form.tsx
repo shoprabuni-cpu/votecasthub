@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createEventAction, updateEventDraftAction } from "@/lib/auth/actions";
-import type { AuthFormState } from "@/lib/auth/form-state";
+import { EventSaveFeedback, useEventSaveFeedback } from "./event-save-feedback";
 import { votingRuleOptions, type VotingRule } from "@/lib/voting-rules";
 import { Icon } from "@/components/icon";
 
@@ -34,11 +34,11 @@ function asLocalInput(value?: string) {
 
 function formatDateString(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
-  const y = date.getFullYear();
-  const m = pad(date.getMonth() + 1);
-  const d = pad(date.getDate());
-  const h = pad(date.getHours());
-  const min = pad(date.getMinutes());
+  const y = date.getUTCFullYear();
+  const m = pad(date.getUTCMonth() + 1);
+  const d = pad(date.getUTCDate());
+  const h = pad(date.getUTCHours());
+  const min = pad(date.getUTCMinutes());
   return `${y}-${m}-${d}T${h}:${min}`;
 }
 
@@ -61,17 +61,20 @@ export function EventDetailsForm({
   smsBalance?: number | null;
 }) {
   const action = eventId ? updateEventDraftAction : createEventAction;
-  const [state, formAction, pending] = useActionState<AuthFormState, FormData>(action, null);
+  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(action);
 
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
-  const [votingMode, setVotingMode] = useState<"free" | "paid">(initial?.votingMode ?? "free");
-  const [verificationMethod, setVerificationMethod] = useState<"phone" | "email" | "invite_code" | "voter_list">(
+  const [votingMode, setVotingModeValue] = useState<"free" | "paid">(initial?.votingMode ?? "free");
+  const [verificationMethod, setVerificationMethodValue] = useState<"phone" | "email" | "invite_code" | "voter_list">(
     initial?.verificationMethod ?? "phone"
   );
-  const [votingRule, setVotingRule] = useState<VotingRule>(initial?.votingRule ?? "category_limit");
+  const [votingRule, setVotingRuleValue] = useState<VotingRule>(initial?.votingRule ?? "category_limit");
+  const setVotingMode = (value: "free" | "paid") => { markChanged(); setVotingModeValue(value); };
+  const setVerificationMethod = (value: "phone" | "email" | "invite_code" | "voter_list") => { markChanged(); setVerificationMethodValue(value); };
+  const setVotingRule = (value: VotingRule) => { markChanged(); setVotingRuleValue(value); };
 
   const [values, setValues] = useState({
     name: initial?.name ?? "",
@@ -85,23 +88,25 @@ export function EventDetailsForm({
   });
 
   const updateValue = (field: keyof typeof values, value: string) => {
+    markChanged();
     setStepError(null);
     setValues((current) => ({ ...current, [field]: value }));
   };
 
   // Quick Date Presets
   const applyDatePreset = (preset: "tomorrow" | "7days" | "14days" | "30days") => {
+    markChanged();
     const now = new Date();
     const start = new Date(now);
-    start.setDate(start.getDate() + 1);
-    start.setHours(9, 0, 0, 0); // 09:00 AM Ghana time
+    start.setUTCDate(start.getUTCDate() + 1);
+    start.setUTCHours(9, 0, 0, 0); // Ghana time is UTC, regardless of browser timezone.
 
     const end = new Date(start);
-    if (preset === "tomorrow") end.setDate(end.getDate() + 3);
-    else if (preset === "7days") end.setDate(end.getDate() + 7);
-    else if (preset === "14days") end.setDate(end.getDate() + 14);
-    else if (preset === "30days") end.setDate(end.getDate() + 30);
-    end.setHours(23, 59, 0, 0);
+    if (preset === "tomorrow") end.setUTCDate(end.getUTCDate() + 3);
+    else if (preset === "7days") end.setUTCDate(end.getUTCDate() + 7);
+    else if (preset === "14days") end.setUTCDate(end.getUTCDate() + 14);
+    else if (preset === "30days") end.setUTCDate(end.getUTCDate() + 30);
+    end.setUTCHours(23, 59, 0, 0);
 
     setValues((prev) => ({
       ...prev,
@@ -188,7 +193,8 @@ export function EventDetailsForm({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
+      <EventSaveFeedback dirty={dirty} pending={pending} state={state} />
       {/* Handcrafted Step Indicator Header */}
       <div className="mb-8 rounded-2xl border border-stone-200/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur-sm">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -225,14 +231,14 @@ export function EventDetailsForm({
                       isCurrent ? "text-white" : isCompleted ? "text-stone-900" : "text-stone-600"
                     }`}
                   >
-                    {s.title}
+                    {s.id === 4 && eventId ? "Review & save" : s.title}
                   </p>
                   <p
                     className={`text-[10px] leading-tight truncate hidden md:block ${
                       isCurrent ? "text-emerald-200/90" : "text-stone-400"
                     }`}
                   >
-                    {s.subtitle}
+                      {s.id === 4 && eventId ? "Check your changes" : s.subtitle}
                   </p>
                 </div>
               </button>
@@ -738,7 +744,7 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Step 4 · Review & Launch
+                    {eventId ? "Review your changes" : "Review your draft"}
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
                     Ready to set up your event workspace
@@ -816,22 +822,10 @@ export function EventDetailsForm({
           )}
 
           {/* Server Action Result Message */}
-          {state?.message && (
-            <div
-              className={`mt-5 rounded-xl p-3.5 text-xs font-semibold flex items-center gap-2 ${
-                state.success
-                  ? "border border-emerald-200 bg-emerald-50 text-emerald-900"
-                  : "border border-red-200 bg-red-50 text-red-900"
-              }`}
-              role={state.success ? "status" : "alert"}
-            >
-              <Icon name={state.success ? "check" : "alert"} size={16} />
-              <span>{state.message}</span>
-            </div>
-          )}
+          {(dirty || state?.message || pending) && <div className="mt-5"><EventSaveFeedback dirty={dirty} pending={pending} state={state} announce={false} /></div>}
 
           {/* Bottom Action Bar */}
-          <div className="mt-8 flex items-center justify-between border-t border-stone-100 pt-5">
+          <div className="sticky bottom-3 z-10 mt-6 flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-lg shadow-stone-900/5 backdrop-blur-sm sm:p-4">
             {step > 1 ? (
               <button
                 type="button"
@@ -867,7 +861,7 @@ export function EventDetailsForm({
                 ) : eventId ? (
                   <>
                     <Icon name="check" size={15} />
-                    <span>Save Draft Details</span>
+                    <span>Save draft</span>
                   </>
                 ) : (
                   <>

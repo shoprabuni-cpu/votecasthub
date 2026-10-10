@@ -3,7 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import { setEventStatusAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
-import { AppModal } from "@/components/ui/app-modal";
+import { EventDialog } from "./event-dialog";
 import { Icon } from "@/components/icon";
 
 export function EventStatusForm({
@@ -90,19 +90,10 @@ export function EventStatusForm({
         )}
       </form>
 
-      <AppModal
-        open={confirmOpen}
-        title={label}
-        message={confirmMessage ?? "Are you sure you want to continue?"}
-        tone={isDanger ? "danger" : "info"}
-        confirmLabel={label}
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          approved.current = true;
-          setConfirmOpen(false);
-          formRef.current?.requestSubmit();
-        }}
-      />
+      <EventDialog open={confirmOpen} title={label} onClose={() => setConfirmOpen(false)} busy={pending}>
+        <p className="text-sm text-stone-600">{confirmMessage ?? "Are you sure you want to continue?"}</p>
+        <div className="mt-5 flex flex-wrap gap-2"><button type="button" disabled={pending} className={`min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold text-white ${isDanger ? "bg-red-700 hover:bg-red-800" : "bg-emerald-900 hover:bg-emerald-800"}`} onClick={() => { approved.current = true; setConfirmOpen(false); formRef.current?.requestSubmit(); }}>{label}</button><button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancel</button></div>
+      </EventDialog>
     </>
   );
 }
