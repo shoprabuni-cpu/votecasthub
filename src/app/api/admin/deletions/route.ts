@@ -1,3 +1,6 @@
+import { after } from "next/server";
+import { processAdminDeletions } from "@/lib/admin/process-deletions";
+import { cleanupEventImages } from "@/lib/events/image-cleanup";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +41,12 @@ export async function POST(request: Request) {
   if (error) {
     const statuses: Record<string, number> = { "42501": 403, "22023": 409, P0002: 404, "23505": 409 };
     return Response.json({ error: statuses[error.code] ? error.message : "Deletion could not be updated." }, { status: statuses[error.code] ?? 500 });
+  }
+  if (input.action === "request" && input.kind === "event") {
+    after(async () => {
+      await processAdminDeletions().catch(() => { console.error("admin_event_cleanup_pending"); });
+      await cleanupEventImages().catch(() => { console.error("event_image_cleanup_pending"); });
+    });
   }
   revalidatePath("/admin", "layout");
   revalidatePath("/organizer", "layout");

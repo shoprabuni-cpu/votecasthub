@@ -1,4 +1,4 @@
-process.on('uncaughtException', e => { console.error(e.message, e.where || '', e.query || ''); process.exit(1); });
+process.on('uncaughtException', e => { console.error(e.stack, e.where || '', e.query || ''); process.exit(1); });
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -16,9 +16,21 @@ await db.exec(`
  alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
 `);
 for(const file of (await fs.readdir('supabase/migrations')).filter(f=>f.endsWith('.sql')).sort()){
+ if(file==='20261202100000_immediate_admin_event_deletion.sql'){
+  await db.exec(`insert into organizations(id,name,slug) values('90000000-0000-4000-8000-000000000001','Upgrade fixture','upgrade-fixture');
+   insert into events(id,organization_id,name,slug,voting_mode,verification_method,free_vote_limit_per_phone,unit_price_minor,starts_at,ends_at,status,archived_at)
+   values('90000000-0000-4000-8000-000000000002','90000000-0000-4000-8000-000000000001','Previously scheduled','upgrade-event','free','email',10,0,now()-interval '1 day',now()+interval '1 day','archived',now());
+   insert into admin_deletion_jobs(target_kind,target_id,target_name,reason,scheduled_for,next_attempt_at,last_error)
+   values('event','90000000-0000-4000-8000-000000000002','Previously scheduled','Remove the legacy scheduled event.',now()+interval '30 days',now()+interval '1 day','Resolve pending event payments first');`);
+ }
  try { await db.exec(await fs.readFile(`supabase/migrations/${file}`,'utf8')); }
  catch(e){ console.error('Migration failed:',file,e.message);process.exit(1); }
 }
+assert.equal((await db.query("select purged_at is not null as removed from events where slug='upgrade-event'")).rows[0].removed,true);
+assert.equal((await db.query("select scheduled_for<=now() and next_attempt_at<=now() and last_error is null as ready from admin_deletion_jobs where target_name='Previously scheduled'")).rows[0].ready,true);
+const upgradeRun=(await db.query('select process_admin_deletions(2) as result')).rows[0].result;
+assert.equal(upgradeRun.completed,1,JSON.stringify((await db.query("select last_error from admin_deletion_jobs where target_name='Previously scheduled'")).rows));
+await db.exec("delete from organizations where slug='upgrade-fixture'");
 import { randomUUID } from 'node:crypto';
 import ts from 'typescript';
 import { z } from 'zod';
@@ -46,9 +58,10 @@ try {
  await login(moderator);await assert.rejects(()=>request('event',draft,'Draft Event'),/Only platform/);
  await login(admin);assert.equal((await preview('event',draft)).immediate,true);
  await assert.rejects(()=>request('event',draft,'Wrong name'),/exact name/);
- await assert.rejects(()=>request('event',event,'Public Event'),/pending event payments/);
+ assert.equal((await preview('event',event)).blocker,null);
  await privileged();await db.query("insert into storage.objects(bucket_id,name) values('nominee-images',$1)",[`${draft}/cover.png`]);
  await login(admin);const removed=await request('event',draft,'Draft Event');assert.equal(removed.immediate,true);
+ assert.equal((await run()).completed,1);
  await privileged();assert.equal(await scalar('select count(*) from events where id=$1',[draft]),0);
  assert.equal(await scalar('select count(*) from event_image_cleanup where path=$1',[`${draft}/cover.png`]),1);
  assert.equal(await scalar("select count(*) from admin_audit_log where action='data_purged' and target_id=$1",[draft]),1);
@@ -56,16 +69,15 @@ try {
  await db.query("update events set description='Long disposable description',image_path=$2 where id=$1",[event,`${event}/cover.png`]);
  await db.query("update nominees set biography='Biography to purge',image_path=$2 where id=$1",[nominee,`${event}/${nominee}.png`]);
  await db.query("insert into storage.objects(bucket_id,name) values('nominee-images',$1)",[`${event}/cover.png`]);
- await login(admin);let p=await preview('event',event);assert.equal(p.financial_history,true);assert.equal(p.immediate,false);
- const scheduled=await request('event',event,'Public Event');assert.equal(scheduled.immediate,false);
- assert.ok(new Date(scheduled.scheduled_for).getTime()>Date.now()+29*86400000);
- await assert.rejects(()=>request('event',event,'Public Event'),/already scheduled/);
+ await login(admin);let p=await preview('event',event);assert.equal(p.financial_history,true);assert.equal(p.immediate,true);
+ const scheduled=await request('event',event,'Public Event');assert.equal(scheduled.immediate,true);
+ assert.ok(new Date(scheduled.scheduled_for).getTime()<=Date.now());
+ assert.ok((await preview('event',event)).purged_at);
+ assert.equal((await rows('select * from get_admin_events(null)')).some(row=>row.id===event),false);
+ await assert.rejects(()=>request('event',event,'Public Event'),/already purged/);
+ await assert.rejects(()=>cancel(scheduled.id),/grace period has ended/);
  await login(owner);await assert.rejects(()=>db.query('select set_event_status($1,$2)',[event,'publish']),/scheduled for deletion|status change is not allowed/);
  await privileged();await assert.rejects(()=>db.query("update events set status='published',archived_at=null where id=$1",[event]),/scheduled for deletion/);
- assert.equal((await run()).completed,0);
- await login(admin);await cancel(scheduled.id);assert.equal((await preview('event',event)).job,null);
- await privileged();assert.equal(await scalar('select status from events where id=$1',[event]),'archived');
- await login(admin);const paid=await request('event',event,'Public Event');await due(paid.id);
  assert.equal((await run()).completed,1);
  await privileged();assert.ok(await scalar('select purged_at from events where id=$1',[event]));
  assert.equal(await scalar('select description from events where id=$1',[event]),null);
@@ -79,13 +91,27 @@ try {
  await assert.rejects(()=>db.exec('delete from vote_batches'),/immutable/);
  await assert.rejects(()=>db.exec('delete from ledger_entries'),/immutable/);
  await login(admin);await assert.rejects(()=>request('event',event,'Public Event'),/already purged/);
+ // An unfinished checkout never delays admin deletion; late settlement cannot restore votes.
+ const pendingEvent=randomUUID(),pendingCat=randomUUID(),pendingNom=randomUUID(),pendingPay=randomUUID();
+ await privileged();
+ await db.query("insert into events(id,organization_id,name,slug,voting_mode,unit_price_minor,starts_at,ends_at,status) values($1,$2,'Pending checkout event','pending-admin-checkout','paid',100,now()-interval '1 day',now()+interval '1 day','published')",[pendingEvent,org]);
+ await db.query("insert into categories(id,event_id,name) values($1,$2,'Pending category')",[pendingCat,pendingEvent]);
+ await db.query("insert into nominees(id,category_id,name,biography) values($1,$2,'Pending nominee','Remove this biography')",[pendingNom,pendingCat]);
+ await db.query("insert into payment_attempts(id,idempotency_key,event_id,organization_id,category_id,nominee_id,quantity,unit_price_minor,total_amount_minor,currency,provider,provider_reference,status) values($1,'admin-pending-checkout',$2,$3,$4,$5,2,100,200,'GHS','paystack','admin-late-checkout','pending')",[pendingPay,pendingEvent,org,pendingCat,pendingNom]);
+ await login(admin);const pendingJob=await request('event',pendingEvent,'Pending checkout event');
+ assert.equal(pendingJob.immediate,true);assert.ok((await preview('event',pendingEvent)).purged_at);
+ assert.equal((await run()).completed,1);
+ await privileged();assert.equal(await scalar('select biography from nominees where id=$1',[pendingNom]),null);
+ await db.exec("select confirm_paid_vote('admin-late-checkout',246810,200,5); select confirm_paid_vote('admin-late-checkout',246810,200,5)");
+ assert.equal(await scalar('select count(*) from vote_batches where event_id=$1',[pendingEvent]),0);
+ assert.equal(Number(await scalar("select organizer_net_minor from paid_vote_ledger where reference='admin-late-checkout'")),180);
  // An empty organization without historical references can be physically removed immediately.
  const empty=randomUUID();await privileged();await db.query("insert into organizations(id,name,slug) values($1,'Empty Organization','empty-organization')",[empty]);
  await db.query("insert into organization_members(organization_id,user_id,role) values($1,$2,'owner')",[empty,owner]);
  await login(admin);assert.equal((await preview('organization',empty)).immediate,true);
  const emptyJob=await request('organization',empty,'Empty Organization');assert.equal(emptyJob.immediate,true);
  await privileged();assert.equal(await scalar('select count(*) from organizations where id=$1',[empty]),0);
- // Free votes are removed only after the grace period, along with verification and content.
+ // Free votes are removed in bounded batches after immediate removal, along with verification and content.
  const free=randomUUID(),freeCat=randomUUID(),freeNom=randomUUID();
  await db.query("insert into organizations(id,name,slug) values($1,'Free Organizer','free-organizer')",[org2]);
  await db.query("insert into organization_members(organization_id,user_id,role) values($1,$2,'owner')",[org2,other]);
@@ -97,7 +123,7 @@ try {
  await login(admin);
  const saved=await scalar('select get_admin_deletion_snapshot($1,$2)',['event',free]);
  assert.equal(saved.standings[0].counted_votes,1);assert.equal(saved.preview.counts.roster_entries,5001);
- const freeJob=await request('event',free,'Free Event');assert.equal(freeJob.immediate,false);
+ const freeJob=await request('event',free,'Free Event');assert.equal(freeJob.immediate,true);
  await due(freeJob.id);assert.equal((await run()).progressing,1);
  await privileged();assert.equal(await scalar('select count(*) from event_voter_list_entries where event_id=$1',[free]),1);
  assert.equal(await scalar('select count(*) from private.admin_purge_context'),0);
@@ -116,12 +142,13 @@ try {
  await due(orgJob.id);assert.equal((await run()).completed,1);
  await privileged();assert.ok(await scalar('select purged_at from organizations where id=$1',[org]));
  assert.equal(await scalar('select count(*) from organization_members where organization_id=$1',[org]),0);
- assert.equal(await scalar('select count(*) from payment_attempts where organization_id=$1',[org]),1);
+ assert.equal(await scalar('select count(*) from payment_attempts where organization_id=$1',[org]),2);
  assert.equal(await scalar('select count(*) from private.admin_purge_context'),0);
  assert.equal(await scalar("select has_function_privilege('authenticated','public.process_admin_deletions(integer)','execute')"),false);
  // Exercise the actual HTTP handler against the embedded database with a session adapter.
  let principal=null;
  const invalidations=[];
+ const cleanupCallbacks=[];
  const route={};
  const sessionClient={
   auth:{getClaims:async()=>({data:principal?{claims:{sub:principal}}:null,error:null})},
@@ -139,6 +166,9 @@ try {
  };
  const code=ts.transpileModule(await fs.readFile('src/app/api/admin/deletions/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  new Function('require','exports',code)(name=>{
+  if(name==='next/server')return {after:(callback)=>cleanupCallbacks.push(callback)};
+  if(name==='@/lib/admin/process-deletions')return {processAdminDeletions:async()=>{}};
+  if(name==='@/lib/events/image-cleanup')return {cleanupEventImages:async()=>{}};
   if(name==='next/cache')return {revalidatePath:(...args)=>invalidations.push(args)};
   if(name==='zod')return {z};
   if(name==='@/lib/supabase/server')return {createClient:async()=>sessionClient};
@@ -154,8 +184,8 @@ try {
  const body={action:'request',kind:'event',targetId:apiEvent,confirmationName:'API Event',reason:'Remove disposable event records after review.'};
  assert.equal((await post({...body,confirmationName:'Wrong'})).status,409);
  const response=await post(body);assert.equal(response.status,200);
- const payload=await response.json();assert.equal(payload.immediate,false);assert.ok(payload.id);
- const cancelled=await post({action:'cancel',jobId:payload.id,reason:'Keep this event for another review'});assert.equal(cancelled.status,200);
+ const payload=await response.json();assert.equal(payload.immediate,true);assert.ok(payload.id);assert.equal(cleanupCallbacks.length,1);
+ const cancelled=await post({action:'cancel',jobId:payload.id,reason:'Keep this event for another review'});assert.equal(cancelled.status,409);
  assert.ok(invalidations.some(([path,type])=>path==='/admin'&&type==='layout'));
  const exportRequest=new Request(`http://localhost/api/admin/deletions?kind=event&targetId=${event}`);
  principal=null;assert.equal((await route.GET(exportRequest)).status,401);
@@ -177,7 +207,46 @@ try {
  assert.equal(await scalar("select count(*) from payment_rate_limits where bucket='current-purge-limit'"),1);
  assert.equal(await scalar('select count(*) from private.event_analytics_visitors where event_id=$1',[apiEvent]),1);
  assert.equal(await scalar('select views from event_analytics_daily where event_id=$1',[apiEvent]),10);
- console.log('PASS: admin-only deletion, previews, exact confirmation, pending payment blockers, immediate unused deletion, grace period, cancellation, frozen items, free-vote purge, file cleanup queue, retained financial references, post-purge refunds and immutable paid history.');
+ {
+ // Organizer deletion is immediate even with an abandoned checkout; late money remains reconcilable.
+ await privileged();
+ const cleanupOrg=randomUUID(),cleanupEvent=randomUUID(),cleanupCat=randomUUID(),cleanupNom=randomUUID(),cleanupPay=randomUUID();
+ await db.query("insert into organizations(id,name,slug,created_by) values($1,'Cleanup organization','cleanup-organization',$2)",[cleanupOrg,owner]);
+ await db.query("insert into organization_members(organization_id,user_id,role) values($1,$2,'owner'),($1,$3,'editor')",[cleanupOrg,owner,other]);
+ await db.query("insert into organization_paystack_accounts(organization_id,subaccount_code,business_name,settlement_bank,account_last4,status,paystack_verified) values($1,'ACCT_cleanup','Cleanup','MTN','9221','active',true)",[cleanupOrg]);
+ await db.query("insert into events(id,organization_id,name,slug,unit_price_minor,starts_at,ends_at,status) values($1,$2,'Cleanup event','cleanup-event',100,now()-interval '1 day',now()+interval '1 day','published')",[cleanupEvent,cleanupOrg]);
+ await db.query("insert into categories(id,event_id,name) values($1,$2,'Cleanup category')",[cleanupCat,cleanupEvent]);
+ await db.query("insert into nominees(id,category_id,name,biography) values($1,$2,'Cleanup nominee','Private biography')",[cleanupNom,cleanupCat]);
+ await db.query("insert into payment_attempts(id,idempotency_key,event_id,organization_id,category_id,nominee_id,quantity,unit_price_minor,total_amount_minor,currency,provider,provider_reference,status) values($1,'cleanup-pending-attempt',$2,$3,$4,$5,2,100,200,'GHS','paystack','cleanup-late-payment','pending')",[cleanupPay,cleanupEvent,cleanupOrg,cleanupCat,cleanupNom]);
+ await login(owner);await assert.rejects(()=>db.query('select delete_organizer_event($1)',[cleanupEvent]),/Close this event/);
+ await db.query("select set_event_status($1,'close')",[cleanupEvent]);
+ await login(other);await assert.rejects(()=>db.query('select delete_organizer_event($1)',[cleanupEvent]),/Only owners and admins/);
+ await login(owner);assert.equal(await scalar('select delete_organizer_event($1)',[cleanupEvent]),cleanupOrg);
+ assert.equal((await rows('select * from get_organization_events($1)',[cleanupOrg])).length,0,'Deleted event disappears without waiting for cleanup');
+ assert.equal((await scalar('select get_scoped_organizer_analytics($1,null,30)',[cleanupOrg])).events.length,0,'Deleted event is absent from analytics immediately');
+ assert.equal(await scalar('select delete_organizer_event($1)',[cleanupEvent]),cleanupOrg,'Repeated deletion is harmless');
+ await assert.rejects(()=>db.query('select process_organizer_event_deletions(2)'),/permission denied/);
+ await privileged();assert.ok(await scalar('select purged_at from events where id=$1',[cleanupEvent]));
+ assert.equal((await scalar('select process_organizer_event_deletions(2)')).completed,1);
+ assert.equal(await scalar('select biography from nominees where id=$1',[cleanupNom]),null);
+ assert.equal(await scalar('select count(*) from payment_attempts where id=$1',[cleanupPay]),1);
+ await db.query("select confirm_paid_vote('cleanup-late-payment',987654,200,5)");
+ await db.query("select confirm_paid_vote('cleanup-late-payment',987654,200,5)");
+ assert.equal(await scalar('select count(*) from vote_batches where event_id=$1',[cleanupEvent]),0,'Late payment never recreates deleted votes');
+ assert.equal(await scalar("select organizer_net_minor from paid_vote_ledger where reference='cleanup-late-payment'"),180);
+ assert.equal(await scalar('select count(*) from ledger_entries where payment_attempt_id=$1',[cleanupPay]),4,'Late settlement is idempotent');
+ const empty=randomUUID();await db.query("insert into events(id,organization_id,name,slug,unit_price_minor,voting_mode,starts_at,ends_at,status) values($1,$2,'Unused setup','unused-cleanup',0,'free',now(),now()+interval '1 day','draft')",[empty,cleanupOrg]);
+ await db.query("insert into event_correction_requests(event_id,requested_by,kind,proposed_value,reason) values($1,$2,'name','Corrected setup','Correction history must not prevent deletion.')",[empty,owner]);
+ await db.query("insert into storage.objects(bucket_id,name) values('nominee-images',$1)",[empty+'/cover.png']);
+ await db.query("insert into event_notices(event_id,kind,message) select $1,'review','Old review notice' from generate_series(1,5001)",[empty]);
+ await login(owner);await db.query('select delete_organizer_event($1)',[empty]);await privileged();
+ assert.equal((await scalar('select process_organizer_event_deletions(2)')).progressing,1,'Large cleanup commits bounded batches');
+ assert.equal((await scalar('select process_organizer_event_deletions(2)')).completed,1,'Cleanup resumes without losing progress');
+ assert.equal(await scalar('select count(*) from events where id=$1',[empty]),0,'Unused events are physically removed despite correction history');
+ assert.equal(await scalar('select count(*) from event_image_cleanup where path=$1',[empty+'/cover.png']),1);
+ console.log('PASS: immediate organizer deletion, closed-event permissions, hidden lists, pending checkouts, correction-history cleanup and idempotent late financial settlement without votes.');
+ }
+ console.log('PASS: admin-only deletion, previews, exact confirmation, instant event deletion without payment blockers, organization grace period, frozen items, free-vote purge, file cleanup queue, retained financial references, post-purge refunds and immutable paid history.');
  console.log('PASS: actual HTTP handler authentication, validation, request/cancel responses and cache invalidation; expired operational detail cleanup preserves current activity and analytics totals.');
 } finally { await db.close(); }
 

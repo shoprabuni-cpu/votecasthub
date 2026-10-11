@@ -113,7 +113,7 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
           }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-stone-500">
-            <span>Drafts</span>
+            <span>Not published</span>
             <span className="h-2 w-2 rounded-full bg-amber-500" />
           </div>
           <div className="mt-3">
@@ -137,7 +137,7 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
           </div>
           <div className="mt-3">
             <span className="text-2xl font-bold font-mono text-stone-700 sm:text-3xl">{closedCount}</span>
-            <p className="mt-0.5 text-[11px] text-stone-400">Ended or archived</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Finished events</p>
           </div>
         </button>
       </div>

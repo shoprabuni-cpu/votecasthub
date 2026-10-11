@@ -3,6 +3,7 @@ import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
 import { processPaymentJob } from "@/lib/payments/reconcile";
 import { cleanupEventImages } from "@/lib/events/image-cleanup";
+import { processOrganizerEventDeletions } from "@/lib/events/deletion-cleanup";
 import { processAdminDeletions } from "@/lib/admin/process-deletions";
 export const runtime="nodejs";
 export const maxDuration=60;
@@ -14,6 +15,7 @@ export async function GET(request:Request){
   try{
     try { const purges=await processAdminDeletions();deletionCompleted=purges.completed;deletionFailed=purges.failed; }
     catch { deletionFailed++;console.error("admin_deletion_processing_failed"); }
+    await processOrganizerEventDeletions().catch(() => { deletionFailed++;console.error("organizer_event_cleanup_pending"); });
     await cleanupEventImages().catch(() => { deletionFailed++;console.error("event_image_cleanup_pending"); });
     // A persisted pagination cursor eventually scans every refund, including updates to older refunds.
     const {data:cursor}=await db.from("payment_operations").select("cursor_page").eq("name","refund-scan").maybeSingle();

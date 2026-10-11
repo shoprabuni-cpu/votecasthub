@@ -13,11 +13,12 @@ const React = require('react');
 const { act } = React;
 const { createRoot } = require('react-dom/client');
 const cache = new Map();
-const publicSaves = [], corrections = [];
+const publicSaves = [], corrections = [], deletions = [];
 const navigations = [];
 let failSave = false;
 const photoUploads=[];
 const mocks = { '@/lib/supabase/client': { createClient: () => ({ storage: { from: () => ({ upload: async (path,file) => { photoUploads.push(file.name); return { error:null }; }, remove:async()=>({error:null}) }) } }) }, '@/lib/auth/actions': { addEventCategoryAction: async () => ({success:true,message:'Category added.',createdId:'new-category'}), updateNomineeImageAction: async () => ({success:true,message:'Saved'}), addCategoryNomineeAction: async () => ({success:true,message:'Nominee added.'}) }, '@/lib/events/actions': {
+  deleteOrganizerEventAction: async (_, data) => { deletions.push(Object.fromEntries(data)); return null; },
   updatePublicEventAction: async (_, data) => { publicSaves.push(Object.fromEntries(data)); return failSave ? { message: 'Saving failed. Please try again.' } : { success: true, message: 'Saved' }; },
   requestEventCorrectionAction: async (_, data) => { corrections.push(Object.fromEntries(data)); return { success: true, message: 'Correction sent' }; },
 }, 'next/link': { __esModule: true, default: ({ children, ...props }) => React.createElement('a', props, children) }, 'next/navigation': { useRouter: () => ({ push: href => navigations.push(href) }) } };
@@ -50,6 +51,16 @@ const render = async (component, props) => act(async () => root.render(React.cre
 const click = async button => act(async () => button.click());
 const button = text => [...document.querySelectorAll('button')].find(item => item.textContent === text);
 try {
+  const { DeleteEventForm } = load('src/components/events/delete-event-form.tsx');
+  await render(DeleteEventForm,{eventId:event.id,name:event.name});
+  await click(button('Delete event'));
+  assert.equal(deletions.length,0,'Delete requires confirmation');
+  assert.match(document.querySelector('dialog').textContent,/disappear immediately/);
+  await click([...document.querySelectorAll('dialog button')].find(item=>item.textContent==='Cancel'));
+  assert.equal(deletions.length,0,'Cancel keeps the event');
+  await click(button('Delete event'));
+  await click([...document.querySelectorAll('dialog button')].find(item=>item.textContent==='Delete event'));
+  assert.equal(deletions.length,1);assert.equal(deletions[0].eventId,event.id);
   const { CategoryForm } = load('src/components/events/category-form.tsx');
   const { NomineeForm } = load('src/components/events/nominee-form.tsx');
   let added;
@@ -93,7 +104,7 @@ try {
   assert.equal(perms({ event: { ...event, status: 'archived' } }).editPublic, false);
   assert.equal(perms({ event: { ...event, status: 'pending_review' } }).editCover, false);
   assert.equal(organizerEventPresentation(ended, now).label, 'Voting ended');
-  assert.equal(organizerEventPresentation({ ...ended, status: 'closed' }, now).label, 'Permanently closed');
+  assert.equal(organizerEventPresentation({ ...ended, status: 'closed' }, now).label, 'Closed');
   assert.equal(organizerEventPresentation(future, now).label, 'Scheduled');
   await render(PublicEventEditor, { event, permissions: perms() });
   assert.equal(document.querySelectorAll('form').length, 1);

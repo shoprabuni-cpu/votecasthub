@@ -532,7 +532,7 @@ export function EventDetailsForm({
                       ))}
                     </div>
                     <p className="text-[11px] text-amber-900/80 leading-relaxed">
-                      💡 <strong>Note on payouts:</strong> You can draft and configure this event immediately. Publishing will require connecting your Paystack account in Organization Settings.
+                      💡 <strong>Note on payouts:</strong> You can set up this event now. Before paid voting goes live, connect your Paystack account in Payments.
                     </p>
                   </div>
                 ) : (
@@ -544,7 +544,7 @@ export function EventDetailsForm({
                         <option value="approved">Only people on my approved voter list</option>
                       </select>
                       {verificationMethod === "voter_list" ? (
-                        <p className="text-xs leading-relaxed text-stone-600">Upload your list after saving the draft. Listed phones receive an SMS code; listed emails receive an email code. Index numbers and other IDs use a private code generated for each voter. Voters verify directly on the event page.</p>
+                        <p className="text-xs leading-relaxed text-stone-600">Upload your list after saving the event. Listed phones receive an SMS code; listed emails receive an email code. Index numbers and other IDs use a private code generated for each voter. Voters verify directly on the event page.</p>
                       ) : <>
                         <label htmlFor="input-verification-method" className="block text-xs font-semibold text-stone-800">How should voters verify?</label>
                         <select id="input-verification-method" value={verificationMethod} onChange={e => setVerificationMethod(e.target.value as "phone" | "email" | "invite_code")} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm">
@@ -552,7 +552,7 @@ export function EventDetailsForm({
                           <option value="email">Email address + email code</option>
                           <option value="invite_code">Private voting code from the organizer</option>
                         </select>
-                        <p className="text-xs leading-relaxed text-stone-600">{verificationMethod === "invite_code" ? "Create a separate private code for each voter after saving your draft. Distribute codes privately; voters enter their code and vote without registering an account." : "Voters enter their details and verification code on the event page. No separate sign-in page is needed."}</p>
+                        <p className="text-xs leading-relaxed text-stone-600">{verificationMethod === "invite_code" ? "Create a separate private code for each voter after saving your event. Distribute codes privately; voters enter their code and vote without registering an account." : "Voters enter their details and verification code on the event page. No separate sign-in page is needed."}</p>
                       </>}
                     </div>
 
@@ -744,7 +744,7 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    {eventId ? "Review your changes" : "Review your draft"}
+                    {eventId ? "Review your changes" : "Review your event"}
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
                     Ready to set up your event workspace
@@ -764,7 +764,7 @@ export function EventDetailsForm({
                       <h3 className="text-lg font-serif font-bold text-stone-900">{values.name || "Untitled Event"}</h3>
                     </div>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900">
-                      Draft Mode
+                      Not published yet
                     </span>
                   </div>
 
@@ -805,7 +805,7 @@ export function EventDetailsForm({
                   <div>
                     <strong className="text-stone-900 font-semibold">What happens next?</strong>
                     <p className="mt-0.5 text-stone-600 text-xs leading-relaxed">
-                      Saving this draft opens the <strong>Event Setup Hub</strong> where you will add your award categories, upload nominee photos (or import an Excel roster), customize your cover banner, and test with voter preview.
+                      Saving this event opens your <strong>event workspace</strong> where you will add your award categories, upload nominee photos (or import an Excel roster), customize your cover banner, and test with voter preview.
                     </p>
                   </div>
                 </div>
@@ -861,12 +861,12 @@ export function EventDetailsForm({
                 ) : eventId ? (
                   <>
                     <Icon name="check" size={15} />
-                    <span>Save draft</span>
+                    <span>Save event</span>
                   </>
                 ) : (
                   <>
                     <Icon name="sparkle" size={15} />
-                    <span>Create Draft Event →</span>
+                    <span>Create event →</span>
                   </>
                 )}
               </button>

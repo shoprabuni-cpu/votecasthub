@@ -1,9 +1,11 @@
 "use server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AuthFormState } from "@/lib/auth/form-state";
+import { processOrganizerEventDeletions } from "./deletion-cleanup";
 import { cleanupEventImages } from "./image-cleanup";
 
 export async function setEventVoterHelpAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
@@ -83,16 +85,19 @@ export async function updatePublicEventAction(_state: AuthFormState, form: FormD
   } catch { return { message: "Event updates are temporarily unavailable. Please try again." }; }
 }
 
-export async function deleteUnusedEventAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
+export async function deleteOrganizerEventAction(_state: AuthFormState, form: FormData): Promise<AuthFormState> {
   const id = z.string().uuid().safeParse(form.get("eventId"));
   if (!id.success) return { message: "Invalid event." };
   let organizationId: string;
   try {
     const db = await createClient();
-    const { data, error } = await db.rpc("delete_unused_event", { p_event_id: id.data });
+    const { data, error } = await db.rpc("delete_organizer_event", { p_event_id: id.data });
     if (error || !data) return { message: error?.code === "22023" ? error.message : "This event could not be deleted. Check your access and try again." };
     organizationId = data;
-    await cleanupEventImages().catch(() => { console.error("event_image_cleanup_pending"); });
+    after(async () => {
+      await processOrganizerEventDeletions().catch(() => { console.error("organizer_event_cleanup_pending"); });
+      await cleanupEventImages().catch(() => { console.error("event_image_cleanup_pending"); });
+    });
   } catch { return { message: "Deletion is temporarily unavailable. Please refresh before trying again." }; }
   revalidatePath("/organizer", "layout");
   revalidatePath("/events", "layout");
