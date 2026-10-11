@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard-header";
+import { EventLeaveGuard } from "@/components/events/event-save-feedback";
 import { EventDetailsForm } from "@/components/events/event-details-form";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { Icon } from "@/components/icon";
@@ -45,7 +46,7 @@ export default async function NewEventPage({ params }: Props) {
             Create your voting event
           </h1>
           <p className="mt-1 text-sm text-stone-600 max-w-2xl">
-            Set up the ballot identity and voting parameters. Once the draft is saved, you can add award categories, nominees, and custom cover banners.
+            Start with the event name and voting dates. Save and continue to add nominees, choose voting settings, and submit for approval.
           </p>
         </div>
 
@@ -56,10 +57,11 @@ export default async function NewEventPage({ params }: Props) {
             <p className="mt-1 text-xs text-stone-500">Please refresh or try again shortly.</p>
           </div>
         ) : (
-          <EventDetailsForm
+          <EventLeaveGuard><EventDetailsForm
+            creationFlow
             organizationId={organizationId}
             smsBalance={typeof smsBalance === "number" ? smsBalance : null}
-          />
+          /></EventLeaveGuard>
         )}
       </div>
     </main>

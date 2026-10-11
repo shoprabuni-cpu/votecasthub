@@ -46,7 +46,7 @@ export function EventLeaveGuard({ children }: { children: ReactNode }) {
   </EventDialog></EditContext.Provider>;
 }
 
-export function useEventSaveFeedback(action: (state: AuthFormState, data: FormData) => Promise<AuthFormState>) {
+export function useEventSaveFeedback(action: (state: AuthFormState, data: FormData) => Promise<AuthFormState>, onSaved?: (result: AuthFormState) => void) {
   const id = useId();
   const report = useContext(EditContext);
   const revision = useRef(0);
@@ -54,7 +54,7 @@ export function useEventSaveFeedback(action: (state: AuthFormState, data: FormDa
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(async (previous, data) => {
     const submitted = revision.current;
     const result = await action(previous, data);
-    if (result?.success && revision.current === submitted) { setDirty(false); report?.(id, false); }
+    if (result?.success && revision.current === submitted) { setDirty(false); report?.(id, false); onSaved?.(result); }
     return result;
   }, null);
   const markChanged = () => { revision.current += 1; setDirty(true); report?.(id, true); };

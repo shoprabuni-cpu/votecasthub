@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createEventAction, updateEventDraftAction } from "@/lib/auth/actions";
 import { EventSaveFeedback, useEventSaveFeedback } from "./event-save-feedback";
 import { votingRuleOptions, type VotingRule } from "@/lib/voting-rules";
+import { useEventSetup } from "./event-setup-context";
 import { Icon } from "@/components/icon";
 
 type EventValues = {
@@ -49,21 +50,31 @@ const STEPS = [
   { id: 4, title: "Review & Create", subtitle: "Final launch check" },
 ] as const;
 
+function FormStepPresence({ grouped, direction, children }: { grouped: boolean; direction: number; children: ReactNode }) {
+  return grouped ? <>{children}</> : <AnimatePresence mode="wait" custom={direction}>{children}</AnimatePresence>;
+}
+
 export function EventDetailsForm({
   organizationId,
   eventId,
   initial,
   smsBalance = null,
+  creationFlow = false,
 }: {
   organizationId: string;
   eventId?: string;
   initial?: EventValues;
   smsBalance?: number | null;
+  creationFlow?: boolean;
 }) {
   const action = eventId ? updateEventDraftAction : createEventAction;
-  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(action);
+  const setup = useEventSetup();
+  const grouped = creationFlow || Boolean(setup);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(action, setup?.editorSaved);
 
-  const [step, setStep] = useState(1);
+  const [localStep, setStep] = useState(1);
+  const step = grouped ? setup?.section === "voting" ? 2 : 1 : localStep;
   const [direction, setDirection] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -132,7 +143,11 @@ export function EventDetailsForm({
         setStepError("Please set the date and time when voting ends.");
         return false;
       }
-      if (new Date(values.startsAt) >= new Date(values.endsAt)) {
+      if (new Date(`${values.endsAt}Z`) <= new Date()) {
+        setStepError("Choose a voting closing time in the future.");
+        return false;
+      }
+      if (new Date(`${values.startsAt}Z`) >= new Date(`${values.endsAt}Z`)) {
         setStepError("Voting end time must be after the start time.");
         return false;
       }
@@ -154,6 +169,12 @@ export function EventDetailsForm({
     }
     return true;
   };
+
+  const reportEditor = setup?.reportEditor;
+  useEffect(() => { reportEditor?.({ dirty, pending }); }, [dirty, pending, reportEditor]);
+  useEffect(() => {
+    setup?.registerEditor({ submit: () => formRef.current?.requestSubmit(), validate: () => validateStep(1) && validateStep(2) });
+  });
 
   const handleNext = () => {
     if (validateStep(step)) {
@@ -195,8 +216,8 @@ export function EventDetailsForm({
   return (
     <div className="w-full space-y-4">
       <EventSaveFeedback dirty={dirty} pending={pending} state={state} />
-      {/* Handcrafted Step Indicator Header */}
-      <div className="mb-8 rounded-2xl border border-stone-200/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur-sm">
+      {/* Existing full editor remains available outside guided setup. */}
+      {!grouped && <div className="mb-8 rounded-2xl border border-stone-200/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur-sm">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {STEPS.map((s) => {
             const isCurrent = step === s.id;
@@ -245,9 +266,11 @@ export function EventDetailsForm({
             );
           })}
         </div>
-      </div>
+      </div>}
+      {creationFlow && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-sm font-semibold text-emerald-900">Step 1 of 4 · Event details</p><ol aria-label="Event setup progress" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{["Event details", "Categories & nominees", "Voting settings", "Review & Submit"].map((label, index) => <li key={label} aria-current={index === 0 ? "step" : undefined} className="flex items-start gap-2 text-xs font-semibold leading-5 text-stone-600"><span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${index === 0 ? "bg-emerald-900 text-white" : "bg-stone-200 text-stone-600"}`}>{index + 1}</span><span className="pt-1">{label}</span></li>)}</ol></div>}
 
-      <form action={formAction} className="relative">
+      <form ref={formRef} action={formAction} onSubmit={event => { if (grouped && (!validateStep(1) || !validateStep(2))) event.preventDefault(); }} className="relative">
+        {grouped && <input type="hidden" name="setupFlow" value="guided" />}
         {/* Hidden inputs to guarantee complete formData payload without relying on DOM visibility */}
         <input type="hidden" name="organizationId" value={organizationId} />
         {eventId && <input type="hidden" name="eventId" value={eventId} />}
@@ -265,13 +288,13 @@ export function EventDetailsForm({
 
         {/* Step Views */}
         <div className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-8 shadow-xs">
-          <AnimatePresence mode="wait" custom={direction}>
+          <FormStepPresence grouped={grouped} direction={direction}>
             {step === 1 && (
               <motion.div
                 key="step-1"
                 custom={direction}
                 variants={slideVariants}
-                initial="enter"
+                initial={grouped ? false : "enter"}
                 animate="center"
                 exit="exit"
                 className="space-y-6"
@@ -279,7 +302,7 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Step 1 · Identity & Schedule
+                    Event details
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
                     What are you celebrating?
@@ -412,7 +435,7 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Step 2 · Voting & Monetization
+                    Voting settings
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
                     How should voters participate?
@@ -425,12 +448,14 @@ export function EventDetailsForm({
                 {/* Handcrafted Mode Selector Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Free Voting */}
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={votingMode === "free"}
                     onClick={() => {
                       setVotingMode("free");
                       setStepError(null);
                     }}
-                    className={`relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
+                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
                       votingMode === "free"
                         ? "border-emerald-800 bg-emerald-950/5 shadow-sm"
                         : "border-stone-200 bg-stone-50/30 hover:border-stone-300 hover:bg-stone-50"
@@ -453,15 +478,17 @@ export function EventDetailsForm({
                     <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-emerald-800">
                       <span>✦ SMS verification or private lists</span>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Paid Voting */}
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={votingMode === "paid"}
                     onClick={() => {
                       setVotingMode("paid");
                       setStepError(null);
                     }}
-                    className={`relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
+                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
                       votingMode === "paid"
                         ? "border-emerald-800 bg-emerald-950/5 shadow-sm"
                         : "border-stone-200 bg-stone-50/30 hover:border-stone-300 hover:bg-stone-50"
@@ -484,7 +511,7 @@ export function EventDetailsForm({
                     <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-amber-800">
                       <span>₵ Powered by Paystack Ghana</span>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Sub-config depending on mode */}
@@ -633,7 +660,7 @@ export function EventDetailsForm({
               </motion.div>
             )}
 
-            {step === 3 && (
+            {(step === 3 || (grouped && step === 2)) && (
               <motion.div
                 key="step-3"
                 custom={direction}
@@ -646,7 +673,7 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Step 3 · Guidelines & Visibility
+                    Results & voter instructions
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
                     Audience instructions & results
@@ -811,11 +838,11 @@ export function EventDetailsForm({
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
+          </FormStepPresence>
 
           {/* Validation Error Banner */}
           {stepError && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800 flex items-center gap-2">
+            <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-800 flex items-center gap-2">
               <Icon name="alert" size={15} />
               <span>{stepError}</span>
             </div>
@@ -824,8 +851,8 @@ export function EventDetailsForm({
           {/* Server Action Result Message */}
           {(dirty || state?.message || pending) && <div className="mt-5"><EventSaveFeedback dirty={dirty} pending={pending} state={state} announce={false} /></div>}
 
-          {/* Bottom Action Bar */}
-          <div className="sticky bottom-3 z-10 mt-6 flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-lg shadow-stone-900/5 backdrop-blur-sm sm:p-4">
+          {/* Saves for the guided workspace are triggered by its shared footer. */}
+          {(!setup) && <div className="sticky bottom-3 z-10 mt-6 flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-lg shadow-stone-900/5 backdrop-blur-sm sm:p-4">
             {step > 1 ? (
               <button
                 type="button"
@@ -839,7 +866,7 @@ export function EventDetailsForm({
               <div />
             )}
 
-            {step < 4 ? (
+            {step < 4 && !creationFlow ? (
               <button
                 type="button"
                 onClick={handleNext}
@@ -866,12 +893,12 @@ export function EventDetailsForm({
                 ) : (
                   <>
                     <Icon name="sparkle" size={15} />
-                    <span>Create event →</span>
+                    <span>{creationFlow ? "Save & Continue" : "Create event →"}</span>
                   </>
                 )}
               </button>
             )}
-          </div>
+          </div>}
         </div>
       </form>
     </div>

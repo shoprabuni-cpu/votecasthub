@@ -564,7 +564,7 @@ export async function createEventAction(_previousState: AuthFormState, formData:
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
   }
   revalidatePath(`/organizer/${organizationId.data}/events`);
-  redirect(`/organizer/${organizationId.data}/events/${newEventId}`);
+  redirect(`/organizer/${organizationId.data}/events/${newEventId}${formString(formData, "setupFlow") === "guided" ? "?step=nominees" : ""}`);
 }
 
 export async function updateEventDraftAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -599,6 +599,13 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
     }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);
+    if (formString(formData, "setupFlow") === "guided") {
+      const [verification, checkout] = await Promise.all([
+        supabase.rpc("get_event_verification_readiness", { p_event_id: eventId.data }),
+        parsed.data.votingMode === "paid" ? supabase.rpc("can_publish_paid_event", { p_event_id: eventId.data }) : Promise.resolve({ data: true, error: null }),
+      ]);
+      return { message: "Draft details saved.", success: true, setupReady: !verification.error && verification.data?.ready === true && !checkout.error && checkout.data === true };
+    }
     return { message: "Draft details saved.", success: true };
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };

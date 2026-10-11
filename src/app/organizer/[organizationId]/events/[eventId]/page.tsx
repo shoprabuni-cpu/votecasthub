@@ -26,7 +26,7 @@ import { EventPromotionTools } from "@/components/sharing/event-promotion-tools"
 import { absoluteUrl } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = { title: "Event setup" };
-type Props = { params: Promise<{ organizationId: string; eventId: string }> };
+type Props = { params: Promise<{ organizationId: string; eventId: string }>; searchParams?: Promise<{ step?: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type OrganizationEvent = {
@@ -47,8 +47,9 @@ type OrganizationEvent = {
   image_path: string | null;
 };
 
-export default async function EventSetupPage({ params }: Props) {
+export default async function EventSetupPage({ params, searchParams }: Props) {
   const { organizationId, eventId } = await params;
+  const requestedStep = (await searchParams)?.step;
   if (!uuidPattern.test(organizationId) || !uuidPattern.test(eventId)) notFound();
   const { supabase, userId } = await requireVerifiedUser();
 
@@ -165,7 +166,7 @@ export default async function EventSetupPage({ params }: Props) {
     { label: "Voting dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
     {
       label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",
-      complete: checkoutReady, section: "details", editor: true,
+      complete: checkoutReady, section: "voting", editor: true,
     },
     { label: "Add at least one category", complete: activeCategories.length > 0, section: "nominees" },
     { label: "Add a nominee to each category", complete: allCategoriesHaveNominees, section: "nominees" },
@@ -210,6 +211,7 @@ export default async function EventSetupPage({ params }: Props) {
       {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
       {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Read feedback</a></div>}
       <EventWorkspace
+        guided={canManage && event.status === "draft" ? { initialSection: requestedStep === "nominees" ? "nominees" : "details", nomineesReady: allCategoriesHaveNominees && !categoriesError && !nomineeError, votingReady: checkoutReady && verificationReady } : undefined}
         nextStep={canManage ? nextStep : undefined}
         progress={canManage && event.status === "draft" ? { completed: requiredChecks.filter(check => check.complete).length, total: requiredChecks.length } : undefined}
         canEdit={permissions.editDraft || permissions.editPublic || (canManage && event.status === "pending_review")}
@@ -221,9 +223,9 @@ export default async function EventSetupPage({ params }: Props) {
           {!permissions.returnToDraft && permissions.editPublic && event.status !== "closed" && <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-600">Competition settings stay fixed while published. Full editing requires no voting or payment history and owner/admin access.</p>}
         </>}
         details={<>
-          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Event details</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm text-stone-600">{event.description || "Add a description to introduce your event to voters."}</p>
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Event details</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm text-stone-600">{event.description || "Add a description to introduce your event to voters."}</p>
             <dl className="mt-5 grid gap-4 border-t border-stone-100 pt-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voting</dt><dd className="mt-1 font-semibold text-stone-900">{event.voting_mode === "paid" ? `Paid · GH₵${(event.unit_price_minor / 100).toFixed(2)} per vote` : "Free voting"}</dd></div><div><dt className="text-stone-500">Results</dt><dd className="mt-1 font-semibold capitalize text-stone-900">{event.results_visibility.replace(/_/g, " ")}</dd></div></dl>
-          </section>
+          </section>}
           <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Cover image</h2><p className="mb-4 mt-1 text-sm text-stone-600">{event.status === "pending_review" ? "Withdraw from review to change the cover image." : "Shown on your voter page and the event directory."}</p>{permissions.editCover ? <EventImageForm eventId={eventId} eventName={event.name} initialPath={event.image_path} initialUrl={eventImage?.signedUrl ?? null} backTo={pagePath} /> : eventImage?.signedUrl ? <div className="h-48 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover`} /> : <p className="text-sm text-stone-500">No cover image added.</p>}</section>
           {canManage && event.status !== "archived" && <VoterHelpSettings eventId={eventId} email={eventMeta?.voter_help_email ?? null} />}
           {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
@@ -236,13 +238,14 @@ export default async function EventSetupPage({ params }: Props) {
           {event.status === "draft" && <div className="mt-5 space-y-4"><ul className="space-y-2">{publishChecks.map(item => <li key={item.label} className="flex items-start gap-2 text-sm"><span className={item.complete ? "text-emerald-700" : "text-amber-700"}>{item.complete ? "✓" : "○"}</span><span className="flex flex-1 flex-wrap items-center justify-between gap-2 text-stone-700">{item.label}{!item.complete && canManage && <button type="button" data-workspace-section={item.section} data-workspace-editor={item.editor ? "true" : "false"} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-emerald-800 border border-stone-300 bg-white shadow-xs py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{item.optional ? "Add image" : "Complete setup"}</button>}</span></li>)}</ul>{event.voting_mode === "paid" && !checkoutReady && <Link href={`/organizer/${organizationId}/payments`} className="text-sm font-semibold text-emerald-800  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Connect your payment account</Link>}{canManage && <EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Submit for approval" disabled={!publishReady} disabledMessage="Complete the required setup items above." confirmMessage={`Submit “${event.name}” for approval? It stays private until approved. Voting follows your scheduled Ghana dates.`} />}</div>}
         </section> : undefined}
         voting={<>
-          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
+          {event.status === "draft" && event.voting_mode === "paid" && !checkoutReady && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Connect your payment account</h2><p className="mt-2 text-sm text-stone-600">A verified payment account is needed before this paid event can be submitted.</p><Link href={`/organizer/${organizationId}/payments`} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50">Set up payments</Link></section>}
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
             <div className="mt-4 flex flex-wrap gap-3">{permissions.pause && <EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause voting" />}{permissions.resume && <EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume voting" />}</div>
             {permissions.extend && <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Extend deadline / edit schedule</summary><PublicEventEditor key={event.id} event={event} permissions={permissions} scheduleOnly /></details>}
             {permissions.reopen && <div className="mt-5 border-t border-stone-100 pt-5"><ReopenEventForm eventId={eventId} /></div>}
 
-          </section>
-          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>
+          </section>}
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>}
           {canManage && event.voting_mode === "free" && event.status !== "archived" && (verificationMethod === "invite_code" ? <AccessCodeManager eventId={eventId} /> : verificationMethod === "voter_list" ? <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} /> : null)}
 
         </>}

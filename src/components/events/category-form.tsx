@@ -1,16 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { addEventCategoryAction } from "@/lib/auth/actions";
-import type { AuthFormState } from "@/lib/auth/form-state";
+import { useEventSaveFeedback } from "./event-save-feedback";
 import { Icon } from "@/components/icon";
 
 export function CategoryForm({ eventId, backTo, onAdded }: { eventId: string; backTo: string; onAdded?: (id: string) => void }) {
   const [showMessage, setShowMessage] = useState(true);
-  const [state, formAction, pending] = useActionState<AuthFormState, FormData>(async (previous, data) => { const result = await addEventCategoryAction(previous, data); setShowMessage(true); if (result?.success && result.createdId) onAdded?.(result.createdId); return result; }, null);
+  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(async (previous, data) => { const result = await addEventCategoryAction(previous, data); setShowMessage(true); if (result?.success && result.createdId) onAdded?.(result.createdId); return result; });
 
   return (
-    <form onInput={() => setShowMessage(false)} action={formAction} className="space-y-3.5">
+    <form data-setup-unsaved={dirty || pending ? true : undefined} onInput={() => { markChanged(); setShowMessage(false); }} action={formAction} className="space-y-3.5">
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="backTo" value={backTo} />
 

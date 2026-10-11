@@ -1,6 +1,7 @@
 export type AuthFormState = {
   message: string;
   success?: boolean;
+  setupReady?: boolean;
   createdId?: string;
   codeSent?: boolean;
   resendAt?: number;

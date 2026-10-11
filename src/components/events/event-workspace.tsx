@@ -4,13 +4,16 @@ import { useRef, useState, type ReactNode, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import type { EventNextStep } from "@/lib/events/next-step";
+import { GuidedEventWorkspace } from "./guided-event-workspace";
+import type { SetupSection } from "./event-setup-context";
 import { EventLeaveGuard } from "./event-save-feedback";
 
 const baseSections = [{ id: "details", label: "Event details" }, { id: "nominees", label: "Categories & nominees" }, { id: "voting", label: "Voting settings" }] as const;
 type Section = typeof baseSections[number]["id"] | "review";
 
-export function EventWorkspace({ details, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress }: {
+export function EventWorkspace({ details, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided }: {
   details: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
+  guided?: { initialSection: SetupSection; nomineesReady: boolean; votingReady: boolean };
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
 }) {
   const sections: { id: Section; label: string }[] = review ? [...baseSections, { id: "review", label: "Review & Submit" }] : [...baseSections];
@@ -22,6 +25,7 @@ export function EventWorkspace({ details, nominees, voting, review, editor, canE
     if (next === null) return;
     event.preventDefault(); setSection(sections[next].id); buttons.current[next]?.focus();
   }
+  if (guided && review) return <EventLeaveGuard><GuidedEventWorkspace details={details} nominees={nominees} voting={voting} review={review} editor={editor} viewLink={viewLink} {...guided} /></EventLeaveGuard>;
   return <EventLeaveGuard><div className="space-y-5" onClick={event => {
     const trigger = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-workspace-section]");
     const target = sections.find(item => item.id === trigger?.dataset.workspaceSection);

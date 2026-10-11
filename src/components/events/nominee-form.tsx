@@ -1,18 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { addCategoryNomineeAction } from "@/lib/auth/actions";
-import type { AuthFormState } from "@/lib/auth/form-state";
+import { useEventSaveFeedback } from "./event-save-feedback";
 import { Icon } from "@/components/icon";
 
 export function NomineeForm({ categoryId, backTo }: { categoryId: string; backTo: string }) {
   const [showMessage, setShowMessage] = useState(true);
-  const [state, formAction, pending] = useActionState<AuthFormState, FormData>(async (previous, data) => { const result = await addCategoryNomineeAction(previous, data); setShowMessage(true); return result; }, null);
+  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(async (previous, data) => { const result = await addCategoryNomineeAction(previous, data); setShowMessage(true); return result; });
 
 
   return (
     <form
-      onInput={() => setShowMessage(false)}
+      data-setup-unsaved={dirty || pending ? true : undefined} onInput={() => { markChanged(); setShowMessage(false); }}
       onFocusCapture={() => { if (state?.success) setShowMessage(false); }}
       onPointerDownCapture={() => { if (state?.success) setShowMessage(false); }}
       onSubmit={() => setShowMessage(false)}
