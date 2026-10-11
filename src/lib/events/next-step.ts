@@ -1,6 +1,6 @@
 export type EventNextStep = {
   title: string; description: string; label: string;
-  section?: "details" | "nominees" | "voting"; editor?: boolean; href?: string;
+  section?: "details" | "nominees" | "voting" | "review"; editor?: boolean; href?: string;
 };
 
 export function eventNextStep(input: {
@@ -16,7 +16,7 @@ export function eventNextStep(input: {
     if (!input.nomineesReady) return { title: "Give voters someone to choose", description: "Add at least one active nominee to every active category.", label: "Add nominees", section: "nominees" };
     if (!input.checkoutReady) return input.votingMode === "paid" ? { title: "Connect your payment account", description: "A verified payout account is needed before paid voting can be approved.", label: "Set up payments", href: `/organizer/${organizationId}/payments` } : { title: "Choose how people can vote", description: "Set a voting rule and allowance that fit your event.", label: "Set voting rules", section: "details", editor: true };
     if (!input.verificationReady) return { title: "Finish voter access setup", description: "Check your verification method and complete any required voter list or access codes.", label: "Set up voter access", section: "voting" };
-    return { title: "Your event is ready for review", description: "Preview the voter page, then submit your event for approval. You can add a cover image and description later.", label: "Review and submit", section: "voting" };
+    return { title: "Your event is ready for review", description: "Preview the voter page, then submit your event for approval. You can add a cover image and description later.", label: "Review and submit", section: "review" };
   }
   if (status === "pending_review") return { title: "Your event is awaiting approval", description: "We’ll notify you when it’s reviewed. Check the conversation below for feedback or questions.", label: "View review messages", href: "#review-feedback" };
   if (status === "closed" || status === "archived") return { title: "Your event is closed", description: "Review your results or delete the event below when you’re finished. Payment records remain available in Payments.", label: "View analytics", href: `/organizer/${organizationId}/analytics` };

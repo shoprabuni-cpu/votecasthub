@@ -29,7 +29,9 @@
     "db:test": "supabase test db",
     "test:voter-flow": "node scripts/test-voter-flow.mjs",
     "test:voter-ui": "node scripts/test-voter-ui.mjs",
-    "test:sms-hook": "node scripts/test-sms-hook.mjs"
+    "test:sms-hook": "node scripts/test-sms-hook.mjs",
+    "test:admin-organizers": "node scripts/test-admin-organizers.mjs",
+    "test:sms-history": "node scripts/test-sms-history.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -53,6 +53,7 @@ try {
  await db.query("insert into platform_admins(user_id,role,is_active) values($1,'admin',true),($2,'moderator',true)",[admin,moderator]);
  await login(owner);await assert.rejects(()=>request('event',draft,'Draft Event'),/Only platform/);
  await assert.rejects(()=>preview('event',draft),/Platform admin/);
+ await assert.rejects(()=>db.query('select * from get_admin_organizations()'),/Platform admin/);
  await assert.rejects(()=>db.query('select process_admin_deletions(2)'),/permission denied/);
  await assert.rejects(()=>db.exec('insert into private.admin_purge_context values(txid_current())'),/permission denied/);
  await login(moderator);await assert.rejects(()=>request('event',draft,'Draft Event'),/Only platform/);
@@ -108,7 +109,10 @@ try {
  // An empty organization without historical references can be physically removed immediately.
  const empty=randomUUID();await privileged();await db.query("insert into organizations(id,name,slug) values($1,'Empty Organization','empty-organization')",[empty]);
  await db.query("insert into organization_members(organization_id,user_id,role) values($1,$2,'owner')",[empty,owner]);
- await login(admin);assert.equal((await preview('organization',empty)).immediate,true);
+ await login(admin);
+ assert.ok((await rows('select * from get_admin_organizations()')).some(row=>row.id===empty && Number(row.event_count)===0),'Admins see organizers with no events');
+ assert.ok((await rows('select * from get_admin_organizations()')).some(row=>row.id===org && Number(row.event_count)===0),'Deleting events does not hide their organizer');
+ assert.equal((await preview('organization',empty)).immediate,true);
  const emptyJob=await request('organization',empty,'Empty Organization');assert.equal(emptyJob.immediate,true);
  await privileged();assert.equal(await scalar('select count(*) from organizations where id=$1',[empty]),0);
  // Free votes are removed in bounded batches after immediate removal, along with verification and content.

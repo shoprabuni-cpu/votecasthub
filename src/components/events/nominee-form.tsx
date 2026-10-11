@@ -13,6 +13,9 @@ export function NomineeForm({ categoryId, backTo }: { categoryId: string; backTo
   return (
     <form
       onInput={() => setShowMessage(false)}
+      onFocusCapture={() => { if (state?.success) setShowMessage(false); }}
+      onPointerDownCapture={() => { if (state?.success) setShowMessage(false); }}
+      onSubmit={() => setShowMessage(false)}
       action={formAction}
       className="rounded-xl border border-stone-200/90 bg-stone-50/50 p-4 space-y-3"
     >

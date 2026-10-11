@@ -4,16 +4,9 @@ import Link from "next/link";
 import { useState, useMemo } from "react";
 import { Icon } from "@/components/icon";
 
-type Organizer = {
-  id: string;
-  name: string;
-  moderation_status: string;
-  event_count: number;
-  paystack_status: string;
-  paystack_verified: boolean;
-};
+import type { AdminOrganizer } from "@/lib/admin/organizers";
 
-export function OrganizerQueue({ organizers }: { organizers: Organizer[] }) {
+export function OrganizerQueue({ organizers }: { organizers: AdminOrganizer[] }) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -41,7 +34,7 @@ export function OrganizerQueue({ organizers }: { organizers: Organizer[] }) {
         </div>
         <h2 className="text-base font-serif font-bold text-stone-900">No organizer records found</h2>
         <p className="text-xs text-stone-500 max-w-sm mx-auto">
-          No organizations are registered or you need to ensure your account has active platform admin privileges.
+          No organizer accounts have been created yet.
         </p>
       </div>
     );

@@ -6,13 +6,14 @@ import { Icon } from "@/components/icon";
 import type { EventNextStep } from "@/lib/events/next-step";
 import { EventLeaveGuard } from "./event-save-feedback";
 
-const sections = [{ id: "details", label: "Event details" }, { id: "nominees", label: "Categories & nominees" }, { id: "voting", label: "Voting settings" }] as const;
-type Section = typeof sections[number]["id"];
+const baseSections = [{ id: "details", label: "Event details" }, { id: "nominees", label: "Categories & nominees" }, { id: "voting", label: "Voting settings" }] as const;
+type Section = typeof baseSections[number]["id"] | "review";
 
-export function EventWorkspace({ details, nominees, voting, editor, canEdit, canManageVoting, viewLink, nextStep, progress }: {
-  details: ReactNode; nominees: ReactNode; voting: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
+export function EventWorkspace({ details, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress }: {
+  details: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
 }) {
+  const sections: { id: Section; label: string }[] = review ? [...baseSections, { id: "review", label: "Review & Submit" }] : [...baseSections];
   const [section, setSection] = useState<Section>("details");
   const [editing, setEditing] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -40,7 +41,7 @@ export function EventWorkspace({ details, nominees, voting, editor, canEdit, can
       {canManageVoting && <button type="button" onClick={() => setSection("voting")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Manage voting</button>}
       {viewLink}
     </div>
-    <div role="tablist" aria-label="Event workspace" className="grid grid-cols-1 gap-1 rounded-2xl border border-stone-200/70 bg-stone-100/80 p-1.5 sm:grid-cols-3">
+    <div role="tablist" aria-label="Event workspace" className={`grid grid-cols-1 gap-1 rounded-2xl border border-stone-200/70 bg-stone-100/80 p-1.5 ${review ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
       {sections.map((item, index) => <button key={item.id} ref={element => { buttons.current[index] = element; }} id={`workspace-tab-${item.id}`} type="button" role="tab" aria-selected={section === item.id} aria-controls={`workspace-${item.id}`} tabIndex={section === item.id ? 0 : -1} onClick={() => setSection(item.id)} onKeyDown={event => navigate(event, index)} className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 rounded-lg px-3 py-2.5 text-sm font-semibold ${section === item.id ? "bg-white text-emerald-900 shadow-xs" : "text-stone-600 hover:bg-white/60"}`}>{item.label}</button>)}
     </div>
     <section id="workspace-details" role="tabpanel" aria-labelledby="workspace-tab-details" hidden={section !== "details"} className="space-y-5">
@@ -48,6 +49,7 @@ export function EventWorkspace({ details, nominees, voting, editor, canEdit, can
       {details}
     </section>
     <section id="workspace-nominees" role="tabpanel" aria-labelledby="workspace-tab-nominees" hidden={section !== "nominees"} className="space-y-5">{nominees}</section>
+    {review && <section id="workspace-review" role="tabpanel" aria-labelledby="workspace-tab-review" hidden={section !== "review"} className="space-y-5">{review}</section>}
     <section id="workspace-voting" role="tabpanel" aria-labelledby="workspace-tab-voting" hidden={section !== "voting"} className="space-y-5">{voting}</section>
   </div></EventLeaveGuard>;
 }

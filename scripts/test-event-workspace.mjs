@@ -74,6 +74,15 @@ try {
     document.querySelector('[name=name]').value='Kojo';
     await act(async()=>document.querySelector('form').requestSubmit());
     assert.ok(document.body.textContent.includes(message),'Repeated success shows fresh feedback');
+    if (component === NomineeForm) {
+      await act(async()=>document.querySelector('[name=name]').focus());
+      assert.ok(!document.body.textContent.includes(message),'Starting another nominee clears success before typing');
+      document.querySelector('[name=name]').value='Akua';
+      await act(async()=>document.querySelector('form').requestSubmit());
+      assert.ok(document.body.textContent.includes(message));
+      await act(async()=>document.querySelector('[name=name]').dispatchEvent(new dom.window.Event('pointerdown',{bubbles:true})));
+      assert.ok(!document.body.textContent.includes(message),'Returning to an already focused field clears stale success');
+    }
   }
   assert.equal(added,'new-category');
   const { BulkNomineeImageUploader } = load('src/components/events/bulk-nominee-image-uploader.tsx');
@@ -151,7 +160,19 @@ try {
   await click(button('Manage voting')); await click(button('Fix setup'));
   assert.equal(document.querySelector('#workspace-details').hidden, false);
   assert.equal(document.querySelector('#workspace-editor').hidden, false);
+  await render(EventWorkspace, { key: 'review-tabs', canEdit: false, canManageVoting: true, viewLink: null, details: null, nominees: null,
+    voting: React.createElement('p', null, 'Selected voter access settings'),
+    review: React.createElement('button', { type: 'button' }, 'Submit for approval'), editor: null });
+  await click(button('Review & Submit'));
+  assert.equal(document.querySelector('#workspace-review').hidden, false);
+  assert.equal(document.querySelector('#workspace-voting').hidden, true);
+  assert.match(document.querySelector('#workspace-review').textContent, /Submit for approval/);
+  assert.doesNotMatch(document.querySelector('#workspace-review').textContent, /voter access/);
+  await click(button('Voting settings'));
+  assert.equal(document.querySelector('#workspace-review').hidden, true);
+  assert.equal(document.querySelector('#workspace-voting').hidden, false);
   const ready = { status: 'draft', expired: false, scheduled: false, datesReady: true, categoryCount: 1, nomineesReady: true, checkoutReady: true, verificationReady: true, votingMode: 'free', canReopen: true, organizationId: 'org' };
+  assert.equal(eventNextStep(ready).section, 'review');
   assert.equal(eventNextStep({ ...ready, datesReady: false }).label, 'Set voting dates');
   assert.equal(eventNextStep({ ...ready, categoryCount: 0 }).section, 'nominees');
   assert.equal(eventNextStep({ ...ready, nomineesReady: false }).label, 'Add nominees');

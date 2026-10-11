@@ -1,10 +1,10 @@
-import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+import { loadAdminOrganizers } from "@/lib/admin/organizers";
 import { OrganizationClosureQueue } from "@/components/admin/organization-closure-review";
 import { OrganizerQueue } from "@/components/admin/organizer-queue";
 
 export default async function AdminOrganizersPage() {
-  const { supabase, role } = await requirePlatformAdmin();
-  const [{ data, error }, { data: closureRequests, error: closureError }] = await Promise.all([supabase.rpc("get_admin_organizations"), supabase.rpc("get_admin_organization_closure_requests")]);
+  const { supabase, role, organizers, error } = await loadAdminOrganizers();
+  const { data: closureRequests, error: closureError } = await supabase.rpc("get_admin_organization_closure_requests");
 
   return (
     <div className="space-y-6">
@@ -25,10 +25,10 @@ export default async function AdminOrganizersPage() {
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
           <strong>Data unavailable.</strong> Organizer data could not be loaded.
-          Apply the latest Supabase migrations, then refresh.
+          Please retry. If this continues, check the server database configuration and migrations.
         </div>
       ) : (
-        <OrganizerQueue organizers={data ?? []} />
+        <OrganizerQueue organizers={organizers} />
       )}
     </div>
   );
