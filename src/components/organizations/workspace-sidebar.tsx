@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
-type Props = { organizationId: string; organizationName: string; role: string };
+
+type Props = { organizationId: string; organizationName: string; role: string; mobile?: boolean; onNavigate?: () => void };
 
 function NavIcon({ name }: { name: "grid" | "plus" | "users" | "building" | "external" | "wallet" | "sms" | "chart" }) {
   const paths = {
@@ -24,9 +24,9 @@ function NavIcon({ name }: { name: "grid" | "plus" | "users" | "building" | "ext
   );
 }
 
-export function WorkspaceSidebar({ organizationId, organizationName, role }: Props) {
+export function WorkspaceSidebar({ organizationId, organizationName, role, mobile = false, onNavigate }: Props) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+
   const root = `/organizer/${organizationId}`;
   const events = `${root}/events`;
   const canCreate = ["owner", "admin", "editor"].includes(role);
@@ -38,7 +38,7 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
     pathname === events || (pathname.startsWith(`${events}/`) && pathname !== `${events}/new`);
 
   const navLinks = [
-    { label: "Overview", href: events, icon: "grid" as const, isActive: overviewActive },
+    { label: "Your events", href: events, icon: "grid" as const, isActive: overviewActive },
     ...(canCreate ? [{ label: "Create event", href: `${events}/new`, icon: "plus" as const, isActive: active(`${events}/new`, true) }] : []),
     { label: "Analytics", href: `${root}/analytics`, icon: "chart" as const, isActive: active(`${root}/analytics`) },
     { label: "Payments & Payouts", href: `${root}/payments`, icon: "wallet" as const, isActive: active(`${root}/payments`) || active(`${root}/earnings`) },
@@ -48,46 +48,11 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
 
   return (
     <>
-      {/* Mobile Top Bar Bar / Hamburger */}
-      <div className="flex md:hidden items-center justify-between border-b border-stone-200 bg-white px-4 py-3">
-        <Link href="/organizer" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 font-bold text-white text-sm shadow-xs">
-            V
-          </div>
-          <div>
-            <div className="text-xs font-bold text-stone-900 leading-none">VotecastHub</div>
-            <div className="text-[10px] text-emerald-700 font-mono tracking-wider font-semibold">STUDIO</div>
-          </div>
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 text-stone-600 hover:text-stone-900 shadow-2xs"
-          aria-label="Toggle navigation"
-        >
-          {mobileOpen ? "✕" : "☰"}
-        </button>
-      </div>
-
-      {/* Backdrop for mobile */}
-      {mobileOpen && (
-        <div
-          onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden"
-        />
-      )}
-
-      {/* Main Sidebar Shell */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col justify-between border-r border-stone-200 bg-white p-4 transition-transform duration-200 md:static md:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <aside aria-label="Organizer sidebar" className={mobile ? "flex min-h-0 w-full flex-1 flex-col justify-between gap-6 overflow-y-auto bg-white p-4" : "sticky top-0 hidden h-dvh w-64 shrink-0 flex-col justify-between gap-6 self-start overflow-y-auto border-r border-stone-200 bg-white p-4 lg:flex"}>
         <div className="space-y-6">
           {/* Brand Header */}
           <div className="flex items-center justify-between px-2 pt-2">
-            <Link href="/organizer" className="flex items-center gap-3 group">
+            <Link href="/organizer" onClick={onNavigate} className="flex items-center gap-3 group">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-900 font-bold text-white shadow-xs group-hover:scale-105 transition-transform">
                 V
               </div>
@@ -99,18 +64,12 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
               </div>
             </Link>
 
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="text-stone-400 hover:text-stone-700 md:hidden"
-            >
-              ✕
-            </button>
           </div>
 
           {/* Organization Switcher Pill */}
           <Link
             href="/organizer"
+            onClick={onNavigate}
             className="group flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/70 p-3 transition-all hover:border-emerald-600/30 hover:bg-emerald-50/20"
           >
             <div className="flex items-center gap-2.5 overflow-hidden">
@@ -139,8 +98,9 @@ export function WorkspaceSidebar({ organizationId, organizationName, role }: Pro
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all ${
+                onClick={onNavigate}
+                aria-current={link.isActive ? "page" : undefined}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-700 ${
                   link.isActive
                     ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs"
                     : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"

@@ -128,7 +128,7 @@ export default async function EventPreviewPage({ params }: Props) {
       <DashboardHeader organizationId={organizationId} />
 
       {/* Sticky Preview Banner */}
-      <aside className="sticky top-0 z-30 flex items-center justify-between border-b border-amber-200/90 bg-amber-50/95 px-4 py-2.5 text-xs text-amber-900 backdrop-blur-md">
+      <aside className="sticky top-20 z-20 flex items-center justify-between border-b border-amber-200/90 bg-amber-50/95 px-4 py-2.5 text-xs text-amber-900 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold text-[10px]">
             ✦

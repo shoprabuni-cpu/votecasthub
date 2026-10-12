@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type Notice = { id: string; title: string; body: string; read_at: string | null; created_at: string; organization_id?: string | null; event_id?: string | null };
-export function NotificationBell({ notifications, organizationId, admin = false }: { notifications: Notice[]; organizationId?: string; admin?: boolean }) {
+export function NotificationBell({ notifications, organizationId, admin = false, compact = false }: { notifications: Notice[]; organizationId?: string; admin?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<{ key: string; items: Notice[] } | null>(null);
   const [read, setRead] = useState<Record<string, boolean>>({});
@@ -46,7 +46,7 @@ export function NotificationBell({ notifications, organizationId, admin = false 
   }
 
   return <div className="pointer-events-auto relative z-40">
-    <button className="relative min-h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-sm" type="button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen(value => !value)}>Notifications {unread > 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{unread > 9 ? "9+" : unread}</span>}</button>
+    <button className="relative inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-emerald-700" type="button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen(value => !value)}>{compact ? <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="size-5"><path strokeLinecap="round" strokeLinejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg> : "Notifications"} {unread > 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{unread > 9 ? "9+" : unread}</span>}</button>
     {open && <div className="absolute right-0 mt-2 max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
       <div className="mb-3 flex items-center justify-between"><strong className="text-sm">Notifications</strong><button type="button" className="min-h-11 px-3 text-xs" onClick={() => setOpen(false)}>Close</button></div>
       {error && <p role="alert" className="mb-2 text-xs text-red-800">{error}</p>}

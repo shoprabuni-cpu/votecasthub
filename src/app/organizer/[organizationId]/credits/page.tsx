@@ -4,6 +4,7 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { PaystackCreditButton } from "@/components/payments/paystack-credit-button";
 import { Icon } from "@/components/icon";
+import { smsPackages } from "@/lib/payments/paystack";
 
 export const metadata: Metadata = { title: "SMS credits" };
 type Props = { params: Promise<{ organizationId: string }> };
@@ -40,18 +41,18 @@ export default async function CreditsPage({ params }: Props) {
       name: "Starter",
       count: 100,
       displayCount: "100",
-      priceGhs: "5.00",
-      perVoter: "GH₵ 0.05",
-      note: "Perfect for testing ballots or small department polls.",
+      priceGhs: (smsPackages[100].amountMinor / 100).toFixed(2),
+      perSms: `GH₵ ${(smsPackages[100].amountMinor / 100 / 100).toFixed(2)}`,
+      note: "Ideal for small department polls and smaller events.",
       featured: false,
-      tag: "Test & Launch",
+      tag: "Small Events",
     },
     {
       name: "Growth",
       count: 500,
       displayCount: "500",
-      priceGhs: "80.00",
-      perVoter: "GH₵ 0.16",
+      priceGhs: (smsPackages[500].amountMinor / 100).toFixed(2),
+      perSms: `GH₵ ${(smsPackages[500].amountMinor / 100 / 500).toFixed(2)}`,
       note: "Designed for school faculty awards or club elections.",
       featured: true,
       tag: "Most Popular",
@@ -60,8 +61,8 @@ export default async function CreditsPage({ params }: Props) {
       name: "Event Scale",
       count: 1000,
       displayCount: "1,000",
-      priceGhs: "150.00",
-      perVoter: "GH₵ 0.15",
+      priceGhs: (smsPackages[1000].amountMinor / 100).toFixed(2),
+      perSms: `GH₵ ${(smsPackages[1000].amountMinor / 100 / 1000).toFixed(2)}`,
       note: "Built for campus-wide or high-reach public award ceremonies.",
       featured: false,
       tag: "High Volume",
@@ -237,7 +238,7 @@ export default async function CreditsPage({ params }: Props) {
 
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg font-bold text-emerald-900">GH₵ {pkg.priceGhs}</span>
-                    <span className="text-[11px] text-stone-400">· {pkg.perVoter} / voter</span>
+                    <span className="text-[11px] text-stone-400">· {pkg.perSms} / SMS attempt</span>
                   </div>
 
                   <p className="text-xs text-stone-500 leading-relaxed min-h-[36px]">{pkg.note}</p>
