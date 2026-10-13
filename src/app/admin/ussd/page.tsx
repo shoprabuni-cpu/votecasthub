@@ -1,0 +1,14 @@
+import { UssdPaymentHistory } from "@/components/events/ussd-payment-history";
+import { UssdQuoteForm, UssdQuoteDetails } from "@/components/events/ussd-quote-form";
+import { UssdActivation } from "@/components/events/ussd-activation";
+import { ussdConfiguration } from "@/lib/ussd/provider";
+import Link from "next/link";
+import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
+
+export default async function UssdRequestsPage() {
+  const { supabase } = await requirePlatformAdmin();
+  const { data, error } = await supabase.from("event_ussd_requests").select("event_id,organization_id,status,updated_at,quote_id,amount_minor,terms,valid_until,access_paid,payment_status,enabled,event_code").in("status", ["requested", "quoted", "accepted"]).order("updated_at", { ascending: false }).limit(100);
+  return <section className="space-y-5"><div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-800">Optional event access</p><h1 className="mt-2 text-3xl font-semibold">USSD requests</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">Requests need a provider quote and organizer agreement. Only activate after confirming provider testing and payment.</p></div>
+    {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Could not load requests. Check the USSD migration and refresh.</p> : data?.length ? <ul className="space-y-3">{data.map(row => <li key={row.event_id} className="space-y-3 rounded-2xl border border-stone-200 bg-white p-5"><div><p className="text-sm font-semibold">{row.status === "accepted" ? "Quote accepted — setup pending" : row.status === "quoted" ? "Quote awaiting acceptance" : "Activation requested"}</p><p className="mt-1 break-all text-xs text-stone-500">Event code: {row.event_code} · Event: {row.event_id}</p><p className="mt-1 text-xs text-stone-500">{new Date(row.updated_at).toLocaleDateString("en-GH", { timeZone: "Africa/Accra" })}</p></div><Link href={`/admin/events/${row.event_id}`} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 px-4 text-sm font-semibold hover:bg-stone-50">Review event</Link><UssdPaymentHistory eventId={row.event_id}/><UssdQuoteDetails eventId={row.event_id} quote={row} canAccept={false} />{row.status === "accepted" && <UssdActivation eventId={row.event_id} enabled={row.enabled} paid={row.access_paid} providerReady={ussdConfiguration().success} />}{row.status !== "accepted" && <UssdQuoteForm eventId={row.event_id} />}</li>)}</ul> : <p className="rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-600">No USSD activation requests yet.</p>}
+  </section>;
+}

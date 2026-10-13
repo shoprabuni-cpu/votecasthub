@@ -1,3 +1,5 @@
+import { reconcileUssdBatch } from "@/lib/ussd/reconcile";
+import { ussdConfiguration } from "@/lib/ussd/provider";
 import { timingSafeEqual } from "node:crypto";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
@@ -17,6 +19,7 @@ export async function GET(request:Request){
     catch { deletionFailed++;console.error("admin_deletion_processing_failed"); }
     await processOrganizerEventDeletions().catch(() => { deletionFailed++;console.error("organizer_event_cleanup_pending"); });
     await cleanupEventImages().catch(() => { deletionFailed++;console.error("event_image_cleanup_pending"); });
+    if(ussdConfiguration().success)failed+=await reconcileUssdBatch();
     // A persisted pagination cursor eventually scans every refund, including updates to older refunds.
     const {data:cursor}=await db.from("payment_operations").select("cursor_page").eq("name","refund-scan").maybeSingle();
     const page=cursor?.cursor_page||1;
@@ -30,6 +33,7 @@ export async function GET(request:Request){
       await db.from("payment_jobs").update({attempts:job.attempts+1,last_attempt_at:new Date().toISOString()}).eq("id",job.id);
       try{if(!await processPaymentJob(job.kind,job.resource))continue;const {error:e}=await db.from("payment_jobs").update({processed_at:new Date().toISOString()}).eq("id",job.id);if(e)throw e;completed++;}catch{failed++;}
     }
+    const {error:ussdQueued}=await db.rpc("enqueue_ussd_access_reconciliation");if(ussdQueued)throw ussdQueued;
     const {error:queued}=await db.rpc("enqueue_pending_payments");if(queued)throw queued;
     await db.from("payment_rate_limits").delete().lt("expires_at",new Date(Date.now()-86400000).toISOString());
     if(failed)console.error("payment_reconciliation_jobs_failed",{failed});

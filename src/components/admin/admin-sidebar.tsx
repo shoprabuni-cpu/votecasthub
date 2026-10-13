@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { name: "Events", href: "/admin/events", icon: "vote" },
   { name: "Moderation", href: "/admin/moderation", icon: "shield" },
   { name: "Organizers", href: "/admin/organizers", icon: "building" },
+  { name: "USSD requests", href: "/admin/ussd", icon: "vote" },
   { name: "Payments", href: "/admin/payments", icon: "coin" },
   { name: "Data deletion", href: "/admin/deletions", icon: "shield" },
 ];

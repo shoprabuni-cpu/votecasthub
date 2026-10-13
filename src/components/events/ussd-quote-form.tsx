@@ -1,0 +1,17 @@
+"use client";
+import { useActionState } from "react";
+import { quoteUssdAction, acceptUssdQuoteAction } from "@/lib/ussd/actions";
+const input = "mt-1 min-h-11 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-emerald-700";
+const button = "min-h-11 rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700";
+export type UssdQuote = { status: string; quote_id: string | null; amount_minor: number | null; terms: string | null; valid_until: string | null; access_paid?: boolean; payment_status?: string; enabled?: boolean; event_code?: number; dial_code?: string | null; active_from?: string | null; active_until?: string | null };
+
+export function UssdQuoteForm({ eventId }: { eventId: string }) {
+  const [state, action, pending] = useActionState(quoteUssdAction, null);
+  return <form action={action} className="mt-4 grid gap-4 rounded-xl bg-stone-50 p-4"><input type="hidden" name="eventId" value={eventId} /><label className="text-sm font-medium">Total price (GH₵)<input required name="price" inputMode="decimal" placeholder="0.00" pattern="[0-9]+([.][0-9]{1,2})?" className={input} /></label><label className="text-sm font-medium">Price and service terms<textarea required name="terms" minLength={20} maxLength={3000} rows={4} placeholder="State access dates, included usage, extra usage charges, network charges, payment and cancellation terms." className={input} /></label><label className="text-sm font-medium">Accept before (Ghana time)<input required type="datetime-local" name="expires" className={input} /></label><button disabled={pending} className={button}>{pending ? "Issuing…" : "Issue quote"}</button>{state?.message && <p role={state.success ? "status" : "alert"} className="text-sm">{state.message}</p>}</form>;
+}
+
+export function UssdQuoteDetails({ eventId, quote, canAccept }: { eventId: string; quote: UssdQuote; canAccept: boolean }) {
+  const [state, action, pending] = useActionState(acceptUssdQuoteAction, null);
+  if (!quote.quote_id || quote.amount_minor === null) return null;
+  return <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4"><p className="text-lg font-semibold">USSD quote: GH₵{(quote.amount_minor / 100).toFixed(2)}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-stone-700">{quote.terms}</p><p className="text-xs text-stone-600">Accept before: {quote.valid_until ? new Date(quote.valid_until).toLocaleString("en-GH", { timeZone: "Africa/Accra" }) : "Unavailable"}</p><p className="text-sm text-stone-600">Acceptance does not take payment or activate USSD.</p>{quote.status === "quoted" && canAccept && <form action={action} className="space-y-3"><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="quoteId" value={quote.quote_id} /><label className="flex items-start gap-2 text-sm"><input required type="checkbox" name="acknowledged" value="yes" className="mt-1 size-4 accent-emerald-800" />I accept this price and the service terms shown above.</label><button disabled={pending} className={button}>{pending ? "Accepting…" : "Accept quote"}</button></form>}{state?.message && <p role={state.success ? "status" : "alert"} className="text-sm">{state.message}</p>}</div>;
+}

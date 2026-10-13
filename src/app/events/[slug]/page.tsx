@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { UssdInstructions, loadUssdInstructions } from "@/components/events/ussd-instructions";
 import { SiteHeader } from "@/components/site-header";
 import { FreeVoteForm } from "@/components/voting/free-vote-form";
 import { EventVoterVerification } from "@/components/voting/event-voter-verification";
@@ -241,6 +242,7 @@ export default async function PublicEventPage({ params }: Props) {
     nomineesByCategory.set(nominee.category_id, [...(nomineesByCategory.get(nominee.category_id) ?? []), nominee]);
   }
 
+  const ussdInfo = await loadUssdInstructions(event.id);
   const presentation = eventPresentation(event);
   const status = presentation.label;
   const votePath = `/events/${slug}`;
@@ -277,6 +279,7 @@ export default async function PublicEventPage({ params }: Props) {
             text={`${presentation.cta} — ${event.name}`}
             url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
             flyer={{
+              ussd: ussdInfo ?? undefined,
               eventName: event.name,
               imageUrl: eventImageUrl,
               startsAt: event.starts_at,
@@ -378,6 +381,7 @@ export default async function PublicEventPage({ params }: Props) {
               resultsReleased={event.results_released}
             />
 
+            <UssdInstructions eventId={event.id} />
             {/* Voter Verification Section */}
             <div id="voter-verification" className="space-y-3">
               <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

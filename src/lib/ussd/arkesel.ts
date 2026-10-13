@@ -1,39 +1,73 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { allow } from "@/lib/payments/gateway";
-
-const env=z.object({ARKESEL_USSD_API_KEY:z.string().min(1),ARKESEL_USSD_SHARED_SECRET:z.string().min(16),ARKESEL_USSD_SERVICE_CODE:z.string().min(1),ARKESEL_USSD_PAYMENT_URL:z.url().optional()});
-const input=z.object({sessionId:z.string().min(1).max(128),serviceCode:z.string().max(64),phoneNumber:z.string().regex(/^\+?233\d{9}$/),text:z.string().max(1000).default("")});
-type Session={session_id:string;phone_hash:string;event_id:string|null;category_id:string|null;nominee_id:string|null;quantity:number|null;mode:string;reference:string|null};
-const phoneHash=(phone:string,secret:string)=>createHmac("sha256",secret).update(`ussd:${phone.replace(/^\+/g,"")}`).digest("hex");
-function response(text:string,end=false){return `${end?"END":"CON"} ${text}`;}
-async function requestUssdPayment(url:string,apiKey:string,payload:object){const r=await fetch(url,{method:"POST",headers:{"api-key":apiKey,"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store",signal:AbortSignal.timeout(1500)});const d=await r.json().catch(()=>null);if(!r.ok||d?.status===false)throw new Error("Payment request failed");return d;}
-export async function handleArkeselUssd(request:Request){
- const config=env.safeParse(process.env);if(!config.success)return new Response("END Service unavailable",{status:503});
- const form=await request.formData().catch(()=>null);const parsed=input.safeParse(Object.fromEntries(form??[]));if(!parsed.success)return new Response("END Invalid request",{status:400});
- const p=parsed.data;const rawPath=p.text.split("*").filter(Boolean);const secret=config.data.ARKESEL_USSD_SHARED_SECRET;
- const signature=request.headers.get("x-arkesel-ussd-signature");if(signature){const expected=createHmac("sha256",secret).update(`${p.sessionId}.${p.text}`).digest("hex");if(signature.length!==expected.length||!timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return new Response("END Unauthorized",{status:401});}
- if(p.serviceCode!==config.data.ARKESEL_USSD_SERVICE_CODE)return new Response("END Invalid service code",{status:403});
- const db=paymentAdmin();const hash=phoneHash(p.phoneNumber,secret);if(!await allow(`ussd:${hash}`,30,600))return new Response("END Too many requests. Try again later.", {status:429});
- const existing=await db.from("ussd_sessions").select("*").eq("session_id",p.sessionId).gt("expires_at",new Date().toISOString()).maybeSingle();let s=existing.data as Session|null;
- if(!s){const created=await db.from("ussd_sessions").insert({session_id:p.sessionId,phone_hash:hash}).select("*").single();if(created.error)return new Response("END Service temporarily unavailable",{status:503});s=created.data as Session;}
- if(rawPath.length===0)return new Response(response("VotecastHub\n1. Vote\n2. Exit"));
- if(rawPath[0]==="2")return new Response(response("Thank you for using VotecastHub.",true));
- if(rawPath[0]!=="1")return new Response(response("Choose 1 to vote or 2 to exit."));
- if(rawPath.length===1)return new Response(response("Enter the event slug:"));
- const slug=rawPath[1];const {data:event}=await db.from("events").select("id,organization_id,name,voting_mode,unit_price_minor,status,starts_at,ends_at").eq("slug",slug).eq("status","published").maybeSingle();if(!event||Date.now()<Date.parse(event.starts_at)||Date.now()>=Date.parse(event.ends_at))return new Response(response("That event is not open." ,true));
- if(rawPath.length===2){const {data:categories}=await db.from("categories").select("id,name").eq("event_id",event.id).eq("is_active",true).order("display_order");if(!categories?.length)return new Response(response("No categories available.",true));await db.from("ussd_sessions").update({event_id:event.id,mode:"category"}).eq("session_id",p.sessionId);return new Response(response(`Choose a category:\n${categories.map((c,i)=>`${i+1}. ${c.name}`).join("\n")}`));}
- const {data:categories}=await db.from("categories").select("id,name").eq("event_id",event.id).eq("is_active",true).order("display_order");const category=categories?.[Number(rawPath[2])-1];if(!category)return new Response(response("Invalid category."));
- if(rawPath.length===3){const {data:nominees}=await db.from("nominees").select("id,name").eq("category_id",category.id).eq("is_active",true).order("display_order");if(!nominees?.length)return new Response(response("No nominees available.",true));await db.from("ussd_sessions").update({category_id:category.id,mode:"nominee"}).eq("session_id",p.sessionId);return new Response(response(`Choose a nominee:\n${nominees.map((n,i)=>`${i+1}. ${n.name}`).join("\n")}`));}
- const {data:nominees}=await db.from("nominees").select("id,name").eq("category_id",category.id).eq("is_active",true).order("display_order");const nominee=nominees?.[Number(rawPath[3])-1];if(!nominee)return new Response(response("Invalid nominee."));
- if(rawPath.length===4)return new Response(response(event.voting_mode==="free"?"Enter number of votes (1-10,000):":"Paid USSD checkout is being connected. Use web checkout for this event.",event.voting_mode!=="free"));
- const quantity=Number(rawPath[4]);if(!Number.isInteger(quantity)||quantity<1||quantity>10000)return new Response(response("Enter a valid quantity."));
- if(event.voting_mode!=="free"){
-  if(!config.data.ARKESEL_USSD_PAYMENT_URL)return new Response(response("Paid checkout is unavailable. Please use the website.",true));
-  const reference=`VCH-USSD-${p.sessionId.replace(/[^A-Za-z0-9]/g,"").slice(0,70)}`;const total=Number(event.unit_price_minor)*quantity;
-  try{const {error:insert}=await db.from("payment_attempts").insert({idempotency_key:`ussd-${p.sessionId}`,event_id:event.id,organization_id:event.organization_id,category_id:category.id,nominee_id:nominee.id,quantity,unit_price_minor:event.unit_price_minor,total_amount_minor:total,currency:"GHS",provider:"arkesel_ussd",provider_reference:reference,status:"pending"});if(insert)throw insert;await requestUssdPayment(config.data.ARKESEL_USSD_PAYMENT_URL,config.data.ARKESEL_USSD_API_KEY,{sessionId:p.sessionId,phoneNumber:p.phoneNumber,eventSlug:slug,nomineeId:nominee.id,quantity,amount:total,currency:"GHS",reference});await db.from("ussd_sessions").update({event_id:event.id,category_id:category.id,nominee_id:nominee.id,quantity,mode:"payment_pending",reference}).eq("session_id",p.sessionId);return new Response(response("Payment prompt sent to your phone. Approve it to record your votes.",true));}catch{return new Response(response("We could not start the payment. Please try again.",true));}
- }
- const {error}=await db.rpc("cast_ussd_free_vote",{p_phone_hash:hash,p_event_slug:slug,p_nominee_id:nominee.id,p_quantity:quantity});if(error)return new Response(response(error.message.includes("open")?"Voting is closed.":"Could not record this vote.",true));await db.from("ussd_sessions").update({nominee_id:nominee.id,quantity,mode:"complete"}).eq("session_id",p.sessionId);return new Response(response(`${quantity} vote${quantity===1?"":"s"} recorded for ${nominee.name}.`,true));
+import { authenticUssd, ussdConfiguration, ussdPaymentReady, adapterRequest } from "./provider";
+import { startPaystackUssdCharge, continuePaystackUssdCharge, momoProvider } from "./paystack-charge";
+import { menuSelection } from "./menu";
+const input=z.object({sessionId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),serviceCode:z.string(),phoneNumber:z.string().regex(/^\+?233\d{9}$/),text:z.string().max(1000).default(""),email:z.email().max(254).optional(),chargeInput:z.string().regex(/^\d{1,10}$/).optional()});
+const output=(text:string,end=false,status=200)=>new Response((end?'END ':'CON ')+text,{status,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+export async function handleArkeselUssd(request:Request) {
+ const config=ussdConfiguration();if(!config.success)return output('Service unavailable',true,503);
+ const raw=await request.text();if(raw.length>4096)return output('Invalid request',true,413);
+ if(!authenticUssd(request,raw,config.data.ARKESEL_USSD_SHARED_SECRET))return output('Unauthorized',true,401);
+ const parsed=input.safeParse(Object.fromEntries(new URLSearchParams(raw)));if(!parsed.success)return output('Invalid request',true,400);
+ const p=parsed.data;if(p.serviceCode!==config.data.ARKESEL_USSD_SERVICE_CODE)return output('Invalid service code',true,403);
+ const phone=p.phoneNumber.replace(/^\+/,''),hash=createHmac('sha256',config.data.ARKESEL_USSD_SHARED_SECRET).update('ussd:'+phone).digest('hex');
+ if(!await allow('ussd:'+hash,60,600))return output('Too many requests. Try later.',true,429);
+ try {
+  const db=paymentAdmin();
+  const existing=await db.from('ussd_sessions').select('*').eq('session_id',p.sessionId).maybeSingle();if(existing.error)throw existing.error;let s=existing.data;
+  if(!s){const created=await db.from('ussd_sessions').insert({session_id:p.sessionId,phone_hash:hash}).select('*').single();if(created.error){const retry=await db.from('ussd_sessions').select('*').eq('session_id',p.sessionId).single();if(retry.error)throw retry.error;s=retry.data;}else s=created.data;}
+  if(s.phone_hash!==hash)return output('Session unavailable',true,403);
+  if(Date.parse(s.expires_at)<=Date.now())return output('Session expired. Dial again.',true);
+  if(s.final_response)return output(s.final_response,true);
+  if(s.reference && s.charge_status && p.chargeInput && config.data.USSD_PAYMENT_PROVIDER==='paystack')return await continuePaystackUssdCharge(s,p.chargeInput);
+  const tokens=p.text===''?[]:p.text.split('*');if(tokens.some(t=>!/^\d+$/.test(t)))return output('Use the numbered options. Dial again.',true);
+  if(!tokens.length)return output('VotecastHub GH\n1. Vote\n2. Exit');
+  if(tokens[0]==='2'||tokens.at(-1)==='0')return output('Thank you for using VotecastHub.',true);
+  if(tokens[0]!=='1')return output('Invalid selection. Dial again.',true);
+  if(tokens.length===1)return output('Enter your numeric event code:');
+  const {data:r,error:re}=await db.from('event_ussd_requests').select('event_id,event_code,dial_code').eq('event_code',tokens[1]).maybeSingle();if(re)throw re;
+  if(!r||r.dial_code!==p.serviceCode)return output('Event code unavailable.',true);
+  const {data:active,error:ae}=await db.rpc('get_public_ussd',{p_event_id:r.event_id});if(ae)throw ae;if(!active?.length)return output('This event is not open on USSD.',true);
+  const {data:e,error:ee}=await db.from('events').select('id,name,voting_mode,verification_method,unit_price_minor,free_vote_limit_per_phone').eq('id',r.event_id).single();if(ee)throw ee;
+  if(e.voting_mode==='paid' && config.data.USSD_PAYMENT_PROVIDER==='paystack' && !momoProvider(s.native_network??''))return output('Your Mobile Money network is not supported. Please use the website.',true);
+  if(e.voting_mode==='paid' && !ussdPaymentReady())return output('Paid phone voting is unavailable. Please use the website.',true);
+  if(e.voting_mode==='free' && e.verification_method!=='phone')return output('Use the website for this event verification.',true);
+  if(e.voting_mode==='paid'&&config.data.USSD_PAYMENT_PROVIDER==='paystack'&&!s.payment_email){
+   const {data:knownEmail,error:lookup}=await db.rpc('find_ussd_receipt_email',{p_phone:phone});if(lookup)throw lookup;
+   const email=p.email??knownEmail;
+   if(!email){const {error:waiting}=await db.from('ussd_sessions').update({awaiting_email:true}).eq('session_id',p.sessionId);if(waiting)throw waiting;return output('Enter your email for the payment receipt.\n0. Exit');}
+   const {error:saveEmail}=await db.from('ussd_sessions').update({payment_email:email,awaiting_email:false}).eq('session_id',p.sessionId);if(saveEmail)throw saveEmail;s.payment_email=email;
+  }
+  const {error:sessionEvent}=await db.from('ussd_sessions').update({event_id:e.id}).eq('session_id',p.sessionId);if(sessionEvent)throw sessionEvent;
+  const {data:categories,error:ce}=await db.from('categories').select('id,name').eq('event_id',e.id).eq('is_active',true).order('display_order').order('id');if(ce)throw ce;if(!categories?.length)return output('No categories available.',true);
+  const category=menuSelection(categories,tokens,2);if(category.error)return output('Invalid category. Dial again.',true);if(category.prompt)return output('Choose category:\n'+category.prompt);
+  const {data:nominees,error:ne}=await db.from('nominees').select('id,name').eq('category_id',category.item!.id).eq('is_active',true).order('display_order').order('id');if(ne)throw ne;if(!nominees?.length)return output('No nominees available.',true);
+  const nominee=menuSelection(nominees,tokens,category.cursor);if(nominee.error)return output('Invalid nominee. Dial again.',true);if(nominee.prompt)return output('Choose nominee:\n'+nominee.prompt);
+  if(tokens.length===nominee.cursor)return output(e.voting_mode==='free'?'Enter votes (1-'+Math.min(100,e.free_vote_limit_per_phone??1)+'). Existing limits apply.':'Enter votes (1-10000). GH₵'+(e.unit_price_minor/100).toFixed(2)+' per vote.');
+  const quantity=Number(tokens[nominee.cursor]),max=e.voting_mode==='free'?Math.min(100,e.free_vote_limit_per_phone??1):10000;
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>max)return output('Invalid quantity. Dial again.',true);
+  const confirmCode=config.data.USSD_SESSION_PROTOCOL==='arkesel-json'?String(100000+createHmac('sha256',config.data.ARKESEL_USSD_SHARED_SECRET).update('confirm:'+s.vote_request).digest().readUInt32BE(0)%900000):'1';
+  if(tokens.length===nominee.cursor+1)return output(nominee.item!.name.slice(0,30)+'\n'+quantity+' vote(s)'+(e.voting_mode==='paid'?' = GH₵'+(e.unit_price_minor*quantity/100).toFixed(2):' (free)')+'\n'+active[0].network_notice.slice(0,65)+(confirmCode==='1'?'\n1. Confirm\n2. Cancel':'\nEnter '+confirmCode+' to confirm\n0. Exit'));
+  if(tokens.length!==nominee.cursor+2||tokens.at(-1)!==confirmCode)return config.data.USSD_SESSION_PROTOCOL==='arkesel-json'?output('Enter '+confirmCode+' to confirm.\n0. Exit',false,422):output('Vote cancelled.',true);
+  if(e.voting_mode==='paid') {
+   const {data:attempt,error:reserve}=await db.rpc(config.data.USSD_PAYMENT_PROVIDER==='paystack'?'reserve_paystack_ussd_payment':'reserve_ussd_payment',{p_session:p.sessionId,p_phone_hash:hash,p_event:e.id,p_category:category.item!.id,p_nominee:nominee.item!.id,p_quantity:quantity});if(reserve)throw reserve;
+   if(config.data.USSD_PAYMENT_PROVIDER==='paystack') {
+    try {return await startPaystackUssdCharge(p.sessionId,phone,s.native_network,s.payment_email,attempt);}catch{return output('Payment is being checked. Do not pay again. Contact support with event code '+r.event_code+'.',true);}
+   }
+   if(!s.reference) {
+    try {const initiated=await adapterRequest('/payments',{reference:attempt.provider_reference,phoneNumber:phone,amount:Number(attempt.total_amount_minor),currency:'GHS'});if(initiated.reference!==attempt.provider_reference||initiated.accepted!==true)throw new Error('Payment not accepted');}catch{return output('Payment is being checked. Do not pay again. Contact support with event code '+r.event_code+'.',true);}
+   }
+   const message='Approve the Mobile Money prompt. Votes count only after confirmed payment.';
+   await db.from('ussd_sessions').update({final_response:message}).eq('session_id',p.sessionId);return output(message,true);
+  }
+  const found=await db.rpc('find_ussd_voter',{p_phone:phone});if(found.error)throw found.error;let user=found.data;
+  if(!user){const created=await db.auth.admin.createUser({phone,phone_confirm:true});if(created.error){const retry=await db.rpc('find_ussd_voter',{p_phone:phone});if(!retry.data)throw created.error;user=retry.data;}else user=created.data.user.id;}
+  const {error:vote}=await db.rpc('cast_verified_ussd_vote',{p_user:user,p_event:e.id,p_category:category.item!.id,p_nominee:nominee.item!.id,p_quantity:quantity,p_request:s.vote_request});
+  if(vote)return output(vote.message.includes('limit')?'You have reached your voting limit.':vote.message.includes('open')?'Voting has closed.':'Vote could not be recorded. Use the website or contact support.',true);
+  const message=quantity+' vote(s) recorded for '+nominee.item!.name.slice(0,40)+'.';await db.from('ussd_sessions').update({mode:'complete',nominee_id:nominee.item!.id,category_id:category.item!.id,quantity,final_response:message}).eq('session_id',p.sessionId);return output(message,true);
+ } catch {return output('Service temporarily unavailable. Do not retry a payment already approved.',true,503);}
 }

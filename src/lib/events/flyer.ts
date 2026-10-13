@@ -1,5 +1,6 @@
 import { eventPresentation, ghanaDate } from "./presentation";
 export type FlyerDetails = {
+  ussd?: {event_code:number;dial_code:string;network_notice:string};
   nominee?: string; category?: string; imageUrl?: string | null; eventName?: string;
   code?: string | null; startsAt?: string; endsAt?: string; status?: string;
   votingMode?: "free" | "paid"; unitPriceMinor?: number;
@@ -37,9 +38,9 @@ async function loadPhoto(url: string) {
   finally { URL.revokeObjectURL(objectUrl); }
 }
 export async function createFlyer(title: string, url: string, detail: FlyerDetails) {
-  const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1350;
+  const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = detail.ussd ? 1470 : 1350;
   const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("Your browser could not create a flyer.");
-  ctx.fillStyle = "#f6f3e9"; ctx.fillRect(0,0,1080,1350);
+  ctx.fillStyle = "#f6f3e9"; ctx.fillRect(0,0,1080,canvas.height);
   ctx.fillStyle = "#123e2d"; ctx.fillRect(0,0,1080,180);
   ctx.fillStyle = "#d8f0a2"; ctx.font = "700 25px Arial"; ctx.fillText("VOTECASTHUB  /  GH",64,55);
   ctx.fillStyle = "#ffffff"; textBlock(ctx, detail.eventName || title,64,102,952,38,2);
@@ -74,9 +75,10 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   ctx.fillText(timing + (timing ? " · Ghana time" : ""),64,1104);
   ctx.fillStyle = "#52654f"; ctx.font = "24px Arial";
   ctx.fillText(detail.votingMode === "paid" ? `GHS ${((detail.unitPriceMinor ?? 0)/100).toFixed(2)} per vote` : detail.votingMode === "free" ? "Free voting · Phone verification required" : "",64,1146);
-  ctx.fillStyle="#173f2d"; ctx.fillRect(0,1190,1080,160);
+  ctx.fillStyle="#173f2d"; ctx.fillRect(0,1190,1080,canvas.height-1190);
   ctx.fillStyle="#d8f0a2"; ctx.font="700 27px Arial"; ctx.fillText(state?.key === "open" ? detail.nominee ? "VOTE • SHARE • SHOW YOUR SUPPORT" : "MEET THE NOMINEES & CAST YOUR VOTE" : (state?.label || "EXPLORE THE EVENT").toUpperCase(),64,1233);
-  ctx.fillStyle="#ffffff"; textBlock(ctx,url.replace(/^https?:\/\//,""),64,1277,952,24,2,400);
+  if(detail.ussd){ctx.fillStyle="#ffffff";textBlock(ctx,"Dial "+detail.ussd.dial_code+" · Event code "+detail.ussd.event_code,64,1277,952,30,1);textBlock(ctx,detail.ussd.network_notice,64,1320,952,22,2,400);}
+  ctx.fillStyle="#ffffff"; textBlock(ctx,url.replace(/^https?:\/\//,""),64,detail.ussd?1410:1277,952,24,2,400);
   const blob = await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,"image/png"));
   if (!blob) throw new Error("The flyer could not be created. Please try again.");
   return { blob, photoMissing: Boolean(detail.imageUrl && !photoLoaded) };
