@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { allow } from "@/lib/payments/gateway";
-import { authenticUssd, ussdConfiguration, ussdPaymentReady, adapterRequest } from "./provider";
+import { authenticUssd, ussdConfiguration, ussdSimulatorMode, ussdSimulatorEventAllowed, ussdPaymentReady, adapterRequest } from "./provider";
 import { startPaystackUssdCharge, continuePaystackUssdCharge, momoProvider } from "./paystack-charge";
 import { menuSelection } from "./menu";
 const input=z.object({sessionId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),serviceCode:z.string(),phoneNumber:z.string().regex(/^\+?233\d{9}$/),text:z.string().max(1000).default(""),email:z.email().max(254).optional(),chargeInput:z.string().regex(/^\d{1,10}$/).optional()});
@@ -30,6 +30,7 @@ export async function handleArkeselUssd(request:Request) {
   if(tokens[0]!=='1')return output('Invalid selection. Dial again.',true);
   if(tokens.length===1)return output('Enter your numeric event code:');
   const {data:r,error:re}=await db.from('event_ussd_requests').select('event_id,event_code,dial_code').eq('event_code',tokens[1]).maybeSingle();if(re)throw re;
+  if(r && ussdSimulatorMode() && !ussdSimulatorEventAllowed(r.event_id))return output('Simulator test event not configured. Ask the admin to allowlist its event ID.',true);
   if(!r||r.dial_code!==p.serviceCode)return output('Event code unavailable.',true);
   const {data:active,error:ae}=await db.rpc('get_public_ussd',{p_event_id:r.event_id});if(ae)throw ae;if(!active?.length)return output('This event is not open on USSD.',true);
   const {data:e,error:ee}=await db.from('events').select('id,name,voting_mode,verification_method,unit_price_minor,free_vote_limit_per_phone').eq('id',r.event_id).single();if(ee)throw ee;

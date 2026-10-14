@@ -62,3 +62,14 @@ chargeReply={...chargeReply,status:'pay_offline'};nativeReply=await (await handl
 assert.equal(chargeCalls[1].path,'/charge/submit_otp');assert.equal(chargeCalls[1].body.otp,'24682468');assert.equal(stored.native_path.includes('24682468'),false,'OTP never persists in navigation');
 await handleNativeArkesel(native('24682468'));assert.equal(chargeCalls.length,2,'Completed callback does not resend a charge or OTP');
 console.log('PASS: native Paystack MoMo charge, customer receipt email, organizer split, OTP continuation without persisted OTP, offline approval and retry safety');
+
+process.env.USSD_SIMULATOR_MODE='true';process.env.USSD_PAYMENT_PROVIDER='paystack';process.env.ARKESEL_USSD_USER_ID='';process.env.PAYSTACK_SECRET_KEY='sk_test_example';process.env.USSD_SIMULATOR_EVENT_IDS='';
+flow='free';stored={...stored,native_path:'',native_reply:null,final_response:null,reference:null,charge_status:null,awaiting_email:false,payment_email:null};
+nativeReply=await (await handleNativeArkesel(native('*928*123#',true,undefined,''))).json();assert.equal(nativeReply.continueSession,true);
+assert.equal((await handleNativeArkesel(native('*928*123#',true,'wrong',''))).status,401);
+await handleNativeArkesel(native('1',false,undefined,''));nativeReply=await (await handleNativeArkesel(native('1000',false,undefined,''))).json();assert.match(nativeReply.message,/Simulator test event not configured/);
+stored={...stored,native_path:'',native_reply:null,final_response:null};process.env.USSD_SIMULATOR_EVENT_IDS='event';await handleNativeArkesel(native('*928*123#',true,undefined,''));await handleNativeArkesel(native('1',false,undefined,''));nativeReply=await (await handleNativeArkesel(native('1000',false,undefined,''))).json();assert.match(nativeReply.message,/Choose category/);
+process.env.PAYSTACK_SECRET_KEY='sk_live_example';assert.equal((await handleNativeArkesel(native('*928*123#',true,undefined,''))).status,503);
+process.env.PAYSTACK_SECRET_KEY='sk_test_example';process.env.USSD_PAYMENT_PROVIDER='adapter';assert.equal((await handleNativeArkesel(native('*928*123#',true,undefined,''))).status,503);
+process.env.USSD_PAYMENT_PROVIDER='paystack';process.env.USSD_SIMULATOR_MODE='false';assert.equal((await handleNativeArkesel(native('*928*123#',true,undefined,''))).status,503);
+console.log('PASS: unlinked simulator IDs, mandatory secret URL, event allowlist, live-key and alternate-provider rejection, strict live subscription configuration');

@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { ussdConfiguration, ussdPaymentReady } from "@/lib/ussd/provider";
+import { ussdConfiguration, ussdPaymentReady, ussdSimulatorMode } from "@/lib/ussd/provider";
 import { Icon } from "@/components/icon";
 export async function loadUssdInstructions(eventId:string) {
+ if(ussdSimulatorMode())return null;
  if(!ussdConfiguration().success)return null;
  const db=await createClient();
  if(!ussdPaymentReady()){const {data:event}=await db.from("events").select("voting_mode").eq("id",eventId).maybeSingle();if(event?.voting_mode!=="free")return null;}

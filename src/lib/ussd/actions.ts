@@ -3,7 +3,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AuthFormState } from "@/lib/auth/form-state";
-import { ussdConfiguration, ussdPaymentReady } from "./provider";
+import { ussdConfiguration, ussdPaymentReady, ussdSimulatorMode, ussdSimulatorEventAllowed } from "./provider";
 
 export async function requestUssdAction(_: AuthFormState, form: FormData): Promise<AuthFormState> {
   const data = z.object({ eventId: z.uuid(), requested: z.enum(["yes", "no"]) }).safeParse(Object.fromEntries(form));
@@ -49,7 +49,8 @@ export async function configureUssdAction(_: AuthFormState, form: FormData): Pro
   const parsed = z.object({ eventId: z.uuid(), enabled: z.enum(["yes", "no"]), dialCode: z.string().default(""), from: z.string().default(""), until: z.string().default(""), notice: z.string().max(300).default(""), tested: z.string().optional() }).safeParse(Object.fromEntries(form));
   if(!parsed.success)return {message:"Check USSD activation settings."};
   const p=parsed.data,enabled=p.enabled==="yes",config=ussdConfiguration();
-  if(enabled&&p.tested!=="yes")return {message:"Confirm provider and real-phone testing before activation."};
+  if(enabled&&ussdSimulatorMode()&&!ussdSimulatorEventAllowed(p.eventId))return {message:"Add this test event ID to USSD_SIMULATOR_EVENT_IDS before simulator activation. Use a test database."};
+  if(enabled&&p.tested!=="yes")return {message:"Confirm the testing acknowledgement before activation."};
   if(enabled&&(!config.success||p.dialCode!==config.data.ARKESEL_USSD_SERVICE_CODE))return {message:"Configure and verify the provider adapter and matching shortcode before activation."};
   const from=enabled?new Date(`${p.from}:00Z`):null,until=enabled?new Date(`${p.until}:00Z`):null;
   if(enabled&&(!Number.isFinite(from?.getTime())||!Number.isFinite(until?.getTime())))return {message:"Enter valid activation dates in Ghana time."};
@@ -59,6 +60,6 @@ export async function configureUssdAction(_: AuthFormState, form: FormData): Pro
     const {error}=await db.rpc("configure_event_ussd",{p_event_id:p.eventId,p_enabled:enabled,p_dial_code:p.dialCode,p_from:from?.toISOString()??null,p_until:until?.toISOString()??null,p_network_notice:p.notice});
     if(error)return {message:"Activation failed. Check confirmed payment, published event, phone verification and dates within the event window."};
     revalidatePath("/admin/ussd");revalidatePath("/organizer","layout");revalidatePath("/events","layout");
-    return {success:true,message:enabled?"USSD access enabled for the configured event period.":"USSD access disabled."};
+    return {success:true,message:enabled?(ussdSimulatorMode()?"Simulator access enabled for this allowlisted test event. This is not live activation.":"USSD access enabled for the configured event period."):"USSD access disabled."};
   }catch{return {message:"Could not update USSD access."};}
 }
