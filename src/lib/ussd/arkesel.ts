@@ -70,5 +70,5 @@ export async function handleArkeselUssd(request:Request) {
   const {error:vote}=await db.rpc('cast_verified_ussd_vote',{p_user:user,p_event:e.id,p_category:category.item!.id,p_nominee:nominee.item!.id,p_quantity:quantity,p_request:s.vote_request});
   if(vote)return output(vote.message.includes('limit')?'You have reached your voting limit.':vote.message.includes('open')?'Voting has closed.':'Vote could not be recorded. Use the website or contact support.',true);
   const message=quantity+' vote(s) recorded for '+nominee.item!.name.slice(0,40)+'.';await db.from('ussd_sessions').update({mode:'complete',nominee_id:nominee.item!.id,category_id:category.item!.id,quantity,final_response:message}).eq('session_id',p.sessionId);return output(message,true);
- } catch {return output('Service temporarily unavailable. Do not retry a payment already approved.',true,503);}
+ } catch (error) {console.error('[USSD] Voting menu failed',{code:typeof error==='object'&&error!==null&&'code' in error&&typeof error.code==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(error.code)?error.code:'unavailable'});return output('Service temporarily unavailable. Do not retry a payment already approved.',true,503);}
 }
