@@ -34,17 +34,17 @@ export default async function HomePage() {
         <div className="relative min-w-0 rounded-3xl bg-gradient-to-br from-emerald-50 to-stone-100 p-2 sm:p-4"><DevicePreview /></div>
       </section>
 
-      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Verified voters</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
+      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Voter verification options</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
 
-      <EventBrowser initialPage={page} unavailable={unavailable} />
+      <div className="mx-auto max-w-6xl"><EventBrowser initialPage={page} unavailable={unavailable} compact /></div>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><UssdOverview /></div>
 
-      <section className="features" id="how-it-works" aria-labelledby="features-title">
-        <div className="section-heading flex flex-wrap items-center justify-between gap-6"><div><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div><Image src="/images/Classic Gold Trophy on Emerald Base.png" alt="" width={1254} height={1254} sizes="160px" className="h-40 w-40 object-contain" /></div>
+      <section className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[.9fr_1.1fr] lg:gap-12" id="how-it-works" aria-labelledby="features-title">
+        <div className="flex flex-wrap items-center justify-between gap-6"><div><p className="eyebrow">THE PLATFORM</p><h2 id="features-title" className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl">Manage categories, nominees<br />and voting in one place.</h2></div><Image src="/images/Classic Gold Trophy on Emerald Base.png" alt="" width={1254} height={1254} sizes="160px" className="h-40 w-40 object-contain" /></div>
         <div className="feature-list">
-          <article className="feature"><span className="feature-number">01</span><div className="feature-copy"><Icon className="feature-icon" name="calendar" size={20} /><span><h3>Set up with confidence</h3><p>Create an event, organize categories and nominees, and choose how voting will work.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">02</span><div className="feature-copy"><Icon className="feature-icon" name="shield" size={20} /><span><h3>Give voters a clear experience</h3><p>Show the vote limit before people participate and enforce it as each vote is recorded.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
-          <article className="feature"><span className="feature-number">03</span><div className="feature-copy"><Icon className="feature-icon" name="users" size={20} /><span><h3>Keep your team organized</h3><p>Invite teammates and manage event setup from one organization workspace.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
+          <article className="feature grid-cols-[36px_1fr]!"><span className="feature-number">01</span><div className="feature-copy"><Icon className="feature-icon" name="calendar" size={20} /><span><h3>Create categories and add nominees</h3><p>Create an event, organize categories and nominees, and choose how voting will work.</p></span></div></article>
+          <article className="feature grid-cols-[36px_1fr]!"><span className="feature-number">02</span><div className="feature-copy"><Icon className="feature-icon" name="shield" size={20} /><span><h3>Set the voting rules</h3><p>Show the vote limit before people participate and enforce it as each vote is recorded.</p></span></div></article>
+          <article className="feature grid-cols-[36px_1fr]!"><span className="feature-number">03</span><div className="feature-copy"><Icon className="feature-icon" name="users" size={20} /><span><h3>Manage events with your team</h3><p>Invite teammates and manage event setup from one organization workspace.</p></span></div></article>
         </div>
       </section>
 

@@ -10,7 +10,7 @@ export function UssdOverview({ pricing = false }: { pricing?: boolean }) {
       <div>
         <div className="flex flex-wrap items-center gap-3"><span className="inline-flex size-11 items-center justify-center rounded-2xl bg-emerald-900 text-white"><Icon name="phone" size={22} /></span><span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-800">Available by request</span></div>
         <p className="mt-5 text-xs font-semibold uppercase tracking-[.18em] text-emerald-800">Optional USSD voting</p>
-        <h2 id="ussd-overview-title" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">A simple phone.<br />A voice in your event.</h2>
+        <h2 id="ussd-overview-title" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Vote by phone,<br />without internet.</h2>
         <p className="mt-4 max-w-lg text-base leading-7 text-stone-600">Reach voters without internet or a smartphone. They dial a code, enter your event’s short number, and choose their nominee.</p>
         <p className="mt-3 text-sm leading-6 text-stone-600">Add USSD to your event. Request a quote, agree on the service period, and receive dialing instructions when access is activated.</p>
         <div className="mt-5 flex flex-wrap gap-3"><Link href="/organizer" className={`${button} bg-emerald-900 text-white! hover:bg-emerald-800`}>Request USSD access <span aria-hidden="true" className="ml-2">→</span></Link><Link href={pricing ? "/guides/vote-without-internet-ussd" : "/pricing#ussd"} className={`${button} border border-stone-300 bg-white text-stone-800 hover:bg-stone-50`}>{pricing ? "How USSD works" : "See USSD costs"}</Link></div>
