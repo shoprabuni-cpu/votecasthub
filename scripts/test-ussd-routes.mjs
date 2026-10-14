@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';import fs from 'node:fs';import path fro
 const require=createRequire(import.meta.url),cache=new Map();let dbCalls=0,votes=0,initiations=0;let flow='root';let chargeReply={status:'send_otp',reference:'VCH-USSD-'+ 'a'.repeat(32)},chargeCalls=[];
 const secret='s'.repeat(32),phone='233241234567';let stored={session_id:'session',phone_hash:createHmac('sha256',secret).update('ussd:'+phone).digest('hex'),expires_at:new Date(Date.now()+600000).toISOString(),final_response:null};
 const mocks={'server-only':{},'@/lib/payments/reconcile':{reconcileReference:async()=>true},'@/lib/payments/gateway':{allow:async()=>true,paystack:async(path,body)=>{chargeCalls.push({path,body});return chargeReply}},'@/lib/payments/admin':{paymentAdmin:()=>{dbCalls++;return {
- from:table=>{const q={select(){return this},eq(){return this},order(){return this},update(values){this.values=values;return this},maybeSingle:async()=>({data:table==='ussd_sessions'?{...stored}:table==='event_ussd_requests'?{event_id:'event',event_code:1000,dial_code:'*928*123#'}:null,error:null}),single:async()=>({data:{id:'event',name:'Test',voting_mode:flow,verification_method:'phone',unit_price_minor:100,free_vote_limit_per_phone:2},error:null}),then(resolve){if(this.values&&table==='ussd_sessions')Object.assign(stored,this.values);resolve({data:table==='categories'?[{id:'cat',name:'Category'}]:table==='nominees'?[{id:'nom',name:'Ama'}]:null,error:null})}};return q;},
+ from:table=>{const q={select(){return this},eq(){return this},order(){return this},update(values){this.values=values;return this},maybeSingle:async()=>({data:table==='ussd_sessions'?{...stored}:table==='event_ussd_requests'?{event_id:'event',event_code:1000,dial_code:'*928*123#',terms:stored.fixture_terms}:null,error:null}),single:async()=>({data:{id:'event',name:'Test',voting_mode:flow,verification_method:'phone',unit_price_minor:100,free_vote_limit_per_phone:2},error:null}),then(resolve){if(this.values&&table==='ussd_sessions')Object.assign(stored,this.values);resolve({data:table==='categories'?[{id:'cat',name:'Category'}]:table==='nominees'?[{id:'nom',name:'Ama'}]:null,error:null})}};return q;},
  rpc:async(name,args)=>{
 if(name==='begin_native_ussd'){if(stored.native_reply&&(!stored.native_reply.continueSession||args.p_new))return {data:{reply:stored.native_reply},error:null};stored.previous=stored.native_path??'';stored.native_path=args.p_new?stored.previous:stored.previous+(stored.previous?'*':'')+args.p_input;return {data:{path:stored.native_path,lease:'lease'},error:null}}
 if(name==='finish_native_ussd'){if(args.p_failed||args.p_restore_path)stored.native_path=stored.previous;else stored.native_reply=args.p_reply;return {error:null}}
@@ -62,6 +62,30 @@ chargeReply={...chargeReply,status:'pay_offline'};nativeReply=await (await handl
 assert.equal(chargeCalls[1].path,'/charge/submit_otp');assert.equal(chargeCalls[1].body.otp,'24682468');assert.equal(stored.native_path.includes('24682468'),false,'OTP never persists in navigation');
 await handleNativeArkesel(native('24682468'));assert.equal(chargeCalls.length,2,'Completed callback does not resend a charge or OTP');
 console.log('PASS: native Paystack MoMo charge, customer receipt email, organizer split, OTP continuation without persisted OTP, offline approval and retry safety');
+const {startPaystackUssdCharge}=load('src/lib/ussd/paystack-charge.ts');
+const testAttempt={provider_reference:'VCH-USSD-'+'a'.repeat(32),total_amount_minor:200,subaccount_code:'ACCT_test'};
+stored.charge_started=false;chargeReply={status:'failed',message:'Declined. Please use the test mobile money number since you are doing a test transaction.'};
+assert.match(await (await startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt)).text(),/0551234987.*MTN/);
+stored.charge_started=false;chargeReply={status:'failed',reference:null};
+assert.match(await (await startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt)).text(),/Payment declined.*not recorded/);
+stored.charge_started=false;chargeReply={status:'timeout'};
+assert.match(await (await startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt)).text(),/timed out.*not recorded/);
+stored.charge_started=false;chargeReply={status:'failed',reference:'wrong'};
+await assert.rejects(startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt),/reference mismatch/);
+stored.charge_started=false;chargeReply={status:'success'};
+await assert.rejects(startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt),/reference mismatch/);
+stored.charge_started=false;chargeReply={status:'failed',message:'private provider diagnostic'};
+assert.equal((await (await startPaystackUssdCharge('session',phone,'MTN','payer@example.com',testAttempt)).text()).includes('private provider diagnostic'),false);
+const originalPaystack=mocks['@/lib/payments/gateway'].paystack;
+mocks['@/lib/payments/gateway'].paystack=async()=>{throw new Error('Private network diagnostic');};
+stored={...stored,reference:null,charge_status:null,charge_started:false,payment_email:'payer@example.com',native_network:'MTN'};
+const uncertainPrompt=await (await handleArkeselUssd(request('1*1000*1*1*2'))).text();
+const uncertainCode=uncertainPrompt.match(/Enter (\d{6}) to confirm/)[1];
+const uncertain=await (await handleArkeselUssd(request('1*1000*1*1*2*'+uncertainCode))).text();
+assert.match(uncertain,/could not confirm.*do not pay again/);
+assert.equal(uncertain.includes('Private network diagnostic'),false);
+mocks['@/lib/payments/gateway'].paystack=originalPaystack;
+console.log('PASS: declined replies without reference, test-number instructions, timeout feedback, reference mismatch rejection and private provider messages withheld');
 
 process.env.USSD_SIMULATOR_MODE='true';process.env.USSD_PAYMENT_PROVIDER='paystack';process.env.ARKESEL_USSD_USER_ID='';process.env.PAYSTACK_SECRET_KEY='sk_test_example';process.env.USSD_SIMULATOR_EVENT_IDS='';
 flow='free';stored={...stored,native_path:'',native_reply:null,final_response:null,reference:null,charge_status:null,awaiting_email:false,payment_email:null};
@@ -73,3 +97,15 @@ process.env.PAYSTACK_SECRET_KEY='sk_live_example';assert.equal((await handleNati
 process.env.PAYSTACK_SECRET_KEY='sk_test_example';process.env.USSD_PAYMENT_PROVIDER='adapter';assert.equal((await handleNativeArkesel(native('*928*123#',true,undefined,''))).status,503);
 process.env.USSD_PAYMENT_PROVIDER='paystack';process.env.USSD_SIMULATOR_MODE='false';assert.equal((await handleNativeArkesel(native('*928*123#',true,undefined,''))).status,503);
 console.log('PASS: unlinked simulator IDs, mandatory secret URL, event allowlist, live-key and alternate-provider rejection, strict live subscription configuration');
+const {ussdConfiguration,ussdSimulatorMode}=load('src/lib/ussd/provider.ts');
+process.env.VERCEL_ENV='production';process.env.USSD_SIMULATOR_MODE='true';assert.equal(ussdSimulatorMode(),false);assert.equal(ussdConfiguration().success,false);
+process.env.USSD_SIMULATOR_MODE='false';process.env.ARKESEL_USSD_USER_ID='LIVE_SUBSCRIPTION';assert.equal(ussdConfiguration().success,false,'Production USSD rejects test Paystack keys');
+process.env.PAYSTACK_SECRET_KEY='sk_live_example';process.env.USSD_SIMULATOR_EVENT_IDS='';assert.equal(ussdConfiguration().success,false,'Production stays disabled before explicit launch');
+process.env.USSD_LIVE_LAUNCH_ENABLED='false';assert.equal(ussdConfiguration().success,false);
+process.env.USSD_LIVE_LAUNCH_ENABLED='true';assert.equal(ussdConfiguration().success,true);
+process.env.USSD_SIMULATOR_EVENT_IDS='event';assert.equal(ussdConfiguration().success,false);process.env.USSD_SIMULATOR_EVENT_IDS='';
+process.env.NEXT_PUBLIC_SUPABASE_URL='https://mpajnwllttagglxnlekf.supabase.co';assert.equal(ussdConfiguration().success,false);delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+stored={...stored,fixture_terms:'SIMULATOR FIXTURE: synthetic access approval',reference:null,charge_status:null,final_response:null};flow='free';
+assert.match(await (await handleArkeselUssd(request('1*1000'))).text(),/test event is unavailable on the live service/);
+delete process.env.VERCEL_ENV;
+console.log('PASS: Vercel Production blocks simulator mode and test payment keys; configured live credentials accepted');

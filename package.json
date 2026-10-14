@@ -33,7 +33,7 @@
     "test:admin-organizers": "node scripts/test-admin-organizers.mjs",
     "test:sms-history": "node scripts/test-sms-history.mjs",
     "test:event-setup": "node scripts/test-event-setup.mjs",
-    "test:ussd": "node scripts/test-ussd-requests.mjs && node scripts/test-ussd-operations.mjs && node scripts/test-ussd-routes.mjs"
+    "test:ussd": "node scripts/test-ussd-requests.mjs && node scripts/test-ussd-operations.mjs && node scripts/test-ussd-routes.mjs && node scripts/test-ussd-env.mjs && node scripts/test-ussd-live.mjs && node scripts/test-ussd-seed.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

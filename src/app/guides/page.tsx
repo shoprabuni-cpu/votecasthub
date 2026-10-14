@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
-import { ResourceLinks } from "@/components/seo/resource-links";
 import { publicMetadata } from "@/lib/seo/metadata";
 import { GuideFlowchart } from "@/components/guides/guide-flowchart";
 import { GUIDES } from "@/lib/seo/guides";

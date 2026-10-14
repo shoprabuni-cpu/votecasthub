@@ -36,7 +36,7 @@ import ts from 'typescript';
 import { z } from 'zod';
 const org='20000000-0000-4000-8000-000000000001',org2='20000000-0000-4000-8000-000000000002';
 const owner='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-8000-000000000002',admin='10000000-0000-4000-8000-000000000003',moderator='10000000-0000-4000-8000-000000000004';
-const event='30000000-0000-4000-8000-000000000001',draft='30000000-0000-4000-8000-000000000002',cat='40000000-0000-4000-8000-000000000001',nominee='50000000-0000-4000-8000-000000000001';
+const event='30000000-0000-4000-8000-000000000001',draft='30000000-0000-4000-8000-000000000002',nominee='50000000-0000-4000-8000-000000000001';
 const rows=async(sql,args=[])=>(await db.query(sql,args)).rows;
 const scalar=async(sql,args=[])=>Object.values((await rows(sql,args))[0])[0];
 const login=async id=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');};

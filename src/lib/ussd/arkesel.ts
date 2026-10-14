@@ -29,7 +29,8 @@ export async function handleArkeselUssd(request:Request) {
   if(tokens[0]==='2'||tokens.at(-1)==='0')return output('Thank you for using VotecastHub.',true);
   if(tokens[0]!=='1')return output('Invalid selection. Dial again.',true);
   if(tokens.length===1)return output('Enter your numeric event code:');
-  const {data:r,error:re}=await db.from('event_ussd_requests').select('event_id,event_code,dial_code').eq('event_code',tokens[1]).maybeSingle();if(re)throw re;
+  const {data:r,error:re}=await db.from('event_ussd_requests').select('event_id,event_code,dial_code,terms').eq('event_code',tokens[1]).maybeSingle();if(re)throw re;
+  if(r && process.env.VERCEL_ENV==='production' && r.terms?.startsWith('SIMULATOR FIXTURE:'))return output('This test event is unavailable on the live service.',true);
   if(r && ussdSimulatorMode() && !ussdSimulatorEventAllowed(r.event_id))return output('Simulator test event not configured. Ask the admin to allowlist its event ID.',true);
   if(!r||r.dial_code!==p.serviceCode)return output('Event code unavailable.',true);
   const {data:active,error:ae}=await db.rpc('get_public_ussd',{p_event_id:r.event_id});if(ae)throw ae;if(!active?.length)return output('This event is not open on USSD.',true);
@@ -57,7 +58,7 @@ export async function handleArkeselUssd(request:Request) {
   if(e.voting_mode==='paid') {
    const {data:attempt,error:reserve}=await db.rpc(config.data.USSD_PAYMENT_PROVIDER==='paystack'?'reserve_paystack_ussd_payment':'reserve_ussd_payment',{p_session:p.sessionId,p_phone_hash:hash,p_event:e.id,p_category:category.item!.id,p_nominee:nominee.item!.id,p_quantity:quantity});if(reserve)throw reserve;
    if(config.data.USSD_PAYMENT_PROVIDER==='paystack') {
-    try {return await startPaystackUssdCharge(p.sessionId,phone,s.native_network,s.payment_email,attempt);}catch{return output('Payment is being checked. Do not pay again. Contact support with event code '+r.event_code+'.',true);}
+    try {return await startPaystackUssdCharge(p.sessionId,phone,s.native_network,s.payment_email,attempt);}catch{console.error('[USSD] Charge result unavailable',{stage:'initiate or verify charge'});return output('We could not confirm the payment result. If you approved a payment, do not pay again. Contact support with event code '+r.event_code+'.',true);}
    }
    if(!s.reference) {
     try {const initiated=await adapterRequest('/payments',{reference:attempt.provider_reference,phoneNumber:phone,amount:Number(attempt.total_amount_minor),currency:'GHS'});if(initiated.reference!==attempt.provider_reference||initiated.accepted!==true)throw new Error('Payment not accepted');}catch{return output('Payment is being checked. Do not pay again. Contact support with event code '+r.event_code+'.',true);}

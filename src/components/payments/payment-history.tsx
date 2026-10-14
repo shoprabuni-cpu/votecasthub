@@ -11,6 +11,15 @@ const date = (s: string) =>
     timeZone: "Africa/Accra",
   }).format(new Date(s));
 
+type Settlement = {
+  id: number;
+  status: string;
+  currency: string;
+  effective_amount: number;
+  settlement_date: string;
+  createdAt: string;
+};
+
 export async function PaymentHistory({
   organizationId,
   page,
@@ -133,6 +142,7 @@ export async function SettlementHistory({
     );
   }
 
+  let ghsSettlements: Settlement[] | null = null;
   try {
     const subaccount = await paystack<{ id: number; subaccount_code: string }>(
       `/subaccount/${encodeURIComponent(account.subaccount_code)}`
@@ -141,18 +151,21 @@ export async function SettlementHistory({
       throw new Error();
     }
 
-    const settlements = await paystack<
-      Array<{
-        id: number;
-        status: string;
-        currency: string;
-        effective_amount: number;
-        settlement_date: string;
-        createdAt: string;
-      }>
-    >(`/settlement?subaccount=${subaccount.id}&perPage=25&page=${page}`);
+    const settlements = await paystack<Settlement[]>(`/settlement?subaccount=${subaccount.id}&perPage=25&page=${page}`);
 
-    const ghsSettlements = settlements.filter((r) => r.currency === "GHS");
+    ghsSettlements = settlements.filter((r) => r.currency === "GHS");
+  } catch { /* Render the provider failure state outside the data-fetch boundary. */ }
+
+  if (!ghsSettlements) {
+    return (
+      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-2">
+        <h2 className="text-base font-bold text-stone-900">Paystack Bank & MoMo Payouts</h2>
+        <p className="text-xs text-stone-500" role="status">
+          Paystack settlement ledger is temporarily unreachable. Your earnings and balances remain secure.
+        </p>
+      </div>
+    );
+  }
 
     return (
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
@@ -207,14 +220,4 @@ export async function SettlementHistory({
         )}
       </div>
     );
-  } catch {
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-2">
-        <h2 className="text-base font-bold text-stone-900">Paystack Bank & MoMo Payouts</h2>
-        <p className="text-xs text-stone-500" role="status">
-          Paystack settlement ledger is temporarily unreachable. Your earnings and balances remain secure.
-        </p>
-      </div>
-    );
-  }
 }

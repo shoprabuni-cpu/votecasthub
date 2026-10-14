@@ -4,7 +4,7 @@ import { paystack } from "@/lib/payments/gateway";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { reconcileReference } from "@/lib/payments/reconcile";
 
-const charge = z.object({ reference: z.string(), status: z.string(), display_text: z.string().optional() });
+const charge = z.object({ reference: z.string().nullish(), status: z.string(), display_text: z.string().nullable().optional(), message: z.string().nullable().optional(), gateway_response: z.string().nullable().optional() });
 export function momoProvider(network: string) {
   const key = network.toUpperCase().replace(/[^A-Z]/g, "");
   if(key === "MTN")return "mtn";
@@ -15,7 +15,11 @@ export function momoProvider(network: string) {
 const response = (message: string, end = false) => new Response(`${end?"END":"CON"} ${message}`,{headers:{"content-type":"text/plain; charset=utf-8","cache-control":"no-store"}});
 
 async function renderCharge(sessionId: string, reference: string, raw: unknown) {
-  const result=charge.parse(raw);if(result.reference!==reference)throw new Error("Charge reference mismatch");
+  const result=charge.parse(raw);
+  const declined=["failed","timeout"].includes(result.status);
+  // Some declined charge replies omit the reference. Only terminal failures
+  // may use our existing reference; every non-terminal reply must match it.
+  if(result.reference!==reference && !(declined && result.reference==null))throw new Error("Charge reference mismatch");
   const db=paymentAdmin();const {error}=await db.from("ussd_sessions").update({charge_status:result.status,charge_checked_at:new Date().toISOString()}).eq("session_id",sessionId);if(error)throw error;
   if(result.status==="success") {
     if(!await reconcileReference(reference))return response("Payment is being confirmed. Do not pay again.",true);
@@ -24,9 +28,14 @@ async function renderCharge(sessionId: string, reference: string, raw: unknown) 
   if(result.status==="send_otp")return response("Enter the payment OTP sent by your network. Never enter your MoMo PIN here.\n0. Exit");
   if(result.status==="pending")return response("Payment processing. Wait 10 seconds.\n1. Check payment\n0. Exit");
   if(result.status==="pay_offline")return response("Approve the Mobile Money prompt on your phone. Votes count after payment confirmation.",true);
-  if(["failed","timeout"].includes(result.status)) {
+  if(declined) {
     const {error:failed}=await db.from("payment_attempts").update({status:"failed"}).eq("provider_reference",reference).eq("provider","paystack").eq("status","pending");if(failed)throw failed;
-    return response("Payment was not completed. If money was deducted, contact support before trying again.",true);
+    const testNumberRequired=process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_test_") && /test mobile money number/i.test([result.message,result.gateway_response,result.display_text].filter(Boolean).join(" "));
+    return response(testNumberRequired
+      ? "Test payment declined. Start a new simulator session with 0551234987 and network MTN. Your votes were not recorded."
+      : result.status==="timeout"
+        ? "Payment timed out. Your votes were not recorded. If money was deducted, contact support before trying again."
+        : "Payment declined. Your votes were not recorded. If money was deducted, contact support before trying again.",true);
   }
   return response("This payment needs another verification method. Use the website or contact support. Do not pay again if charged.",true);
 }

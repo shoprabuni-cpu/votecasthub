@@ -39,7 +39,6 @@ async function add(id,sitekey){
 }
 async function bundle(sitekey){
  modules.clear();
- const entry=path.resolve('src/components/auth/auth-captcha.tsx');
  await add(require.resolve('react-dom/client'),sitekey);
  await add(require.resolve('react'),sitekey);
  for(const file of Object.values(forms))await add(path.resolve(`src/components/auth/${file}.tsx`),sitekey);
@@ -118,6 +117,8 @@ async function runDomTests(){
    }
    if(form==='email'){
     await wait(()=>dom.window.document.querySelector('input[name=token]'));
+    // Wait for the previous form's captcha/submit guard to finish unmounting.
+    await wait(()=>dom.window.widgets.size===0&&!namedButton('Verify and continue').disabled);
     dom.window.document.querySelector('input[name=token]').value='123456';namedButton('Verify and continue').click();await wait(()=>dom.window.actionCalls.length===2);
     assert.equal(dom.window.actionCalls[1].name,'verifyVoterEmailCodeAction');
    }

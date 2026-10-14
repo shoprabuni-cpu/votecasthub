@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 // Internal adapter contract, not an assertion about Arkesel's native API.
-export function ussdSimulatorMode() { return process.env.USSD_SIMULATOR_MODE === "true" && (process.env.USSD_PAYMENT_PROVIDER ?? "paystack") === "paystack" && process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_test_") === true; }
+export function ussdSimulatorMode() { return process.env.VERCEL_ENV !== "production" && process.env.USSD_SIMULATOR_MODE === "true" && (process.env.USSD_PAYMENT_PROVIDER ?? "paystack") === "paystack" && process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_test_") === true; }
 export function ussdSimulatorEventAllowed(eventId:string) { return ussdSimulatorMode() && (process.env.USSD_SIMULATOR_EVENT_IDS ?? "").split(",").map(value=>value.trim()).includes(eventId); }
 const configSchema = z.object({
   USSD_ENABLED: z.literal("true"), USSD_ADAPTER_CONTRACT: z.literal("normalized-v1").default("normalized-v1"),
@@ -16,7 +16,12 @@ const configSchema = z.object({
 }).refine(value => value.USSD_SESSION_PROTOCOL === "arkesel-json" ? Boolean((value.ARKESEL_USSD_USER_ID || ussdSimulatorMode()) && value.ARKESEL_USSD_CALLBACK_TOKEN) : Boolean(value.USSD_ADAPTER_URL && value.USSD_ADAPTER_TOKEN), "Configure credentials for the selected session protocol");
 export function ussdPaymentReady() { const config = ussdConfiguration(); return config.success && (config.data.USSD_PAYMENT_PROVIDER === "paystack" ? Boolean(process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) : Boolean(config.data.USSD_ADAPTER_URL && config.data.USSD_ADAPTER_TOKEN)); }
 export function ussdConfiguration() {
+  // Production stays off until subscription purchase and live checks are complete.
+  // This separate launch switch defaults to off even if USSD_ENABLED is already set.
+  if(process.env.VERCEL_ENV === "production" && process.env.USSD_LIVE_LAUNCH_ENABLED !== "true")return {success:false as const};
   if(process.env.USSD_SIMULATOR_MODE === "true" && !ussdSimulatorMode())return {success:false as const};
+  if(process.env.VERCEL_ENV === "production" && (process.env.USSD_SIMULATOR_EVENT_IDS?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("mpajnwllttagglxnlekf")))return {success:false as const};
+  if(process.env.VERCEL_ENV === "production" && (process.env.USSD_PAYMENT_PROVIDER ?? "paystack") === "paystack" && !process.env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_"))return {success:false as const};
   return configSchema.safeParse(process.env);
 }
 export function authenticUssd(request: Request, raw: string, secret: string) {

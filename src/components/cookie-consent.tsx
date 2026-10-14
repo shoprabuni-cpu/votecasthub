@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Consent = { analytics: boolean; marketing: boolean; updatedAt: string };
 const KEY = "vch-cookie-consent-v1";
@@ -14,35 +14,55 @@ function loadConsent(): Consent | null {
   }
 }
 
+function consentSnapshot() {
+  try { return window.localStorage.getItem(KEY); } catch { return null; }
+}
+function subscribeToConsent(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener("vch-consent-updated", onChange);
+  return () => { window.removeEventListener("storage", onChange); window.removeEventListener("vch-consent-updated", onChange); };
+}
+const serverConsent = () => null;
+
 export function CookieSettingsLink() {
   return <button className="cookie-settings-link" type="button" onClick={() => window.dispatchEvent(new Event("vch-cookie-settings"))}>Cookie settings</button>;
 }
 
 export function CookieConsent() {
-  const [consent, setConsent] = useState<Consent | null>(null);
+  const [sessionConsent, setConsent] = useState<Consent | null>(null);
+  const storedConsent = useSyncExternalStore(subscribeToConsent, consentSnapshot, serverConsent);
+  let consent = sessionConsent;
+  try { if (!consent && storedConsent) consent = JSON.parse(storedConsent) as Consent; } catch { /* Invalid storage leaves optional consent unset. */ }
   const [open, setOpen] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
-    const existing = loadConsent();
-    setConsent(existing);
-    setAnalytics(existing?.analytics ?? false);
-    setMarketing(existing?.marketing ?? false);
-    const show = () => setOpen(true);
+    const show = () => {
+      const existing = loadConsent();
+      setAnalytics(existing?.analytics ?? false);
+      setMarketing(existing?.marketing ?? false);
+      setOpen(true);
+    };
     window.addEventListener("vch-cookie-settings", show);
     return () => window.removeEventListener("vch-cookie-settings", show);
   }, []);
 
   function save(next: Pick<Consent, "analytics" | "marketing">) {
     const value = { ...next, updatedAt: new Date().toISOString() };
-    try { window.localStorage.setItem(KEY, JSON.stringify(value)); } catch { /* Preferences remain optional if storage is unavailable. */ }
-    setConsent(value);
+    let stored = false;
+    try { window.localStorage.setItem(KEY, JSON.stringify(value)); stored = true; } catch { /* Preferences remain optional if storage is unavailable. */ }
+    setConsent(stored ? null : value);
     setOpen(false);
     window.dispatchEvent(new CustomEvent("vch-consent-updated", { detail: value }));
   }
 
-  if (consent && !open) return <button className="cookie-reopen" type="button" onClick={() => setOpen(true)}>Privacy choices</button>;
+  function showChoices() {
+    setAnalytics(consent?.analytics ?? false);
+    setMarketing(consent?.marketing ?? false);
+    setOpen(true);
+  }
+  if (consent && !open) return <button className="cookie-reopen" type="button" onClick={showChoices}>Privacy choices</button>;
   return (
     <aside className="cookie-banner" aria-label="Cookie and tracking preferences">
       <div className="cookie-copy">
@@ -62,7 +82,7 @@ export function CookieConsent() {
           <button type="button" className="primary-link" onClick={() => save({ analytics: true, marketing: true })}>Allow all</button>
         </> : <>
           <button type="button" className="secondary-button" onClick={() => save({ analytics: false, marketing: false })}>Reject optional</button>
-          <button type="button" className="secondary-button" onClick={() => setOpen(true)}>Manage</button>
+          <button type="button" className="secondary-button" onClick={showChoices}>Manage</button>
           <button type="button" className="primary-link" onClick={() => save({ analytics: true, marketing: true })}>Allow all</button>
         </>}
       </div>

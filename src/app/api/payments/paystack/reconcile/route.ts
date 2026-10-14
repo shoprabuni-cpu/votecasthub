@@ -19,7 +19,8 @@ export async function GET(request:Request){
     catch { deletionFailed++;console.error("admin_deletion_processing_failed"); }
     await processOrganizerEventDeletions().catch(() => { deletionFailed++;console.error("organizer_event_cleanup_pending"); });
     await cleanupEventImages().catch(() => { deletionFailed++;console.error("event_image_cleanup_pending"); });
-    if(ussdConfiguration().success)failed+=await reconcileUssdBatch();
+    const ussd=ussdConfiguration();
+    if(ussd.success && ussd.data.USSD_PAYMENT_PROVIDER==='adapter')failed+=await reconcileUssdBatch();
     // A persisted pagination cursor eventually scans every refund, including updates to older refunds.
     const {data:cursor}=await db.from("payment_operations").select("cursor_page").eq("name","refund-scan").maybeSingle();
     const page=cursor?.cursor_page||1;
@@ -27,14 +28,15 @@ export async function GET(request:Request){
     const jobs=refunds.filter(r=>r.status==="processed").map(r=>({id:`refund.processed:${r.id}`,kind:"refund.processed",resource:String(r.id)}));
     if(jobs.length){const {error}=await db.from("payment_jobs").upsert(jobs,{onConflict:"id",ignoreDuplicates:true});if(error)throw error;}
     const {error:cursorError}=await db.from("payment_operations").upsert({name:"refund-scan",cursor_page:refunds.length<50?1:page+1,last_success_at:new Date().toISOString()});if(cursorError)throw cursorError;
+    // Queue missed callbacks before processing, avoiding an extra daily cron delay.
+    const {error:ussdQueued}=await db.rpc("enqueue_ussd_access_reconciliation");if(ussdQueued)throw ussdQueued;
+    const {error:queued}=await db.rpc("enqueue_pending_payments");if(queued)throw queued;
     const {data:pending,error}=await db.from("payment_jobs").select("id,kind,resource,attempts").is("processed_at",null).order("last_attempt_at",{ascending:true,nullsFirst:true}).limit(20);if(error)throw error;
     for(const job of pending||[]){
       if(Date.now()-started>35000)break;
       await db.from("payment_jobs").update({attempts:job.attempts+1,last_attempt_at:new Date().toISOString()}).eq("id",job.id);
       try{if(!await processPaymentJob(job.kind,job.resource))continue;const {error:e}=await db.from("payment_jobs").update({processed_at:new Date().toISOString()}).eq("id",job.id);if(e)throw e;completed++;}catch{failed++;}
     }
-    const {error:ussdQueued}=await db.rpc("enqueue_ussd_access_reconciliation");if(ussdQueued)throw ussdQueued;
-    const {error:queued}=await db.rpc("enqueue_pending_payments");if(queued)throw queued;
     await db.from("payment_rate_limits").delete().lt("expires_at",new Date(Date.now()-86400000).toISOString());
     if(failed)console.error("payment_reconciliation_jobs_failed",{failed});
     const {error:e}=await db.from("payment_operations").upsert({name:"reconciliation",last_success_at:new Date().toISOString()});if(e)throw e;

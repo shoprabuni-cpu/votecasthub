@@ -73,7 +73,7 @@ export default async function AdminPage() {
                 {m.label}
               </span>
               <span className="text-stone-400">
-                <Icon name={m.icon as any} size={14} />
+                <Icon name={m.icon} size={14} />
               </span>
             </div>
             <div className="mt-3">

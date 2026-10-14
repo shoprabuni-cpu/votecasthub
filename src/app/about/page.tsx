@@ -10,9 +10,9 @@ export default function AboutPage() {
     <p className="legal-lead">VotecastHub GH is a platform for organizations to publish award and competition events, introduce nominees, and share voting rules with their communities.</p>
     <section><h2>For organizers</h2><p>Create an organization workspace, set up events and categories, add nominees, and manage your event status. Team invitations and role-based access help organizations work together.</p></section>
     <section><h2>For voters</h2><p>Browse public events, read the event details and rules, and explore nominee profiles. Voting availability depends on each event’s status and its published rules.</p></section>
-    <section><h2>Built with care</h2><p>We aim to make event participation clear and accessible across Ghana. We are continuing to develop secure voting, payments, USSD access, and organizer reporting. These services are not available unless shown as enabled in a specific event.</p></section>
+    <section><h2>Built with care</h2><p>We aim to make event participation clear and accessible across Ghana. Organizers can offer website voting and request optional USSD access for voters without internet. USSD dialing instructions appear only for activated events. <Link href="/guides/vote-without-internet-ussd" className="font-semibold text-emerald-800 underline">Learn how USSD works.</Link></p></section>
     <div className="legal-callout"><strong>Get in touch</strong><p>For general enquiries, email <a href="mailto:info@votecasthub.com">info@votecasthub.com</a>. For help with your account, voting, or payments, email <a href="mailto:support@votecasthub.com">support@votecasthub.com</a>. VotecastHub GH currently identifies its operating location as Tanoso, Kumasi, Ghana.</p></div>
-    <p className="legal-updated">Product information last reviewed: 7 October 2026.</p>
+    <p className="legal-updated">Product information last reviewed: 14 October 2026.</p>
   </article><LegalFooter /></main>;
 }
 

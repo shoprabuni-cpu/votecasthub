@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ussdConfiguration, ussdPaymentReady, ussdSimulatorMode } from "@/lib/ussd/provider";
 import { Icon } from "@/components/icon";
+import Link from "next/link";
 export async function loadUssdInstructions(eventId:string) {
  if(ussdSimulatorMode())return null;
  if(!ussdConfiguration().success)return null;
@@ -12,5 +13,5 @@ export async function loadUssdInstructions(eventId:string) {
 }
 export async function UssdInstructions({eventId}:{eventId:string}) {
  const info=await loadUssdInstructions(eventId);if(!info)return null;
- return <section className="my-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5"><div className="flex items-center gap-2 text-emerald-900"><Icon name="phone"/><h2 className="text-lg font-semibold">Vote without internet</h2></div><p className="mt-3 text-sm text-stone-700">Dial <strong className="text-lg text-emerald-950">{info.dial_code}</strong>, choose Vote, then enter event code <strong>{info.event_code}</strong>.</p><p className="mt-2 text-sm text-stone-600">Choose your category and nominee, enter your votes, and confirm. Paid votes count after Mobile Money payment is confirmed.</p><p className="mt-3 text-sm font-medium text-stone-700">{info.network_notice}</p></section>;
+ return <section className="my-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5"><div className="flex items-center gap-2 text-emerald-900"><Icon name="phone"/><h2 className="text-lg font-semibold">Vote without internet</h2></div><p className="mt-3 text-sm text-stone-700">Dial <strong className="text-lg text-emerald-950">{info.dial_code}</strong>, choose Vote, then enter event code <strong>{info.event_code}</strong>.</p><p className="mt-2 text-sm text-stone-600">Choose your category and nominee, enter your votes, and confirm. Paid votes count after Mobile Money payment is confirmed.</p><p className="mt-3 text-sm font-medium text-stone-700">{info.network_notice}</p><Link href="/guides/vote-without-internet-ussd" className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">USSD voting help →</Link></section>;
 }

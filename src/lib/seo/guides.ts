@@ -2,6 +2,18 @@ export type Guide = { slug: string; title: string; description: string; flow: { 
 
 export const GUIDES: Guide[] = [
   {
+    slug: "vote-without-internet-ussd", title: "Voting without internet: USSD",
+    description: "Learn how phone dialing works, how organizers request access, and what voters pay.",
+    flow: { title: "Vote from your phone", start: "Check the event’s dialing instructions", steps: ["Dial the event’s USSD code", "Choose Vote and enter the short event number", "Choose a category and nominee", "Review and confirm", "Approve Mobile Money for paid votes"], end: "Confirmed votes are recorded" },
+    sections: [
+      { title: "What is USSD?", paragraphs: ["USSD is a numbered menu you open by dialing a code on a mobile phone. You do not need internet or a smartphone. The platform dialing code opens the menu; the short event number takes you to the right event. Voters never need the organizer’s long database ID.", "Organizers can request USSD access for their events. Dialing instructions are published when access is activated for the agreed service period. If your event page does not show dialing instructions, use its website voting option."] },
+      { title: "For organizers", paragraphs: ["Open your event’s Voting settings and request USSD access. The platform sends a quote with the price, service period and terms. An owner or admin accepts it, pays the access fee and waits for activation. Website voting continues with your existing rules.", "Free USSD voting supports phone verification. Email verification, private access codes and approved voter lists remain on the website. The same phone-based limits apply across free web and USSD votes."] },
+      { title: "For voters", paragraphs: ["Use the actual dialing code displayed on the active event page. Choose Vote and enter its short numeric event code. Select your category and nominee, enter the number of votes and check the total before confirming.", "Paid voting may ask for an email for the receipt. Approve the Mobile Money payment on your phone when prompted. Never enter your Mobile Money PIN into the voting menu. Votes are recorded only after payment has been verified."] },
+      { title: "Understand the costs", paragraphs: ["USSD access is quoted separately to the organizer. It is not included in an SMS bundle. Free votes cost GH₵0 per vote; network session charges may still apply and are disclosed in the event’s dialing instructions.", "Paid votes use the price set for the event and the same 10% inclusive collection fee as website voting. USSD voting itself does not consume SMS credits; website SMS verification is separate."] },
+      { title: "If a payment is delayed", paragraphs: ["If you already approved a payment, do not start another payment for the same vote while its outcome is uncertain. Keep your transaction reference and contact support. Confirmed payments can be recorded after the USSD session ends."] },
+    ],
+  },
+  {
     slug: "online-voting-for-awards-in-ghana", title: "How to run an online awards vote",
     description: "Plan your event, add nominees, choose how people can vote, and share the event when it is approved.",
     flow: { title: "From idea to voting", start: "Plan your vote", steps: ["Create an event", "Add categories and nominees", "Choose voting rules", "Send the event for review", "Share the public link"], end: "People can vote" },
