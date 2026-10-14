@@ -132,15 +132,22 @@ export async function signInAction(_previousState: AuthFormState, formData: Form
   const parsed = loginSchema.safeParse(readForm(formData));
   if (!parsed.success) return { message: "Enter a valid email address and password." };
 
-  const supabase = await createClient();
+  let supabase: Awaited<ReturnType<typeof createClient>>;
+  let stage = "client configuration";
   try {
+    supabase = await createClient();
+    stage = "password sign-in";
     const { error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,
       options: captchaOptions(formData),
     });
-    if (error) return { message: "We could not sign you in. Check your details or verify your email, then try again." };
+    if (error) {
+      console.warn("[Authentication] Sign-in rejected", { code: error.code, status: error.status });
+      return { message: "We could not sign you in. Check your details or verify your email, then try again." };
+    }
   } catch {
+    console.error("[Authentication] Sign-in unavailable", { stage });
     return { message: "Sign-in is temporarily unavailable. Please try again shortly." };
   }
 

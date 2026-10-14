@@ -20,6 +20,10 @@ export function getPublicEnvironment() {
   });
 
   if (!parsed.success) {
+    // Field names identify setup mistakes without exposing keys or URL values.
+    console.error("[Configuration] Invalid public environment", {
+      fields: [...new Set(parsed.error.issues.map(issue => issue.path.join(".")))],
+    });
     throw new Error("The application is not configured with valid service URLs and public keys.");
   }
 
