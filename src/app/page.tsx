@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
+import { DevicePreview } from "@/components/events/device-preview";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { Icon } from "@/components/icon";
 import { SiteHeader } from "@/components/site-header";
@@ -11,12 +13,6 @@ import { StructuredData } from "@/components/seo/structured-data";
 import { absoluteUrl, publicMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo/metadata";
 
 export const metadata = { ...publicMetadata("Online voting for awards and competitions in Ghana", SITE_DESCRIPTION, "/"), title: { absolute: "VotecastHub GH | Online voting for awards in Ghana" } };
-
-const voteFlow = [
-  { number: "01", title: "Open your event", detail: "Find your event and read its voting instructions." },
-  { number: "02", title: "Verify or pay", detail: "For free voting, verify your details. For paid voting, complete payment." },
-  { number: "03", title: "Your vote counts", detail: "Choose your nominee and follow the event’s voting limits." },
-];
 
 export default async function HomePage() {
   let page: EventDirectoryPage = { events: [], total: 0, now: 0 };
@@ -35,16 +31,7 @@ export default async function HomePage() {
           <div className="hero-actions"><Link className="primary-link" href="/events">Browse events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
           <p className="hero-note">Website voting, with optional phone dialing for activated events. <Link href="#ussd" className="font-semibold text-emerald-800 underline underline-offset-4">Explore USSD</Link></p>
         </div>
-        <div className="hero-art overflow-clip" aria-label="How to vote in three steps">
-          <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-          <div className="flow-card">
-            <div className="flow-card-top"><span className="flow-label">THE VOTING FLOW</span><span className="flow-count">3 STEPS</span></div>
-            <div className="flow-list">{voteFlow.map((step, index) => <div className="flow-step" key={step.number}><span className={`step-mark ${index === 2 ? "step-mark-final" : ""}`}>{index === 2 ? "✓" : step.number}</span><span className="step-copy"><strong>{step.title}</strong><small>{step.detail}</small></span></div>)}</div>
-            <div className="flow-card-footer"><Icon name="shield" size={16} /> Voting limits are checked on the server</div>
-          </div>
-          <div className="floating-note"><span className="note-icon"><Icon name="check" size={14} /></span><span><strong>Clear rules for every voter</strong><small>Limits apply to every vote</small></span></div>
-          <p className="art-caption">FROM EVENT SETUP TO A RECORDED VOTE</p>
-        </div>
+        <div className="relative min-w-0 rounded-3xl bg-gradient-to-br from-emerald-50 to-stone-100 p-2 sm:p-4"><DevicePreview /></div>
       </section>
 
       <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Verified voters</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
@@ -53,7 +40,7 @@ export default async function HomePage() {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><UssdOverview /></div>
 
       <section className="features" id="how-it-works" aria-labelledby="features-title">
-        <div className="section-heading"><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div>
+        <div className="section-heading flex flex-wrap items-center justify-between gap-6"><div><p className="eyebrow">THE PLATFORM</p><h2 id="features-title">Voting that makes sense<br />from setup to results.</h2></div><Image src="/images/Classic Gold Trophy on Emerald Base.png" alt="" width={1254} height={1254} sizes="160px" className="h-40 w-40 object-contain" /></div>
         <div className="feature-list">
           <article className="feature"><span className="feature-number">01</span><div className="feature-copy"><Icon className="feature-icon" name="calendar" size={20} /><span><h3>Set up with confidence</h3><p>Create an event, organize categories and nominees, and choose how voting will work.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>
           <article className="feature"><span className="feature-number">02</span><div className="feature-copy"><Icon className="feature-icon" name="shield" size={20} /><span><h3>Give voters a clear experience</h3><p>Show the vote limit before people participate and enforce it as each vote is recorded.</p></span></div><span className="feature-arrow" aria-hidden="true">↗</span></article>

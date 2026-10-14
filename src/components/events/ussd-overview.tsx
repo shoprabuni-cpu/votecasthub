@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DevicePreview } from "./device-preview";
 import { Icon } from "@/components/icon";
 
 export function UssdOverview({ pricing = false }: { pricing?: boolean }) {
@@ -15,7 +16,7 @@ export function UssdOverview({ pricing = false }: { pricing?: boolean }) {
         <div className="mt-5 flex flex-wrap gap-3"><Link href="/organizer" className={`${button} bg-emerald-900 text-white! hover:bg-emerald-800`}>Request USSD access <span aria-hidden="true" className="ml-2">→</span></Link><Link href={pricing ? "/guides/vote-without-internet-ussd" : "/pricing#ussd"} className={`${button} border border-stone-300 bg-white text-stone-800 hover:bg-stone-50`}>{pricing ? "How USSD works" : "See USSD costs"}</Link></div>
       </div>
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-        <p className="text-sm font-semibold text-stone-900">One code. Three simple steps.</p>
+        <DevicePreview phone /><p className="mt-5 text-sm font-semibold text-stone-900">One code. Three simple steps.</p>
         <ol className="mt-5 space-y-4">{[
           ["Dial", "Use the dialing code shown on your event page."],
           ["Choose", "Enter the short event number, category and nominee."],
