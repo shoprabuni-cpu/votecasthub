@@ -4,6 +4,7 @@ import { paymentAdmin } from "@/lib/payments/admin";
 import { processPaymentJob } from "@/lib/payments/reconcile";
 export const runtime="nodejs";
 export const maxDuration=60;
+const rabuniWebhookUrl=process.env.RABUNI_PAYSTACK_WEBHOOK_URL||"https://rabuni.shop/api/webhooks/paystack";
 export async function POST(request:Request){
   const secret=process.env.PAYSTACK_SECRET_KEY;
   const signature=request.headers.get("x-paystack-signature")||"";
@@ -17,7 +18,20 @@ export async function POST(request:Request){
   }catch{return new Response("Invalid body",{status:400});}
   if(!timingSafeEqual(Buffer.from(signature,"hex"),createHmac("sha512",secret).update(raw).digest()))return new Response("Unauthorized",{status:401});
   let event;
-  try{event=z.object({event:z.string(),data:z.object({id:z.number().int().positive().safe().optional(),reference:z.string().max(100).optional()})}).parse(JSON.parse(raw));}catch{return new Response("Invalid event",{status:400});}
+  try{event=z.object({event:z.string(),data:z.object({id:z.number().int().positive().safe().optional(),reference:z.string().max(100).optional(),metadata:z.object({type:z.string().optional()}).passthrough().nullish()}).passthrough()}).passthrough().parse(JSON.parse(raw));}catch{return new Response("Invalid event",{status:400});}
+  if(event.event==="charge.success"&&event.data.metadata?.type==="store_order"){
+    try{
+      const target=new URL(rabuniWebhookUrl);
+      if(target.protocol!=="https:")throw new Error("Rabuni webhook URL must use HTTPS");
+      const response=await fetch(target,{method:"POST",headers:{"content-type":"application/json","x-paystack-signature":signature},body:raw,cache:"no-store",signal:AbortSignal.timeout(15000)});
+      const result=await response.json().catch(()=>null) as {status?:string}|null;
+      if(!response.ok||!result||!(["order_paid","already_processed"].includes(result.status||"")))throw new Error(`Rabuni webhook returned ${response.status} with ${result?.status||"an unexpected response"}`);
+      return Response.json({received:true,rabuni_status:result.status});
+    }catch(error){
+      console.error("rabuni_order_webhook_forward_failed",{reference:event.data.reference,error:error instanceof Error?error.message:"Unknown forwarding error"});
+      return new Response("Rabuni order processing failed",{status:503});
+    }
+  }
   if(!["charge.success","refund.processed","charge.dispute.resolve"].includes(event.event))return Response.json({received:true});
   const resource=event.event==="charge.success"?event.data.reference:event.data.id?.toString();
   if(!resource)return new Response("Missing event identity",{status:400});
