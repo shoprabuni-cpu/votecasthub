@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UssdInstructions, loadUssdInstructions } from "@/components/events/ussd-instructions";
+import { WhatsAppInstructions } from "@/components/events/whatsapp-instructions";
 import { SiteHeader } from "@/components/site-header";
 import { FreeVoteForm } from "@/components/voting/free-vote-form";
 import { EventVoterVerification } from "@/components/voting/event-voter-verification";
@@ -382,6 +383,7 @@ export default async function PublicEventPage({ params }: Props) {
             />
 
             <UssdInstructions eventId={event.id} />
+            <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
             {/* Voter Verification Section */}
             <div id="voter-verification" className="space-y-3">
               <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

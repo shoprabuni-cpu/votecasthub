@@ -1,4 +1,5 @@
 import { UssdPaymentHistory } from "@/components/events/ussd-payment-history";
+import { WhatsAppVotingInfo } from "@/components/events/whatsapp-voting-info";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -197,6 +198,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const requiredChecks = publishChecks.filter(check => !check.optional);
   const nextStep = eventNextStep({ status: event.status, expired: permissions.expired, scheduled: Date.parse(event.starts_at) > requestTime, datesReady, categoryCount: activeCategories.length, nomineesReady: allCategoriesHaveNominees, checkoutReady, verificationReady, votingMode: event.voting_mode, canReopen: permissions.reopen, organizationId });
   const panel = "rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6";
+  const whatsappConfigured = Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_BUSINESS_TOKEN);
   const returnToDraft = permissions.returnToDraft ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
     <h3 className="text-sm font-semibold text-amber-950">{event.status === "pending_review" ? "Change your event before approval" : "Need to change competition settings?"}</h3>
     <p className="text-sm text-amber-900">{event.status === "pending_review" ? "Withdraw your event from review, edit it, then submit it again." : "Full editing removes your event from the public listing and clears approval. After editing, submit it for approval again."}</p>
@@ -244,6 +246,14 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         </section> : undefined}
         voting={<>
           <UssdPaymentHistory eventId={eventId}/>
+          <WhatsAppVotingInfo
+            eventCode={ussdRequest?.event_code}
+            eventSlug={event.slug}
+            eventName={event.name}
+            votingMode={event.voting_mode}
+            eventStatus={event.status}
+            configured={whatsappConfigured}
+          />
           <UssdRequest eventId={eventId} quote={ussdRequest} canAccept={["owner", "admin"].includes(membership?.role ?? "") && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} requested={Boolean(ussdRequest && ussdRequest.status !== "cancelled")} unavailable={Boolean(ussdError)} canRequest={canManage && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} />
           {event.status === "draft" && event.voting_mode === "paid" && !checkoutReady && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Connect your payment account</h2><p className="mt-2 text-sm text-stone-600">A verified payment account is needed before this paid event can be submitted.</p><Link href={`/organizer/${organizationId}/payments`} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50">Set up payments</Link></section>}
           {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
