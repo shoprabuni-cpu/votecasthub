@@ -371,11 +371,16 @@ export function CategoryNomineeStudio({
                           <h5 className="font-semibold text-stone-900 text-sm leading-tight truncate">
                             {nominee.name}
                           </h5>
-                          {nominee.public_code && (
-                            <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700">
-                              {nominee.public_code}
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-850">
+                              Code: {nominee.public_code || String(nominee.display_order + 1).padStart(2, "0")}
                             </span>
-                          )}
+                            {!nominee.is_active && (
+                              <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
+                                Hidden
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

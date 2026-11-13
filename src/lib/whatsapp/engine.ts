@@ -184,9 +184,24 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   }));
 
   const matched = nominees.find((n) => {
-    if (n.public_code && n.public_code.toUpperCase() === nomineeIdentifier.toUpperCase()) return true;
-    if (String(n.display_order + 1) === nomineeIdentifier) return true;
+    const rawNomCode = (n.public_code || "").trim().toUpperCase();
+    const targetCode = nomineeIdentifier.trim().toUpperCase();
+    if (rawNomCode && rawNomCode === targetCode) return true;
+
+    // Numerical equality (e.g. "01" == "1", "02" == "2")
+    const targetNum = parseInt(targetCode, 10);
+    const nomCodeNum = parseInt(rawNomCode, 10);
+    if (!isNaN(targetNum) && !isNaN(nomCodeNum) && targetNum === nomCodeNum) return true;
+
+    // Display order fallback (1-based, with or without leading zero)
+    const orderNum = n.display_order + 1;
+    if (!isNaN(targetNum) && targetNum === orderNum) return true;
+    if (String(orderNum).padStart(2, "0") === targetCode) return true;
+    if (String(orderNum) === targetCode) return true;
+
+    // Name or UUID prefix fallback
     if (n.name.toLowerCase() === nomineeIdentifier.toLowerCase()) return true;
+    if (n.id.toLowerCase().startsWith(nomineeIdentifier.toLowerCase())) return true;
     return false;
   });
 

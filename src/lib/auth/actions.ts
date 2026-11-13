@@ -710,8 +710,22 @@ export async function addCategoryNomineeAction(_previousState: AuthFormState, fo
   }
   try {
     const supabase = await createClient();
+    let publicCode = parsed.data.publicCode ? parsed.data.publicCode.trim().toUpperCase() : null;
+    if (!publicCode) {
+      const { data: existingCodes } = await supabase
+        .from("nominees")
+        .select("public_code")
+        .eq("category_id", categoryId.data);
+      const used = new Set((existingCodes ?? []).map((r) => r.public_code?.toUpperCase()));
+      let candidate = 1;
+      while (used.has(String(candidate).padStart(2, "0")) && candidate < 100) {
+        candidate++;
+      }
+      publicCode = String(candidate).padStart(2, "0");
+    }
+
     const { error } = await supabase.rpc("add_category_nominee", {
-      p_category_id: categoryId.data, p_name: parsed.data.name, p_public_code: parsed.data.publicCode || null, p_biography: parsed.data.biography || null, p_display_order: null,
+      p_category_id: categoryId.data, p_name: parsed.data.name, p_public_code: publicCode, p_biography: parsed.data.biography || null, p_display_order: null,
     });
     if (error?.code === "23505") return { message: "A nominee with that name or public code already exists in this category." };
     if (error) return { message: eventError(error.code) };

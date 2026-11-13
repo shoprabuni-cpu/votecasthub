@@ -7,14 +7,25 @@ import { Icon } from "@/components/icon";
 
 export function NomineeForm({ categoryId, backTo }: { categoryId: string; backTo: string }) {
   const [showMessage, setShowMessage] = useState(true);
-  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(async (previous, data) => { const result = await addCategoryNomineeAction(previous, data); setShowMessage(true); return result; });
-
+  const { state, formAction, pending, dirty, markChanged } = useEventSaveFeedback(async (previous, data) => {
+    const result = await addCategoryNomineeAction(previous, data);
+    setShowMessage(true);
+    return result;
+  });
 
   return (
     <form
-      data-setup-unsaved={dirty || pending ? true : undefined} onInput={() => { markChanged(); setShowMessage(false); }}
-      onFocusCapture={() => { if (state?.success) setShowMessage(false); }}
-      onPointerDownCapture={() => { if (state?.success) setShowMessage(false); }}
+      data-setup-unsaved={dirty || pending ? true : undefined}
+      onInput={() => {
+        markChanged();
+        setShowMessage(false);
+      }}
+      onFocusCapture={() => {
+        if (state?.success) setShowMessage(false);
+      }}
+      onPointerDownCapture={() => {
+        if (state?.success) setShowMessage(false);
+      }}
       onSubmit={() => setShowMessage(false)}
       action={formAction}
       className="rounded-xl border border-stone-200/90 bg-stone-50/50 p-4 space-y-3"
@@ -27,8 +38,8 @@ export function NomineeForm({ categoryId, backTo }: { categoryId: string; backTo
         <span>Add Nominee / Candidate</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        <div className="min-w-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="sm:col-span-2 min-w-0">
           <label htmlFor={`nominee-name-${categoryId}`} className="block text-xs font-semibold text-stone-800 mb-1">
             Full Name or Entry Title <span className="text-emerald-700">*</span>
           </label>
@@ -43,39 +54,37 @@ export function NomineeForm({ categoryId, backTo }: { categoryId: string; backTo
           />
         </div>
 
-      </div>
-
-      <details className="rounded-xl border border-stone-200 bg-white p-3">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-stone-300 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-800 focus-visible:outline-2 focus-visible:outline-emerald-700">More details (optional)</summary>
-        <div className="mt-3 space-y-3">
-          <div>
+        <div>
           <label htmlFor={`nominee-code-${categoryId}`} className="block text-xs font-semibold text-stone-800 mb-1">
-            Short Code <span className="text-stone-400 font-normal">· optional</span>
+            Voting Code <span className="text-stone-400 font-normal">· e.g. 01, 02</span>
           </label>
           <input
             id={`nominee-code-${categoryId}`}
             name="publicCode"
             maxLength={32}
             pattern="[A-Za-z0-9-]*"
-            placeholder="e.g. BNA-01"
+            placeholder="Auto (01, 02...)"
             className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-base sm:text-sm font-mono font-medium text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 transition-all uppercase"
           />
         </div>
-
-      <div>
-        <label htmlFor={`nominee-bio-${categoryId}`} className="block text-xs font-semibold text-stone-800 mb-1">
-          Brief Biography / Accolades <span className="text-stone-400 font-normal">· optional</span>
-        </label>
-        <textarea
-          id={`nominee-bio-${categoryId}`}
-          name="biography"
-          maxLength={3000}
-          rows={2}
-          placeholder="A short profile shown to voters on the ballot..."
-          className="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 transition-all resize-none"
-        />
       </div>
 
+      <details className="rounded-xl border border-stone-200 bg-white p-3">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-stone-300 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-800 focus-visible:outline-2 focus-visible:outline-emerald-700">
+          Biography / Profile (optional)
+        </summary>
+        <div className="mt-3">
+          <label htmlFor={`nominee-bio-${categoryId}`} className="block text-xs font-semibold text-stone-800 mb-1">
+            Brief Biography / Accolades <span className="text-stone-400 font-normal">· optional</span>
+          </label>
+          <textarea
+            id={`nominee-bio-${categoryId}`}
+            name="biography"
+            maxLength={3000}
+            rows={2}
+            placeholder="A short profile shown to voters on the ballot..."
+            className="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 transition-all resize-none"
+          />
         </div>
       </details>
 
