@@ -42,7 +42,7 @@ export async function sendWhatsAppMessage(
           recipient_type: "individual",
           to: normalizedTo,
           type: "text",
-          text: { body: message },
+          text: { body: message, preview_url: false },
         }),
         signal: AbortSignal.timeout(15000),
         cache: "no-store",
