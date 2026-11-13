@@ -1,6 +1,7 @@
 import "server-only";
 import { reconcileUssd } from "@/lib/ussd/reconcile";
 import { ussdConfiguration } from "@/lib/ussd/provider";
+import { sendWhatsAppMessage } from "@/lib/whatsapp/sendazi";
 import { z } from "zod";
 import { paymentAdmin } from "./admin";
 import { paystack } from "./gateway";
@@ -12,13 +13,24 @@ async function applyTransaction(t:Transaction,allowReversed=false){
   if(t.domain!==(paystackSecret().startsWith("sk_live_")?"live":"test"))throw new Error("Payment mode mismatch");
   if(t.status!=="success"&&!(allowReversed&&t.status==="reversed"))return;
   const db=paymentAdmin();
-  if(t.reference.startsWith("VCH-VOTE-")||t.reference.startsWith("VCH-USSD-")){
+  if(t.reference.startsWith("VCH-VOTE-")||t.reference.startsWith("VCH-USSD-")||t.reference.startsWith("VCH-WA-")){
     const {data:p,error}=await db.from("payment_attempts").select("total_amount_minor,currency,subaccount_code,organization_id").eq("provider_reference",t.reference).eq("provider","paystack").maybeSingle();
-    if(error)throw error;if(!p){if(t.reference.startsWith("VCH-USSD-"))throw new Error("USSD payment attempt not found");return;}
+    if(error)throw error;if(!p){if(t.reference.startsWith("VCH-USSD-")||t.reference.startsWith("VCH-WA-"))throw new Error("Payment attempt not found");return;}
     let subaccount=p.subaccount_code;
     if(!subaccount){const {data:a,error:e}=await db.from("organization_paystack_accounts").select("subaccount_code").eq("organization_id",p.organization_id).single();if(e)throw e;subaccount=a.subaccount_code;}
     if(Number(p.total_amount_minor)!==t.amount||p.currency!==t.currency||t.subaccount?.subaccount_code!==subaccount||t.fees===null)throw new Error("Payment verification mismatch");
     const {error:e}=await db.rpc("confirm_paid_vote",{p_reference:t.reference,p_transaction_id:t.id,p_paid_amount_minor:t.amount,p_provider_fee_minor:t.fees});if(e)throw e;
+    if(t.reference.startsWith("VCH-WA-")){
+      try{
+        const {data:session}=await db.from("whatsapp_sessions").select("phone,quantity,nominee_id,event_id").eq("reference",t.reference).maybeSingle();
+        if(session?.phone&&session.nominee_id&&session.event_id){
+          const {data:nom}=await db.from("nominees").select("name").eq("id",session.nominee_id).maybeSingle();
+          const {data:evt}=await db.from("events").select("name").eq("id",session.event_id).maybeSingle();
+          const receiptText=`🎉 *Payment Confirmed!* 🗳️\n\n*${session.quantity ?? 1} vote(s)* have been recorded for *${nom?.name || "your nominee"}* (${evt?.name || "Event"}).\nReceipt Ref: *${t.reference}*.\n\nThank you for voting with VoteCastHub!`;
+          sendWhatsAppMessage(session.phone,receiptText).catch(err=>console.error("[WhatsApp] Receipt push failed",err));
+        }
+      }catch(err){console.error("[WhatsApp] Receipt lookup error",err);}
+    }
   }else if(t.reference.startsWith("VCH-ACCESS-")){
     if(t.currency!=="GHS")throw new Error("Access currency mismatch");
     const {error:e}=await db.rpc("fulfill_ussd_access",{p_reference:t.reference,p_transaction_id:t.id,p_amount_minor:t.amount});if(e)throw e;
@@ -32,7 +44,7 @@ export async function reconcileReference(reference:string,completedJob=false){
   const tx=txSchema.parse(await paystack(`/transaction/verify/${encodeURIComponent(reference)}`));
   if(tx.reference!==reference)throw new Error("Reference mismatch");
   if(tx.domain!==(paystackSecret().startsWith("sk_live_")?"live":"test"))throw new Error("Payment mode mismatch");
-  if(tx.status==="failed" && reference.startsWith("VCH-USSD-")){
+  if(tx.status==="failed" && (reference.startsWith("VCH-USSD-")||reference.startsWith("VCH-WA-"))){
     const {error}=await paymentAdmin().from("payment_attempts").update({status:"failed"}).eq("provider_reference",reference).eq("provider","paystack").eq("status","pending");
     if(error)throw error;
     return false;
@@ -46,7 +58,7 @@ async function adjust(reference:string,key:string,amount:number,kind:"refund"|"r
   const db=paymentAdmin();
   // Ignore payments belonging to other products on this Paystack integration.
   if(reference.startsWith("VCH-ACCESS-")){const {error}=await db.rpc("refund_ussd_access",{p_reference:reference,p_key:key,p_amount:amount});if(error)throw error;return;}
-  const table=(reference.startsWith("VCH-VOTE-")||reference.startsWith("VCH-USSD-"))?"payment_attempts":reference.startsWith("VCH-SMS-")?"sms_credit_purchases":null;
+  const table=(reference.startsWith("VCH-VOTE-")||reference.startsWith("VCH-USSD-")||reference.startsWith("VCH-WA-"))?"payment_attempts":reference.startsWith("VCH-SMS-")?"sms_credit_purchases":null;
   if(!table)return;
   const {data,error}=await db.from(table).select("id").eq(table==="payment_attempts"?"provider_reference":"reference",reference).maybeSingle();if(error)throw error;if(!data)return;
   const {error:e}=await db.rpc("apply_payment_adjustment",{p_reference:reference,p_provider_key:key,p_amount_minor:amount,p_kind:kind});if(e)throw e;
