@@ -113,3 +113,123 @@ export async function sendWhatsAppMessage(
   }
 }
 
+export async function sendWhatsAppInteractiveButtons(
+  to: string,
+  headerText: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+  footerText: string = "VoteCastHub",
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedTo = normalizePhone(to);
+  const metaToken = process.env.WHATSAPP_BUSINESS_TOKEN;
+  const metaPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (metaToken && metaPhoneId) {
+    try {
+      const response = await fetch(`https://graph.facebook.com/v19.0/${metaPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedTo,
+          type: "interactive",
+          interactive: {
+            type: "button",
+            header: { type: "text", text: headerText.slice(0, 60) },
+            body: { text: bodyText.slice(0, 1024) },
+            footer: { text: footerText.slice(0, 60) },
+            action: {
+              buttons: buttons.slice(0, 3).map((b) => ({
+                type: "reply",
+                reply: {
+                  id: b.id.slice(0, 256),
+                  title: b.title.slice(0, 20),
+                },
+              })),
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+      }
+
+      return { success: true };
+    } catch {
+      return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+    }
+  }
+
+  return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+}
+
+export async function sendWhatsAppInteractiveList(
+  to: string,
+  headerText: string,
+  bodyText: string,
+  buttonLabel: string,
+  sections: Array<{
+    title: string;
+    rows: Array<{ id: string; title: string; description?: string }>;
+  }>,
+  footerText: string = "VoteCastHub",
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedTo = normalizePhone(to);
+  const metaToken = process.env.WHATSAPP_BUSINESS_TOKEN;
+  const metaPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (metaToken && metaPhoneId) {
+    try {
+      const response = await fetch(`https://graph.facebook.com/v19.0/${metaPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedTo,
+          type: "interactive",
+          interactive: {
+            type: "list",
+            header: { type: "text", text: headerText.slice(0, 60) },
+            body: { text: bodyText.slice(0, 1024) },
+            footer: { text: footerText.slice(0, 60) },
+            action: {
+              button: buttonLabel.slice(0, 20),
+              sections: sections.slice(0, 10).map((sec) => ({
+                title: sec.title.slice(0, 24),
+                rows: sec.rows.slice(0, 10).map((r) => ({
+                  id: r.id.slice(0, 256),
+                  title: r.title.slice(0, 24),
+                  description: r.description ? r.description.slice(0, 72) : undefined,
+                })),
+              })),
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+      }
+
+      return { success: true };
+    } catch {
+      return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+    }
+  }
+
+  return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+}
+

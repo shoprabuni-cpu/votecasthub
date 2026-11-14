@@ -3,7 +3,7 @@ import { randomUUID, createHmac } from "node:crypto";
 import { z } from "zod";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
-import { sendWhatsAppMessage } from "./sendazi";
+import { sendWhatsAppMessage, sendWhatsAppInteractiveButtons, sendWhatsAppInteractiveList } from "./sendazi";
 import type { NormalizedInboundMessage } from "./types";
 
 function getSharedSecret(): string {
@@ -183,22 +183,70 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     },
   }));
 
-  // If voter specified event but no nominee code, show candidates menu
+  // If voter specified event but no nominee code, show interactive buttons or list!
   if (!nomineeIdentifier) {
+    const priceText = event.voting_mode === "paid"
+      ? `Cost: GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote`
+      : "Free voting";
+
+    // 1. If 1 to 3 nominees: Show Interactive Quick Reply Buttons
+    if (nominees.length <= 3) {
+      const buttons = nominees.map((n, idx) => {
+        const code = n.public_code || String(idx + 1).padStart(2, "0");
+        return {
+          id: `VOTE ${eventIdentifier} ${code}`,
+          title: `${code}: ${n.name}`.slice(0, 20),
+        };
+      });
+
+      await sendWhatsAppInteractiveButtons(
+        phone,
+        `🗳️ ${event.name}`.slice(0, 60),
+        `Category: ${nominees[0]?.category.name || "Contestants"}\n${priceText}\n\nTap a button below to cast your vote directly:`,
+        buttons,
+        "VoteCastHub Ballot",
+      );
+      return;
+    }
+
+    // 2. If 4 to 10 nominees: Show Interactive Dropdown List
+    if (nominees.length <= 10) {
+      const rows = nominees.map((n, idx) => {
+        const code = n.public_code || String(idx + 1).padStart(2, "0");
+        return {
+          id: `VOTE ${eventIdentifier} ${code}`,
+          title: n.name.slice(0, 24),
+          description: `Code: ${code} · ${n.category.name}`.slice(0, 72),
+        };
+      });
+
+      await sendWhatsAppInteractiveList(
+        phone,
+        `🗳️ ${event.name}`.slice(0, 60),
+        `Choose your candidate below to cast your vote.\n${priceText}`,
+        "Select Candidate 🗳️",
+        [
+          {
+            title: "Candidates",
+            rows,
+          },
+        ],
+        "VoteCastHub Ballot",
+      );
+      return;
+    }
+
+    // 3. Fallback for > 10 nominees (text list)
     const list = nominees.slice(0, 15).map((n, idx) => {
       const code = n.public_code || String(idx + 1).padStart(2, "0");
       return `• *${code}*: ${n.name} (${n.category.name})`;
     }).join("\n");
 
-    const priceText = event.voting_mode === "paid"
-      ? `\n💰 Cost: GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote`
-      : "\n🎟️ Free voting";
-
     const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
 
     await sendWhatsAppMessage(
       phone,
-      `🗳️ *${event.name}*${priceText}\n\nTo vote, reply with:\n*VOTE ${eventIdentifier} <CODE>*\n\n*Candidates:*\n${list}${moreText}\n\n_Example:_\n*VOTE ${eventIdentifier} ${nominees[0]?.public_code || "01"}*`,
+      `🗳️ *${event.name}*\n💰 ${priceText}\n\nTo vote, reply with:\n*VOTE ${eventIdentifier} <CODE>*\n\n*Candidates:*\n${list}${moreText}\n\n_Example:_\n*VOTE ${eventIdentifier} ${nominees[0]?.public_code || "01"}*`,
     );
     return;
   }
