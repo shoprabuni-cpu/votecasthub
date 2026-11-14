@@ -113,12 +113,10 @@ export async function sendWhatsAppMessage(
   }
 }
 
-export async function sendWhatsAppInteractiveButtons(
+export async function sendWhatsAppImage(
   to: string,
-  headerText: string,
-  bodyText: string,
-  buttons: Array<{ id: string; title: string }>,
-  footerText: string = "VoteCastHub",
+  imageUrl: string,
+  caption?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const normalizedTo = normalizePhone(to);
   const metaToken = process.env.WHATSAPP_BUSINESS_TOKEN;
@@ -136,10 +134,64 @@ export async function sendWhatsAppInteractiveButtons(
           messaging_product: "whatsapp",
           recipient_type: "individual",
           to: normalizedTo,
+          type: "image",
+          image: {
+            link: imageUrl,
+            caption: caption ? caption.slice(0, 1024) : undefined,
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        if (caption) return sendWhatsAppMessage(to, caption);
+        return { success: false, error: `Meta HTTP ${response.status}` };
+      }
+
+      return { success: true };
+    } catch {
+      if (caption) return sendWhatsAppMessage(to, caption);
+      return { success: false, error: "Network error" };
+    }
+  }
+
+  if (caption) return sendWhatsAppMessage(to, caption);
+  return { success: false, error: "Not configured" };
+}
+
+export async function sendWhatsAppInteractiveButtons(
+  to: string,
+  headerText: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+  footerText: string = "VoteCastHub",
+  imageUrl?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedTo = normalizePhone(to);
+  const metaToken = process.env.WHATSAPP_BUSINESS_TOKEN;
+  const metaPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (metaToken && metaPhoneId) {
+    try {
+      const headerObj = imageUrl
+        ? { type: "image", image: { link: imageUrl } }
+        : { type: "text", text: headerText.slice(0, 60) };
+
+      const response = await fetch(`https://graph.facebook.com/v19.0/${metaPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedTo,
           type: "interactive",
           interactive: {
             type: "button",
-            header: { type: "text", text: headerText.slice(0, 60) },
+            header: headerObj,
             body: { text: bodyText.slice(0, 1024) },
             footer: { text: footerText.slice(0, 60) },
             action: {

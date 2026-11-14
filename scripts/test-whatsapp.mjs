@@ -162,6 +162,18 @@ const mocks = {
       sentMessages.push({ to, msg });
       return { success: true };
     },
+    sendWhatsAppImage: async (to, url, caption) => {
+      sentMessages.push({ to, msg: caption || url, isImage: true });
+      return { success: true };
+    },
+    sendWhatsAppInteractiveButtons: async (to, header, body, buttons) => {
+      sentMessages.push({ to, msg: `${header}\n${body}`, buttons });
+      return { success: true };
+    },
+    sendWhatsAppInteractiveList: async (to, header, body, label, sections) => {
+      sentMessages.push({ to, msg: `${header}\n${body}`, sections });
+      return { success: true };
+    },
   },
 };
 
