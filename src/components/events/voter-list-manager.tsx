@@ -14,6 +14,7 @@ type VoterRow = {
   max_votes: number;
   used_votes: number;
   redeemed_at: string | null;
+  redemption_channel?: string | null;
 };
 
 export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = false }: { eventId: string; categoryCount?: number; onePerCategory?: boolean }) {
@@ -31,7 +32,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
   const load = useCallback(async () => {
     const { data, error } = await createClient()
       .from("event_voter_list_entries")
-      .select("id, identifier_type, label, max_votes, used_votes, redeemed_at")
+      .select("id, identifier_type, label, max_votes, used_votes, redeemed_at, redemption_channel")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
     if (error) { setMessage(error.message); return; }
@@ -40,7 +41,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
 
   useEffect(() => {
     let active = true;
-    void createClient().from("event_voter_list_entries").select("id, identifier_type, label, max_votes, used_votes, redeemed_at").eq("event_id", eventId).order("created_at", { ascending: false }).then(({ data, error }) => {
+    void createClient().from("event_voter_list_entries").select("id, identifier_type, label, max_votes, used_votes, redeemed_at, redemption_channel").eq("event_id", eventId).order("created_at", { ascending: false }).then(({ data, error }) => {
       if (!active) return;
       if (error) setMessage(error.message);
       else setRows(data ?? []);
@@ -119,9 +120,9 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
 
   function exportCsv() {
     const csv = [
-      "identifier_type,label,max_votes,used_votes,redeemed_at",
+      "identifier_type,label,max_votes,used_votes,redeemed_at,redemption_channel",
       ...rows.map((r) =>
-        [r.identifier_type, r.label ?? "", r.max_votes, r.used_votes, r.redeemed_at ?? ""]
+        [r.identifier_type, r.label ?? "", r.max_votes, r.used_votes, r.redeemed_at ?? "", r.redemption_channel ?? (r.redeemed_at ? "web" : "")]
           .map((v) => `"${String(v).replaceAll('"', '""')}"`)
           .join(",")
       ),
@@ -133,6 +134,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
   }
 
   const redeemedCount = rows.filter((r) => r.redeemed_at).length;
+  const whatsappCount = rows.filter((r) => r.redemption_channel === "whatsapp").length;
   const filtered = rows.filter(
     (r) =>
       !search ||
@@ -163,6 +165,7 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
             </button>
             <span className="rounded-full bg-stone-100 px-3 py-1.5 text-[11px] font-semibold text-stone-700">
               {rows.length} Voters &middot; {redeemedCount} checked-in
+              {whatsappCount > 0 ? ` (${whatsappCount} via WhatsApp)` : ""}
             </span>
           </div>
         )}
@@ -293,10 +296,22 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
                       }`}
                     />
                     <div className="min-w-0">
-                      <span className="font-semibold text-stone-900 block truncate">
-                        {r.label ?? "Anonymous entry"}
-                      </span>
-                      <span className="text-[10px] text-stone-400 uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-stone-900 truncate">
+                          {r.label ?? "Anonymous entry"}
+                        </span>
+                        {r.redemption_channel === "whatsapp" && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
+                            WhatsApp
+                          </span>
+                        )}
+                        {r.redemption_channel === "web" && isCheckedIn && (
+                          <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600 border border-stone-200">
+                            Web
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-stone-400 uppercase tracking-wider block">
                         {r.identifier_type} &middot; {r.used_votes}/{r.max_votes} votes used {isCheckedIn ? "· Checked in" : ""}
                       </span>
                     </div>

@@ -1,6 +1,7 @@
 import "server-only";
-import { randomUUID, createHmac } from "node:crypto";
+import { randomUUID, createHmac, createHash } from "node:crypto";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack } from "@/lib/payments/gateway";
 import { sendWhatsAppMessage, sendWhatsAppInteractiveButtons, sendWhatsAppInteractiveList, sendWhatsAppImage } from "./sendazi";
@@ -12,6 +13,12 @@ function getSharedSecret(): string {
 
 function hashPhone(phone: string): string {
   return createHmac("sha256", getSharedSecret()).update(`wa:${phone}`).digest("hex");
+}
+
+function getAuthClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://jjgwyvxntzrjugauknzo.supabase.co";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "mock-key";
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 async function getSignedImageUrl(path: string | null | undefined): Promise<string | undefined> {
@@ -87,6 +94,50 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         nomineeId: activeSession.nominee_id,
         quantity: qtyParsed,
         existingSessionId: activeSession.id,
+      });
+      return;
+    }
+
+    // If active session is awaiting invite code
+    if (activeSession && activeSession.state === "awaiting_invite_code" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
+      await handleInviteCodeVerification({
+        phone,
+        phoneHash,
+        code: text,
+        session: activeSession,
+      });
+      return;
+    }
+
+    // If active session is awaiting voter ID (Student ID, Index Number, Member ID, or Email)
+    if (activeSession && activeSession.state === "awaiting_voter_id" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
+      await handleVoterIdVerification({
+        phone,
+        phoneHash,
+        identifier: text,
+        session: activeSession,
+      });
+      return;
+    }
+
+    // If active session is awaiting claim code / voting PIN
+    if (activeSession && activeSession.state === "awaiting_claim_code" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
+      await handleClaimCodeVerification({
+        phone,
+        phoneHash,
+        claimCode: text,
+        session: activeSession,
+      });
+      return;
+    }
+
+    // If active session is awaiting email OTP
+    if (activeSession && activeSession.state === "awaiting_email_otp" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
+      await handleEmailOtpVerification({
+        phone,
+        phoneHash,
+        otp: text,
+        session: activeSession,
       });
       return;
     }
@@ -350,6 +401,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   if (event.voting_mode === "free") {
     await handleFreeVote({
       phone,
+      phoneHash,
       event,
       category: matched.category,
       nominee: matched,
@@ -403,17 +455,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   }
 }
 
-async function handleFreeVote(params: {
-  phone: string;
-  event: { id: string; name: string; free_vote_limit_per_phone: number | null };
-  category: { id: string; name: string };
-  nominee: { id: string; name: string; image_path?: string | null };
-  quantity: number;
-}): Promise<void> {
-  const db = paymentAdmin();
-  const { phone, event, category, nominee, quantity } = params;
-
-  // 1. Resolve or create verified phone user
+async function resolveWhatsAppVoterUserId(db: any, phone: string): Promise<string | null> {
   const cleanDigits = phone.replace(/\D/g, "");
   const whatsappEmail = `wa_${cleanDigits}@whatsapp.votecasthub.com`;
   const found = await db.rpc("find_ussd_voter", { p_phone: phone });
@@ -435,7 +477,6 @@ async function handleFreeVote(params: {
   }
 
   if (userId) {
-    // Ensure email_confirmed_at is set in case event requires email verification
     try {
       await db.auth.admin.updateUserById(userId, {
         email: whatsappEmail,
@@ -452,12 +493,107 @@ async function handleFreeVote(params: {
     }
   }
 
+  return userId || null;
+}
+
+async function handleFreeVote(params: {
+  phone: string;
+  phoneHash: string;
+  event: { id: string; name: string; free_vote_limit_per_phone: number | null };
+  category: { id: string; name: string };
+  nominee: { id: string; name: string; image_path?: string | null };
+  quantity: number;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, phoneHash, event, category, nominee, quantity } = params;
+
+  // 1. Resolve or create verified phone user
+  const userId = await resolveWhatsAppVoterUserId(db, phone);
   if (!userId) {
     await sendWhatsAppMessage(phone, "❌ Unable to verify voter identity. Please try voting via the website.");
     return;
   }
 
-  // 2. Cast verified free vote via Supabase RPC
+  // 2. Pre-flight verification check
+  const { data: eligibility } = await db.rpc("check_whatsapp_voter_eligibility", {
+    p_user: userId,
+    p_event: event.id,
+    p_phone: phone,
+  });
+
+  if (eligibility && eligibility.eligible === false) {
+    if (eligibility.reason === "requires_invite_code") {
+      await db
+        .from("whatsapp_sessions")
+        .update({ state: "completed", updated_at: new Date().toISOString() })
+        .eq("phone", phone)
+        .neq("state", "completed");
+
+      await db.from("whatsapp_sessions").insert({
+        phone,
+        phone_hash: phoneHash,
+        event_id: event.id,
+        category_id: category.id,
+        nominee_id: nominee.id,
+        quantity,
+        state: "awaiting_invite_code",
+        metadata: {
+          event_name: event.name,
+          category_name: category.name,
+          nominee_name: nominee.name,
+          nominee_image_path: nominee.image_path,
+        },
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      });
+
+      await sendWhatsAppMessage(
+        phone,
+        `🎟️ *Access Code Required*\n\nVoting for *${nominee.name}* in *${event.name}* is private and requires a 1-time Invite Code from the organizer.\n\nPlease reply with your *Access Code* (e.g. VIP-8492) to cast your vote (or reply *0* to cancel):`,
+      );
+      return;
+    }
+
+    if (eligibility.reason === "requires_identifier") {
+      await db
+        .from("whatsapp_sessions")
+        .update({ state: "completed", updated_at: new Date().toISOString() })
+        .eq("phone", phone)
+        .neq("state", "completed");
+
+      await db.from("whatsapp_sessions").insert({
+        phone,
+        phone_hash: phoneHash,
+        event_id: event.id,
+        category_id: category.id,
+        nominee_id: nominee.id,
+        quantity,
+        state: "awaiting_voter_id",
+        metadata: {
+          event_name: event.name,
+          category_name: category.name,
+          nominee_name: nominee.name,
+          nominee_image_path: nominee.image_path,
+        },
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      });
+
+      await sendWhatsAppMessage(
+        phone,
+        `📋 *Voter Roll Verification*\n\nVoting for *${nominee.name}* in *${event.name}* is restricted to registered members on the official voter roll.\n\nPlease reply with your *Student ID, Index Number, Member ID, or Email* (e.g. 10892341) to verify your eligibility (or reply *0* to cancel):`,
+      );
+      return;
+    }
+
+    if (eligibility.reason === "limit_exhausted") {
+      await sendWhatsAppMessage(
+        phone,
+        `⚠️ You have already used all your allocated votes (${eligibility.max_votes ?? 1}) for this event.`,
+      );
+      return;
+    }
+  }
+
+  // 3. Cast verified free vote via Supabase RPC
   const voteRequest = randomUUID();
   const { error: voteErr } = await db.rpc("cast_verified_whatsapp_vote", {
     p_user: userId,
@@ -487,6 +623,452 @@ async function handleFreeVote(params: {
   const nomineePhotoUrl = await getSignedImageUrl(nominee.image_path);
   const successText = `✅ *Vote Cast Successfully!* 🎉\n\nYou voted for *${nominee.name}* in *${category.name}* (${event.name}).\nQuantity: *${quantity} vote(s)*.\n\nThank you for making your voice count!`;
 
+  if (nomineePhotoUrl) {
+    await sendWhatsAppImage(phone, nomineePhotoUrl, successText);
+  } else {
+    await sendWhatsAppMessage(phone, successText);
+  }
+}
+
+async function handleInviteCodeVerification(params: {
+  phone: string;
+  phoneHash: string;
+  code: string;
+  session: {
+    id: string;
+    event_id: string;
+    category_id: string;
+    nominee_id: string;
+    quantity: number | null;
+    metadata?: any;
+  };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, code, session } = params;
+
+  const userId = await resolveWhatsAppVoterUserId(db, phone);
+  if (!userId) {
+    await sendWhatsAppMessage(phone, "❌ Unable to verify voter identity. Please try voting via the website.");
+    return;
+  }
+
+  const { data: redeemResult, error: redeemError } = await db.rpc("redeem_whatsapp_access_code", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_code: code.trim(),
+  });
+
+  if (redeemError || !redeemResult || redeemResult.success !== true) {
+    const errorMsg = redeemResult?.error || "Invalid or expired access code.";
+    await sendWhatsAppMessage(
+      phone,
+      `❌ ${errorMsg}\n\nPlease check your invite code and try again, or reply *0* to cancel:`,
+    );
+    return;
+  }
+
+  await db
+    .from("whatsapp_sessions")
+    .update({ state: "completed", updated_at: new Date().toISOString() })
+    .eq("id", session.id);
+
+  const voteRequest = randomUUID();
+  const quantity = session.quantity || 1;
+  const { error: voteErr } = await db.rpc("cast_verified_whatsapp_vote", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_category: session.category_id,
+    p_nominee: session.nominee_id,
+    p_quantity: quantity,
+    p_request: voteRequest,
+  });
+
+  if (voteErr) {
+    const errText = voteErr.message.toLowerCase();
+    if (errText.includes("limit")) {
+      await sendWhatsAppMessage(phone, "⚠️ You have reached your voting limit for this event.");
+    } else {
+      await sendWhatsAppMessage(phone, "❌ Your vote could not be recorded after redeeming the code. Please try again.");
+    }
+    return;
+  }
+
+  const nomineeName = session.metadata?.nominee_name || "your candidate";
+  const categoryName = session.metadata?.category_name || "the category";
+  const eventName = session.metadata?.event_name || "this event";
+  const nomineeImagePath = session.metadata?.nominee_image_path;
+
+  const successText = `🎟️ *Invite Code Verified!* ✅\n\nYour vote has been recorded for *${nomineeName}* in *${categoryName}* (${eventName}).\nQuantity: *${quantity} vote(s)*.\n\nThank you for making your voice count!`;
+
+  const nomineePhotoUrl = await getSignedImageUrl(nomineeImagePath);
+  if (nomineePhotoUrl) {
+    await sendWhatsAppImage(phone, nomineePhotoUrl, successText);
+  } else {
+    await sendWhatsAppMessage(phone, successText);
+  }
+}
+
+async function handleVoterIdVerification(params: {
+  phone: string;
+  phoneHash: string;
+  identifier: string;
+  session: {
+    id: string;
+    event_id: string;
+    category_id: string;
+    nominee_id: string;
+    quantity: number | null;
+    metadata?: any;
+  };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, identifier, session } = params;
+
+  const userId = await resolveWhatsAppVoterUserId(db, phone);
+  if (!userId) {
+    await sendWhatsAppMessage(phone, "❌ Unable to verify voter identity. Please try voting via the website.");
+    return;
+  }
+
+  // Check if voter provided an email address
+  const isEmail = z.string().email().safeParse(identifier.trim()).success;
+  if (isEmail) {
+    const cleanEmail = identifier.trim().toLowerCase();
+    const emailHash = createHash("sha256").update(cleanEmail).digest("hex");
+
+    const { data: rosterEntry } = await db
+      .from("event_voter_list_entries")
+      .select("id, label, redeemed_by")
+      .eq("event_id", session.event_id)
+      .eq("identifier_type", "email")
+      .eq("identifier_hash", emailHash)
+      .maybeSingle();
+
+    if (!rosterEntry) {
+      await sendWhatsAppMessage(
+        phone,
+        `❌ The email *${cleanEmail}* was not found on the approved voter roll for this event. Please check the spelling or enter your Student/Staff ID (or reply *0* to cancel):`,
+      );
+      return;
+    }
+
+    if (rosterEntry.redeemed_by && rosterEntry.redeemed_by !== userId) {
+      await sendWhatsAppMessage(
+        phone,
+        `❌ The email *${cleanEmail}* has already been used to vote in this election.`,
+      );
+      return;
+    }
+
+    try {
+      const authClient = getAuthClient();
+      await authClient.auth.signInWithOtp({
+        email: cleanEmail,
+        options: { shouldCreateUser: true },
+      });
+    } catch {
+      // ignore
+    }
+
+    const updatedMeta = {
+      ...(session.metadata || {}),
+      pending_email: cleanEmail,
+      voter_label: rosterEntry.label || cleanEmail,
+    };
+    await db
+      .from("whatsapp_sessions")
+      .update({
+        state: "awaiting_email_otp",
+        metadata: updatedMeta,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.id);
+
+    await sendWhatsAppMessage(
+      phone,
+      `✉️ *Verification Code Sent!*\n\nWe sent a 6-digit verification code to *${cleanEmail}*.\n\nPlease check your email inbox and reply with the *6-digit code* here to cast your vote (or reply *0* to cancel):`,
+    );
+    return;
+  }
+
+  // Call redeem_whatsapp_voter_id without claim_code first
+  const { data: redeemResult, error: redeemError } = await db.rpc("redeem_whatsapp_voter_id", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_identifier: identifier.trim(),
+    p_claim_code: null,
+  });
+
+  if (redeemError || !redeemResult) {
+    await sendWhatsAppMessage(
+      phone,
+      "❌ Roster verification is temporarily unavailable. Please try again later or reply *0* to cancel.",
+    );
+    return;
+  }
+
+  if (redeemResult.requires_claim_code === true) {
+    const updatedMeta = {
+      ...(session.metadata || {}),
+      voter_identifier: identifier.trim(),
+      voter_label: redeemResult.label || identifier.trim(),
+    };
+    await db
+      .from("whatsapp_sessions")
+      .update({
+        state: "awaiting_claim_code",
+        metadata: updatedMeta,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.id);
+
+    await sendWhatsAppMessage(
+      phone,
+      `🔐 *Voting PIN Required*\n\nIdentity confirmed for *${redeemResult.label || identifier.trim()}*.\n\nPlease reply with your *4-digit Voting PIN or Claim Code* (found on your voter card or slip):`,
+    );
+    return;
+  }
+
+  if (redeemResult.success !== true) {
+    const errorMsg = redeemResult.error || "Identifier not found on the approved voter roll.";
+    await sendWhatsAppMessage(
+      phone,
+      `❌ ${errorMsg}\n\nPlease check your Student ID / Member ID and try again, or reply *0* to cancel:`,
+    );
+    return;
+  }
+
+  await db
+    .from("whatsapp_sessions")
+    .update({ state: "completed", updated_at: new Date().toISOString() })
+    .eq("id", session.id);
+
+  const voteRequest = randomUUID();
+  const quantity = session.quantity || 1;
+  const { error: voteErr } = await db.rpc("cast_verified_whatsapp_vote", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_category: session.category_id,
+    p_nominee: session.nominee_id,
+    p_quantity: quantity,
+    p_request: voteRequest,
+  });
+
+  if (voteErr) {
+    const errText = voteErr.message.toLowerCase();
+    if (errText.includes("limit") || errText.includes("exhausted")) {
+      await sendWhatsAppMessage(phone, "⚠️ Your approved voter-list vote limit is exhausted.");
+    } else {
+      await sendWhatsAppMessage(phone, "❌ Your vote could not be recorded after verifying your voter ID. Please contact the organizer.");
+    }
+    return;
+  }
+
+  const nomineeName = session.metadata?.nominee_name || "your candidate";
+  const categoryName = session.metadata?.category_name || "the category";
+  const eventName = session.metadata?.event_name || "this event";
+  const voterLabel = redeemResult.label || identifier.trim();
+  const nomineeImagePath = session.metadata?.nominee_image_path;
+
+  const successText = `📋 *Voter Identity Verified!* ✅\n\nIdentity *${voterLabel}* confirmed on the official roll.\nYour vote has been recorded for *${nomineeName}* in *${categoryName}* (${eventName}).\nQuantity: *${quantity} vote(s)*.\n\nThank you for casting your verified ballot!`;
+
+  const nomineePhotoUrl = await getSignedImageUrl(nomineeImagePath);
+  if (nomineePhotoUrl) {
+    await sendWhatsAppImage(phone, nomineePhotoUrl, successText);
+  } else {
+    await sendWhatsAppMessage(phone, successText);
+  }
+}
+
+async function handleClaimCodeVerification(params: {
+  phone: string;
+  phoneHash: string;
+  claimCode: string;
+  session: {
+    id: string;
+    event_id: string;
+    category_id: string;
+    nominee_id: string;
+    quantity: number | null;
+    metadata?: any;
+  };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, claimCode, session } = params;
+
+  const userId = await resolveWhatsAppVoterUserId(db, phone);
+  if (!userId) {
+    await sendWhatsAppMessage(phone, "❌ Unable to verify voter identity. Please try voting via the website.");
+    return;
+  }
+
+  const voterIdentifier = session.metadata?.voter_identifier;
+  if (!voterIdentifier) {
+    await sendWhatsAppMessage(phone, "❌ Session error. Please reply with VOTE to start over.");
+    return;
+  }
+
+  const { data: redeemResult, error: redeemError } = await db.rpc("redeem_whatsapp_voter_id", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_identifier: voterIdentifier,
+    p_claim_code: claimCode.trim(),
+  });
+
+  if (redeemError || !redeemResult || redeemResult.success !== true) {
+    const errorMsg = redeemResult?.error || "Incorrect voting PIN / claim code.";
+    await sendWhatsAppMessage(
+      phone,
+      `❌ ${errorMsg}\n\nPlease check your PIN and try again, or reply *0* to cancel:`,
+    );
+    return;
+  }
+
+  await db
+    .from("whatsapp_sessions")
+    .update({ state: "completed", updated_at: new Date().toISOString() })
+    .eq("id", session.id);
+
+  const voteRequest = randomUUID();
+  const quantity = session.quantity || 1;
+  const { error: voteErr } = await db.rpc("cast_verified_whatsapp_vote", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_category: session.category_id,
+    p_nominee: session.nominee_id,
+    p_quantity: quantity,
+    p_request: voteRequest,
+  });
+
+  if (voteErr) {
+    const errText = voteErr.message.toLowerCase();
+    if (errText.includes("limit") || errText.includes("exhausted")) {
+      await sendWhatsAppMessage(phone, "⚠️ Your approved voter-list vote limit is exhausted.");
+    } else {
+      await sendWhatsAppMessage(phone, "❌ Your vote could not be recorded after verifying your voting PIN. Please try again.");
+    }
+    return;
+  }
+
+  const nomineeName = session.metadata?.nominee_name || "your candidate";
+  const categoryName = session.metadata?.category_name || "the category";
+  const eventName = session.metadata?.event_name || "this event";
+  const voterLabel = redeemResult.label || voterIdentifier;
+  const nomineeImagePath = session.metadata?.nominee_image_path;
+
+  const successText = `🔐 *Voter PIN Confirmed!* ✅\n\nIdentity *${voterLabel}* verified on the official roll.\nYour vote has been recorded for *${nomineeName}* in *${categoryName}* (${eventName}).\nQuantity: *${quantity} vote(s)*.\n\nThank you for making your voice count!`;
+
+  const nomineePhotoUrl = await getSignedImageUrl(nomineeImagePath);
+  if (nomineePhotoUrl) {
+    await sendWhatsAppImage(phone, nomineePhotoUrl, successText);
+  } else {
+    await sendWhatsAppMessage(phone, successText);
+  }
+}
+
+async function handleEmailOtpVerification(params: {
+  phone: string;
+  phoneHash: string;
+  otp: string;
+  session: {
+    id: string;
+    event_id: string;
+    category_id: string;
+    nominee_id: string;
+    quantity: number | null;
+    metadata?: any;
+  };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, otp, session } = params;
+
+  const cleanOtp = otp.trim().replace(/\D/g, "");
+  if (cleanOtp.length < 6 || cleanOtp.length > 8) {
+    await sendWhatsAppMessage(
+      phone,
+      "Please enter the 6-digit verification code sent to your email (or reply *0* to cancel):",
+    );
+    return;
+  }
+
+  const pendingEmail = session.metadata?.pending_email;
+  if (!pendingEmail) {
+    await sendWhatsAppMessage(phone, "❌ Session error. Please reply with VOTE to start over.");
+    return;
+  }
+
+  const userId = await resolveWhatsAppVoterUserId(db, phone);
+  if (!userId) {
+    await sendWhatsAppMessage(phone, "❌ Unable to verify voter identity. Please try voting via the website.");
+    return;
+  }
+
+  const authClient = getAuthClient();
+  const { error: verifyError } = await authClient.auth.verifyOtp({
+    email: pendingEmail,
+    token: cleanOtp,
+    type: "email",
+  });
+
+  if (verifyError) {
+    await sendWhatsAppMessage(
+      phone,
+      "❌ That code is invalid or has expired. Please check your email and try again, or reply *0* to cancel:",
+    );
+    return;
+  }
+
+  try {
+    await db.auth.admin.updateUserById(userId, {
+      email: pendingEmail,
+      email_confirm: true,
+    });
+  } catch {
+    // ignore
+  }
+
+  await db.rpc("redeem_whatsapp_voter_id", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_identifier: pendingEmail,
+    p_claim_code: null,
+  });
+
+  await db
+    .from("whatsapp_sessions")
+    .update({ state: "completed", updated_at: new Date().toISOString() })
+    .eq("id", session.id);
+
+  const voteRequest = randomUUID();
+  const quantity = session.quantity || 1;
+  const { error: voteErr } = await db.rpc("cast_verified_whatsapp_vote", {
+    p_user: userId,
+    p_event: session.event_id,
+    p_category: session.category_id,
+    p_nominee: session.nominee_id,
+    p_quantity: quantity,
+    p_request: voteRequest,
+  });
+
+  if (voteErr) {
+    const errText = voteErr.message.toLowerCase();
+    if (errText.includes("limit") || errText.includes("exhausted")) {
+      await sendWhatsAppMessage(phone, "⚠️ Your voting quota has been exhausted for this event.");
+    } else {
+      await sendWhatsAppMessage(phone, "❌ Your vote could not be recorded after verifying your email. Please contact the organizer.");
+    }
+    return;
+  }
+
+  const nomineeName = session.metadata?.nominee_name || "your candidate";
+  const categoryName = session.metadata?.category_name || "the category";
+  const eventName = session.metadata?.event_name || "this event";
+  const voterLabel = session.metadata?.voter_label || pendingEmail;
+  const nomineeImagePath = session.metadata?.nominee_image_path;
+
+  const successText = `🎓 *Email Verified & Vote Recorded!* ✅\n\nIdentity *${voterLabel}* confirmed on the official roll.\nYour vote has been recorded for *${nomineeName}* in *${categoryName}* (${eventName}).\nQuantity: *${quantity} vote(s)*.\n\nThank you for casting your verified ballot!`;
+
+  const nomineePhotoUrl = await getSignedImageUrl(nomineeImagePath);
   if (nomineePhotoUrl) {
     await sendWhatsAppImage(phone, nomineePhotoUrl, successText);
   } else {

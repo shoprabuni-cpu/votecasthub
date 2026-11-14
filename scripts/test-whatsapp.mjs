@@ -46,6 +46,23 @@ const mockDbState = {
 
 const mocks = {
   'server-only': {},
+  '@supabase/supabase-js': {
+    createClient: () => ({
+      auth: {
+        signInWithOtp: async ({ email }) => {
+          mockDbState.emailOtpSentTo = email;
+          return { data: {}, error: null };
+        },
+        verifyOtp: async ({ email, token }) => {
+          if (token === '123456') {
+            mockDbState.emailOtpVerified = true;
+            return { data: { user: { id: 'user_verified_123', email } }, error: null };
+          }
+          return { data: null, error: new Error('Invalid code') };
+        },
+      },
+    }),
+  },
   '@/lib/payments/admin': {
     paymentAdmin: () => ({
       from: (table) => {
@@ -60,12 +77,7 @@ const mocks = {
           order() { return this; },
           limit() { return this; },
           update(val) {
-            if (table === 'whatsapp_sessions') {
-              for (const s of mockDbState.sessions) {
-                if (this.filters.phone && s.phone === this.filters.phone) Object.assign(s, val);
-                if (this.filters.id && s.id === this.filters.id) Object.assign(s, val);
-              }
-            }
+            this.updateVal = val;
             return this;
           },
           insert(val) {
@@ -92,6 +104,19 @@ const mocks = {
             if (table === 'events') {
               return { data: mockDbState.event, error: null };
             }
+            if (table === 'event_voter_list_entries') {
+              if (query.filters.identifier_type === 'email' && mockDbState.rosterEmail) {
+                return {
+                  data: {
+                    id: 'entry_email_123',
+                    label: 'Prof. Kwame (kwame@knust.edu.gh)',
+                    redeemed_by: null,
+                  },
+                  error: null,
+                };
+              }
+              return { data: null, error: null };
+            }
             if (table === 'nominees') {
               const nom = mockDbState.nominees.find(n => n.id === query.filters.id);
               return { data: nom || null, error: null };
@@ -107,6 +132,13 @@ const mocks = {
             return { data: null, error: null };
           },
           then(resolve) {
+            if (this.updateVal && table === 'whatsapp_sessions') {
+              for (const s of mockDbState.sessions) {
+                if (this.filters.phone && s.phone !== this.filters.phone) continue;
+                if (this.filters.id && s.id !== this.filters.id) continue;
+                Object.assign(s, this.updateVal);
+              }
+            }
             if (table === 'nominees') {
               resolve({ data: mockDbState.nominees, error: null });
             } else {
@@ -118,6 +150,46 @@ const mocks = {
       },
       rpc: async (name, args) => {
         if (name === 'find_ussd_voter') return { data: 'user_verified_123', error: null };
+        if (name === 'check_whatsapp_voter_eligibility') {
+          if (mockDbState.event.verification_method === 'invite_code') {
+            return { data: { eligible: mockDbState.inviteCodeVerified || false, method: 'invite_code', reason: 'requires_invite_code' }, error: null };
+          }
+          if (mockDbState.event.verification_method === 'voter_list') {
+            if (mockDbState.voterListVerified) {
+              return { data: { eligible: true, method: 'voter_list', remaining_votes: 1 }, error: null };
+            }
+            if (mockDbState.phoneOnRoster) {
+              mockDbState.voterListVerified = true;
+              return { data: { eligible: true, method: 'voter_list', auto_redeemed_phone: true, remaining_votes: 1 }, error: null };
+            }
+            return { data: { eligible: false, method: 'voter_list', reason: 'requires_identifier' }, error: null };
+          }
+          return { data: { eligible: true, method: 'phone' }, error: null };
+        }
+        if (name === 'redeem_whatsapp_access_code') {
+          if (args.p_code === 'VIP-8492') {
+            mockDbState.inviteCodeVerified = true;
+            return { data: { success: true }, error: null };
+          }
+          return { data: { success: false, error: 'Invalid access code. Please check and try again.' }, error: null };
+        }
+        if (name === 'redeem_whatsapp_voter_id') {
+          if (args.p_identifier === '10892341' || args.p_identifier === 'kwame@knust.edu.gh') {
+            mockDbState.voterListVerified = true;
+            return { data: { success: true, label: args.p_identifier === 'kwame@knust.edu.gh' ? 'Prof. Kwame (kwame@knust.edu.gh)' : 'Kwame Mensah (10892341)', max_votes: 1, used_votes: 0 }, error: null };
+          }
+          if (args.p_identifier === '10894500') {
+            if (!args.p_claim_code) {
+              return { data: { success: false, requires_claim_code: true, label: 'Akua Donkor (10894500)' }, error: null };
+            }
+            if (args.p_claim_code === '4821') {
+              mockDbState.voterListVerified = true;
+              return { data: { success: true, label: 'Akua Donkor (10894500)', max_votes: 1, used_votes: 0 }, error: null };
+            }
+            return { data: { success: false, error: 'Incorrect voting PIN / claim code.' }, error: null };
+          }
+          return { data: { success: false, error: 'Identifier not found on the approved voter roll.' }, error: null };
+        }
         if (name === 'cast_verified_whatsapp_vote') {
           dbVotesCast.push(args);
           return { data: 'batch_uuid_123', error: null };
@@ -289,4 +361,170 @@ assert.equal(paystackInitCalls.length, 1);
 assert.equal(paystackInitCalls[0].payload.amount, 2000); // 20 votes * 100 pesewas
 assert.match(sentMessages[0].msg, /GH₵20\.00/);
 
-console.log('PASS: WhatsApp parser, Rabuni/VoteCastHub central router, free vote verification, two-step paid checkout, and one-shot quick voting!');
+// 6. Test Free Vote with Private 1-Time Invite Code
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'invite_code';
+mockDbState.inviteCodeVerified = false;
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Step 1: Voter attempts to vote without an invite code
+const inviteVoteMsg = { phone: '233245259221', text: 'VOTE 1000 01', rawPayload: {} };
+await processWhatsAppVote(inviteVoteMsg);
+assert.equal(dbVotesCast.length, 0); // No vote cast yet
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Access Code Required/i);
+assert.equal(mockDbState.sessions.length, 1);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_invite_code');
+
+// Step 2: Voter replies with an invalid invite code
+const badCodeMsg = { phone: '233245259221', text: 'BAD-CODE-99', rawPayload: {} };
+await processWhatsAppVote(badCodeMsg);
+assert.equal(dbVotesCast.length, 0); // Still no vote
+assert.equal(sentMessages.length, 2);
+assert.match(sentMessages[1].msg, /Invalid access code/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_invite_code'); // Session preserved
+
+// Step 3: Voter replies with valid invite code 'VIP-8492'
+const goodCodeMsg = { phone: '233245259221', text: 'VIP-8492', rawPayload: {} };
+await processWhatsAppVote(goodCodeMsg);
+assert.equal(dbVotesCast.length, 1); // Vote successfully auto-cast!
+assert.equal(dbVotesCast[0].p_nominee, mockDbState.nominees[0].id);
+assert.equal(sentMessages.length, 3);
+assert.match(sentMessages[2].msg, /Invite Code Verified/i);
+assert.equal(mockDbState.sessions[0].state, 'completed');
+
+// 7. Test Voter-List with Phone Roster Auto-matching (Zero typing)
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'voter_list';
+mockDbState.voterListVerified = false;
+mockDbState.phoneOnRoster = true;
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+const phoneRosterMsg = { phone: '233245259221', text: 'VOTE 1000 01', rawPayload: {} };
+await processWhatsAppVote(phoneRosterMsg);
+assert.equal(dbVotesCast.length, 1); // Auto-redeemed and vote cast immediately!
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Vote Cast Successfully/i);
+
+// 8. Test Voter-List with Student ID (Non-phone roster without PIN)
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'voter_list';
+mockDbState.voterListVerified = false;
+mockDbState.phoneOnRoster = false;
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Step 1: Voter attempts to vote; not on phone roster -> bot asks for Student ID
+const studentVoteMsg = { phone: '233245259221', text: 'VOTE 1000 01', rawPayload: {} };
+await processWhatsAppVote(studentVoteMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Voter Roll Verification/i);
+assert.equal(mockDbState.sessions.length, 1);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_voter_id');
+
+// Step 2: Voter replies with bad Student ID
+const badStudentIdMsg = { phone: '233245259221', text: '99999999', rawPayload: {} };
+await processWhatsAppVote(badStudentIdMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 2);
+assert.match(sentMessages[1].msg, /Identifier not found/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_voter_id');
+
+// Step 3: Voter replies with valid Student ID '10892341'
+const goodStudentIdMsg = { phone: '233245259221', text: '10892341', rawPayload: {} };
+await processWhatsAppVote(goodStudentIdMsg);
+assert.equal(dbVotesCast.length, 1);
+assert.equal(sentMessages.length, 3);
+assert.match(sentMessages[2].msg, /Voter Identity Verified/i);
+assert.match(sentMessages[2].msg, /Kwame Mensah/i);
+assert.equal(mockDbState.sessions[0].state, 'completed');
+
+// 9. Test Voter-List with Student ID + Secret Voting PIN / Claim Code
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'voter_list';
+mockDbState.voterListVerified = false;
+mockDbState.phoneOnRoster = false;
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Step 1: Initial vote attempt
+await processWhatsAppVote(studentVoteMsg);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_voter_id');
+
+// Step 2: Voter enters ID '10894500' which requires a secret PIN
+const idWithPinMsg = { phone: '233245259221', text: '10894500', rawPayload: {} };
+await processWhatsAppVote(idWithPinMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 2);
+assert.match(sentMessages[1].msg, /Voting PIN Required/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_claim_code');
+
+// Step 3: Voter enters incorrect PIN
+const badPinMsg = { phone: '233245259221', text: '0000', rawPayload: {} };
+await processWhatsAppVote(badPinMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 3);
+assert.match(sentMessages[2].msg, /Incorrect voting PIN/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_claim_code');
+
+// Step 4: Voter enters correct PIN '4821'
+const goodPinMsg = { phone: '233245259221', text: '4821', rawPayload: {} };
+await processWhatsAppVote(goodPinMsg);
+assert.equal(dbVotesCast.length, 1);
+assert.equal(sentMessages.length, 4);
+assert.match(sentMessages[3].msg, /Voter PIN Confirmed/i);
+assert.match(sentMessages[3].msg, /Akua Donkor/i);
+assert.equal(mockDbState.sessions[0].state, 'completed');
+
+// 10. Test Voter-List with Institutional Email OTP Verification
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'voter_list';
+mockDbState.voterListVerified = false;
+mockDbState.phoneOnRoster = false;
+mockDbState.rosterEmail = true;
+mockDbState.emailOtpVerified = false;
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Step 1: Initial vote attempt -> prompts for voter roll ID
+const emailVoteMsg = { phone: '233245259221', text: 'VOTE 1000 01', rawPayload: {} };
+await processWhatsAppVote(emailVoteMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Voter Roll Verification/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_voter_id');
+
+// Step 2: Voter replies with institutional email 'kwame@knust.edu.gh'
+const emailMsg = { phone: '233245259221', text: 'kwame@knust.edu.gh', rawPayload: {} };
+await processWhatsAppVote(emailMsg);
+assert.equal(mockDbState.emailOtpSentTo, 'kwame@knust.edu.gh');
+assert.equal(sentMessages.length, 2);
+assert.match(sentMessages[1].msg, /Verification Code Sent/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_email_otp');
+
+// Step 3: Voter replies with invalid OTP code
+const badOtpMsg = { phone: '233245259221', text: '999999', rawPayload: {} };
+await processWhatsAppVote(badOtpMsg);
+assert.equal(dbVotesCast.length, 0);
+assert.equal(sentMessages.length, 3);
+assert.match(sentMessages[2].msg, /invalid or has expired/i);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_email_otp');
+
+// Step 4: Voter replies with correct OTP '123456'
+const goodOtpMsg = { phone: '233245259221', text: '123456', rawPayload: {} };
+await processWhatsAppVote(goodOtpMsg);
+assert.equal(dbVotesCast.length, 1);
+assert.equal(sentMessages.length, 4);
+assert.match(sentMessages[3].msg, /Email Verified & Vote Recorded/i);
+assert.match(sentMessages[3].msg, /kwame@knust\.edu\.gh/i);
+assert.equal(mockDbState.sessions[0].state, 'completed');
+
+console.log('PASS: WhatsApp parser, router, free votes, paid checkout, quick vote, invite code, phone roster auto-match, student ID, voting PIN, and institutional email OTP verification!');
