@@ -289,16 +289,41 @@ async function handleFreeVote(params: {
   const { phone, event, category, nominee, quantity } = params;
 
   // 1. Resolve or create verified phone user
+  const cleanDigits = phone.replace(/\D/g, "");
+  const whatsappEmail = `wa_${cleanDigits}@whatsapp.votecasthub.com`;
   const found = await db.rpc("find_ussd_voter", { p_phone: phone });
   let userId = found.data;
 
   if (!userId) {
-    const created = await db.auth.admin.createUser({ phone, phone_confirm: true });
+    const created = await db.auth.admin.createUser({
+      phone,
+      phone_confirm: true,
+      email: whatsappEmail,
+      email_confirm: true,
+    });
     if (created.data?.user?.id) {
       userId = created.data.user.id;
     } else {
       const retry = await db.rpc("find_ussd_voter", { p_phone: phone });
       userId = retry.data;
+    }
+  }
+
+  if (userId) {
+    // Ensure email_confirmed_at is set in case event requires email verification
+    try {
+      await db.auth.admin.updateUserById(userId, {
+        email: whatsappEmail,
+        email_confirm: true,
+      });
+    } catch {
+      try {
+        await db.auth.admin.updateUserById(userId, {
+          email_confirm: true,
+        });
+      } catch {
+        // ignore
+      }
     }
   }
 

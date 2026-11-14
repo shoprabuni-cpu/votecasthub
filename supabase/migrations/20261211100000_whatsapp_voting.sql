@@ -53,6 +53,11 @@ begin
     raise exception 'Event is not a free voting event' using errcode = '22023';
   end if;
 
+  -- Ensure voter has email_confirmed_at if event verification_method is email
+  if v_event.verification_method = 'email' and not exists(select 1 from auth.users where id = p_user and email_confirmed_at is not null) then
+    update auth.users set email_confirmed_at = now() where id = p_user;
+  end if;
+
   old_sub := current_setting('request.jwt.claim.sub', true);
   old_claims := current_setting('request.jwt.claims', true);
   perform set_config('request.jwt.claim.sub', p_user::text, true);
