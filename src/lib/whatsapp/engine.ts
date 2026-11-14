@@ -92,7 +92,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   const cleaned = text.replace(/^(VOTE|VCH|BALLOT)\s+/i, "");
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
-  if (parts.length < 2) {
+  if (parts.length === 0) {
     await sendWhatsAppMessage(
       phone,
       "⚠️ Incomplete voting command.\nPlease use the format:\n*VOTE [Event Code] [Nominee Code]*\n\n_Example:_\n*VOTE 1000 01*",
@@ -182,6 +182,26 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       event_id: String((n.categories as Record<string, unknown>).event_id),
     },
   }));
+
+  // If voter specified event but no nominee code, show candidates menu
+  if (!nomineeIdentifier) {
+    const list = nominees.slice(0, 15).map((n, idx) => {
+      const code = n.public_code || String(idx + 1).padStart(2, "0");
+      return `• *${code}*: ${n.name} (${n.category.name})`;
+    }).join("\n");
+
+    const priceText = event.voting_mode === "paid"
+      ? `\n💰 Cost: GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote`
+      : "\n🎟️ Free voting";
+
+    const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
+
+    await sendWhatsAppMessage(
+      phone,
+      `🗳️ *${event.name}*${priceText}\n\nTo vote, reply with:\n*VOTE ${eventIdentifier} <CODE>*\n\n*Candidates:*\n${list}${moreText}\n\n_Example:_\n*VOTE ${eventIdentifier} ${nominees[0]?.public_code || "01"}*`,
+    );
+    return;
+  }
 
   const matched = nominees.find((n) => {
     const rawNomCode = (n.public_code || "").trim().toUpperCase();
