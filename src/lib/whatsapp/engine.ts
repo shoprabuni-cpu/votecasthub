@@ -63,6 +63,16 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     return;
   }
 
+  if (/^(CAT|CATEGORY)\b/i.test(text)) {
+    const parts = text.split(/\s+/).filter(Boolean);
+    const eventId = parts[1];
+    const categoryId = parts[2];
+    if (eventId && categoryId) {
+      await presentWhatsAppCategoryBallotById({ phone, phoneHash, eventId, categoryId });
+      return;
+    }
+  }
+
   const isExplicitVoteCommand = /^(VOTE|VCH|BALLOT)\b/i.test(text);
 
   // If not an explicit new command, check for an active ongoing conversational session
@@ -77,7 +87,51 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .limit(1)
       .maybeSingle();
 
-    // If active session is awaiting candidate selection and voter replies with number, code or name
+    // 1. If active session is awaiting category selection and voter replies with category number or name
+    if (activeSession && activeSession.metadata?.step === "awaiting_category" && activeSession.event_id) {
+      if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(text.trim().toUpperCase())) {
+        const { data: rawCategories } = await db
+          .from("categories")
+          .select("id, name, display_order")
+          .eq("event_id", activeSession.event_id)
+          .eq("is_active", true)
+          .order("display_order");
+
+        if (rawCategories && rawCategories.length > 0) {
+          const catInput = text.trim();
+          const catNum = parseInt(catInput, 10);
+          let matchedCat = null;
+          if (!isNaN(catNum) && catNum >= 1 && catNum <= rawCategories.length) {
+            matchedCat = rawCategories[catNum - 1];
+          } else {
+            matchedCat = rawCategories.find(
+              (c) =>
+                c.name.toLowerCase().includes(catInput.toLowerCase()) ||
+                c.id.toLowerCase() === catInput.toLowerCase()
+            );
+          }
+
+          if (matchedCat) {
+            const { data: ev } = await db
+              .from("events")
+              .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path, status, starts_at, ends_at")
+              .eq("id", activeSession.event_id)
+              .single();
+            if (ev) {
+              await presentWhatsAppCategoryBallot({
+                phone,
+                phoneHash,
+                event: ev,
+                category: matchedCat,
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. If active session is awaiting candidate selection and voter replies with number, code or name
     if (activeSession && (activeSession.state === "awaiting_candidate" || activeSession.state === "idle") && activeSession.event_id) {
       if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(text.trim().toUpperCase())) {
         const { data: sessionEvent } = await db
@@ -87,12 +141,18 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
           .single();
 
         if (sessionEvent) {
-          const { data: rawNoms } = await db
+          let nomQuery = db
             .from("nominees")
             .select("id, name, public_code, display_order, image_path, category_id, categories!inner(id, name, event_id, is_active)")
             .eq("categories.event_id", sessionEvent.id)
             .eq("is_active", true)
             .order("display_order");
+
+          if (activeSession.category_id) {
+            nomQuery = nomQuery.eq("category_id", activeSession.category_id);
+          }
+
+          const { data: rawNoms } = await nomQuery;
 
           if (rawNoms && rawNoms.length > 0) {
             const sessionNominees: NomineeWithCategory[] = rawNoms.map((n: Record<string, unknown>) => ({
@@ -380,15 +440,38 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     },
   }));
 
-  // If voter specified event but no nominee code, show interactive buttons or list!
+  // If voter specified event but no nominee code, check categories:
   if (!nomineeIdentifier) {
+    const { data: rawCategories } = await db
+      .from("categories")
+      .select("id, name, display_order")
+      .eq("event_id", event.id)
+      .eq("is_active", true)
+      .order("display_order");
+
+    if (!rawCategories || rawCategories.length === 0) {
+      await sendWhatsAppMessage(phone, "❌ No active categories found for this event.");
+      return;
+    }
+
+    // Single-category event: Jump directly to candidate roster
+    if (rawCategories.length === 1) {
+      await presentWhatsAppCategoryBallot({
+        phone,
+        phoneHash,
+        event,
+        category: rawCategories[0],
+      });
+      return;
+    }
+
+    // Multi-category event: Prompt voter to choose category first
     const priceText = event.voting_mode === "paid"
       ? `💰 Cost: GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote`
       : "🎟️ Free voting";
 
     const eventCoverUrl = await getSignedImageUrl(event.image_path);
 
-    // Save session so voter can simply reply with candidate number (e.g. "1") or name
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await db
       .from("whatsapp_sessions")
@@ -396,84 +479,66 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .eq("phone", phone)
       .neq("state", "completed");
 
-    const { error: sessionInsertErr } = await db.from("whatsapp_sessions").insert({
+    await db.from("whatsapp_sessions").insert({
       phone,
       phone_hash: phoneHash,
       event_id: event.id,
       state: "idle",
       metadata: {
-        step: "awaiting_candidate",
+        step: "awaiting_category",
         event_name: event.name,
         event_slug: event.slug,
         event_identifier: eventIdentifier,
       },
       expires_at: expiresAt,
     });
-    if (sessionInsertErr) {
-      console.error("[WhatsApp] Failed to create candidate voting session", sessionInsertErr);
-    }
 
-    const candidateRoster = nominees
+    const categoryRoster = rawCategories
       .slice(0, 15)
-      .map((n, idx) => {
-        const num = idx + 1;
-        const code = n.public_code ? ` (Code: ${n.public_code})` : "";
-        return `• *${num}* · ${n.name}${code}`;
-      })
+      .map((c, idx) => `• *${idx + 1}* · ${c.name}`)
       .join("\n");
 
-    const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
+    const moreText = rawCategories.length > 15 ? `\n_...and ${rawCategories.length - 15} more categories._` : "";
 
-    // 1. If 1 to 3 nominees: Show Interactive Quick Reply Buttons
-    if (nominees.length <= 3) {
-      const buttons = nominees.map((n, idx) => {
-        return {
-          id: `VOTE ${eventIdentifier} ${n.id}`,
-          title: `${idx + 1}. ${n.name}`.slice(0, 20),
-        };
-      });
+    // 1. If 1 to 3 categories: Interactive Quick Reply Buttons
+    if (rawCategories.length <= 3) {
+      const buttons = rawCategories.map((c, idx) => ({
+        id: `CAT ${event.id} ${c.id}`,
+        title: `${idx + 1}. ${c.name}`.slice(0, 20),
+      }));
 
       await sendWhatsAppInteractiveButtons(
         phone,
-        `🗳️ ${event.name}`.slice(0, 60),
-        `Category: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap a candidate below or reply with a number (e.g. 1):`,
+        `📂 ${event.name}`.slice(0, 60),
+        `${priceText}\n\n*Categories:*\n${categoryRoster}\n\n👉 Tap a category below or reply with a number (e.g. 1):`,
         buttons,
-        "VoteCastHub Ballot",
+        "VoteCastHub Categories",
         eventCoverUrl,
       );
       return;
     }
 
-    // 2. If 4 to 10 nominees: Show Interactive Dropdown List
-    if (nominees.length <= 10) {
-      const rows = nominees.map((n, idx) => {
-        const code = n.public_code || String(idx + 1).padStart(2, "0");
-        return {
-          id: `VOTE ${eventIdentifier} ${n.id}`,
-          title: `${idx + 1}. ${n.name}`.slice(0, 24),
-          description: `Code: ${code} · ${n.category.name}`.slice(0, 72),
-        };
-      });
+    // 2. If 4 to 10 categories: Interactive Dropdown List
+    if (rawCategories.length <= 10) {
+      const rows = rawCategories.map((c, idx) => ({
+        id: `CAT ${event.id} ${c.id}`,
+        title: `${idx + 1}. ${c.name}`.slice(0, 24),
+        description: `Browse contestants in ${c.name}`.slice(0, 72),
+      }));
 
       await sendWhatsAppInteractiveList(
         phone,
-        `🗳️ ${event.name}`.slice(0, 60),
-        `Category: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap the button below or reply with a number (e.g. 1):`,
-        "Select Candidate",
-        [
-          {
-            title: "Candidates",
-            rows,
-          },
-        ],
-        "VoteCastHub Ballot",
+        `📂 ${event.name}`.slice(0, 60),
+        `${priceText}\n\n*Categories:*\n${categoryRoster}\n\n👉 Tap the button below or reply with a category number (e.g. 1):`,
+        "Select Category",
+        [{ title: "Categories", rows }],
+        "VoteCastHub Categories",
       );
       return;
     }
 
-    // 3. Fallback for > 10 nominees
-    const rosterText = `🗳️ *${event.name}*\nCategory: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}${moreText}\n\n👉 Reply with a candidate *number (e.g. 1)*, *code*, or *name* to vote.`;
-
+    // 3. Fallback for > 10 categories
+    const rosterText = `📂 *${event.name}*\n${priceText}\n\n*Categories:*\n${categoryRoster}${moreText}\n\n👉 Reply with a category *number (e.g. 1)* or *name* to browse contestants.`;
     if (eventCoverUrl) {
       await sendWhatsAppImage(phone, eventCoverUrl, rosterText);
     } else {
@@ -1441,4 +1506,186 @@ async function handlePaidVoteCheckout(params: {
     await sendWhatsAppMessage(phone, checkoutMsg);
   }
 }
+
+async function presentWhatsAppCategoryBallotById(params: {
+  phone: string;
+  phoneHash: string;
+  eventId: string;
+  categoryId: string;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, phoneHash, eventId, categoryId } = params;
+
+  // Resolve event (supports UUID, slug, or numeric code)
+  let resolvedEventId = eventId;
+  if (/^\d+$/.test(eventId)) {
+    const { data: ussdReq } = await db
+      .from("event_ussd_requests")
+      .select("event_id")
+      .eq("event_code", parseInt(eventId, 10))
+      .maybeSingle();
+    if (ussdReq?.event_id) {
+      resolvedEventId = ussdReq.event_id;
+    }
+  }
+
+  const { data: event } = await db
+    .from("events")
+    .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path")
+    .or(`id.eq.${resolvedEventId.length === 36 ? resolvedEventId : "00000000-0000-0000-0000-000000000000"},slug.eq.${resolvedEventId.toLowerCase()}`)
+    .single();
+
+  if (!event) {
+    await sendWhatsAppMessage(phone, "❌ Event not found. Reply VOTE to browse events.");
+    return;
+  }
+
+  const { data: category } = await db
+    .from("categories")
+    .select("id, name, display_order")
+    .eq("id", categoryId)
+    .single();
+
+  if (!category) {
+    await sendWhatsAppMessage(phone, "❌ Category not found. Reply VOTE to browse events.");
+    return;
+  }
+
+  await presentWhatsAppCategoryBallot({
+    phone,
+    phoneHash,
+    event,
+    category,
+  });
+}
+
+async function presentWhatsAppCategoryBallot(params: {
+  phone: string;
+  phoneHash: string;
+  event: {
+    id: string;
+    name: string;
+    slug: string;
+    voting_mode: string;
+    unit_price_minor: number;
+    free_vote_limit_per_phone?: number;
+    image_path?: string | null;
+    status: string;
+    starts_at: string;
+    ends_at: string;
+  };
+  category: {
+    id: string;
+    name: string;
+  };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, phoneHash, event, category } = params;
+
+  const now = new Date();
+  if (event.status !== "published" || now < new Date(event.starts_at) || now >= new Date(event.ends_at)) {
+    await sendWhatsAppMessage(phone, `⏳ Voting for *${event.name}* is currently closed.`);
+    return;
+  }
+
+  const { data: rawNominees } = await db
+    .from("nominees")
+    .select("id, name, public_code, display_order, image_path, category_id")
+    .eq("category_id", category.id)
+    .eq("is_active", true)
+    .order("display_order");
+
+  if (!rawNominees || rawNominees.length === 0) {
+    await sendWhatsAppMessage(phone, `❌ No active contestants found in *${category.name}*. Reply VOTE to choose another category.`);
+    return;
+  }
+
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db
+    .from("whatsapp_sessions")
+    .delete()
+    .eq("phone", phone)
+    .neq("state", "completed");
+
+  await db.from("whatsapp_sessions").insert({
+    phone,
+    phone_hash: phoneHash,
+    event_id: event.id,
+    category_id: category.id,
+    state: "idle",
+    metadata: {
+      step: "awaiting_candidate",
+      event_name: event.name,
+      event_slug: event.slug,
+      category_id: category.id,
+      category_name: category.name,
+    },
+    expires_at: expiresAt,
+  });
+
+  const priceText = event.voting_mode === "paid"
+    ? `💰 Cost: GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote`
+    : "🎟️ Free voting";
+
+  const eventCoverUrl = await getSignedImageUrl(event.image_path);
+
+  const candidateRoster = rawNominees
+    .slice(0, 15)
+    .map((n, idx) => {
+      const code = n.public_code ? ` (Code: ${n.public_code})` : "";
+      return `• *${idx + 1}* · ${n.name}${code}`;
+    })
+    .join("\n");
+
+  const moreText = rawNominees.length > 15 ? `\n_...and ${rawNominees.length - 15} more candidates._` : "";
+
+  // 1. If 1 to 3 nominees: Quick Reply Buttons
+  if (rawNominees.length <= 3) {
+    const buttons = rawNominees.map((n, idx) => ({
+      id: `VOTE ${event.slug} ${n.id}`,
+      title: `${idx + 1}. ${n.name}`.slice(0, 20),
+    }));
+
+    await sendWhatsAppInteractiveButtons(
+      phone,
+      `🗳️ ${event.name}`.slice(0, 60),
+      `Category: *${category.name}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap a candidate below or reply with a number (e.g. 1):`,
+      buttons,
+      "VoteCastHub Ballot",
+      eventCoverUrl,
+    );
+    return;
+  }
+
+  // 2. If 4 to 10 nominees: Dropdown List
+  if (rawNominees.length <= 10) {
+    const rows = rawNominees.map((n, idx) => {
+      const code = n.public_code || String(idx + 1).padStart(2, "0");
+      return {
+        id: `VOTE ${event.slug} ${n.id}`,
+        title: `${idx + 1}. ${n.name}`.slice(0, 24),
+        description: `Code: ${code} · ${category.name}`.slice(0, 72),
+      };
+    });
+
+    await sendWhatsAppInteractiveList(
+      phone,
+      `🗳️ ${event.name}`.slice(0, 60),
+      `Category: *${category.name}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap the button below or reply with a candidate number (e.g. 1):`,
+      "Select Candidate",
+      [{ title: "Candidates", rows }],
+      "VoteCastHub Ballot",
+    );
+    return;
+  }
+
+  // 3. Fallback for > 10 nominees
+  const rosterText = `🗳️ *${event.name}*\nCategory: *${category.name}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}${moreText}\n\n👉 Reply with a candidate *number (e.g. 1)*, *code*, or *name* to vote.\n_(Or reply 0 to cancel)_`;
+  if (eventCoverUrl) {
+    await sendWhatsAppImage(phone, eventCoverUrl, rosterText);
+  } else {
+    await sendWhatsAppMessage(phone, rosterText);
+  }
+}
+
 

@@ -215,6 +215,12 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
+  if (isCallback && text.startsWith("cat:")) {
+    const categoryId = text.replace(/^cat:/, "");
+    await presentCategoryBallotById({ chatId, categoryId });
+    return;
+  }
+
   if (isCallback && text.startsWith("nom:")) {
     const rawNom = text.replace(/^nom:/, "");
     const parts = rawNom.split(":");
@@ -257,7 +263,37 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     }
   }
 
-  // 5. If active session is awaiting candidate selection and voter replies with number, code or name
+  // 5. If active session is awaiting category selection and voter replies with number or name
+  if (activeSession && activeSession.metadata?.step === "awaiting_category" && activeSession.event_id) {
+    const { data: rawCategories } = await db
+      .from("categories")
+      .select("id, name, display_order")
+      .eq("event_id", activeSession.event_id)
+      .eq("is_active", true)
+      .order("display_order");
+
+    if (rawCategories && rawCategories.length > 0) {
+      const catInput = text.trim();
+      const catNum = parseInt(catInput, 10);
+      let matchedCat = null;
+      if (!isNaN(catNum) && catNum >= 1 && catNum <= rawCategories.length) {
+        matchedCat = rawCategories[catNum - 1];
+      } else {
+        matchedCat = rawCategories.find(
+          (c) =>
+            c.name.toLowerCase().includes(catInput.toLowerCase()) ||
+            c.id.toLowerCase() === catInput.toLowerCase()
+        );
+      }
+
+      if (matchedCat) {
+        await presentCategoryBallotById({ chatId, categoryId: matchedCat.id });
+        return;
+      }
+    }
+  }
+
+  // 6. If active session is awaiting candidate selection and voter replies with number, code or name
   if (activeSession && (activeSession.state === "idle" || activeSession.state === "awaiting_candidate") && activeSession.event_id) {
     const { data: sessionEvent } = await db
       .from("events")
@@ -266,12 +302,18 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
       .single();
 
     if (sessionEvent) {
-      const { data: rawNoms } = await db
+      let nomQuery = db
         .from("nominees")
         .select("id, name, public_code, display_order, image_path, category_id, categories!inner(id, name, event_id, is_active)")
         .eq("categories.event_id", sessionEvent.id)
         .eq("is_active", true)
         .order("display_order");
+
+      if (activeSession.category_id) {
+        nomQuery = nomQuery.eq("category_id", activeSession.category_id);
+      }
+
+      const { data: rawNoms } = await nomQuery;
 
       if (rawNoms && rawNoms.length > 0) {
         const sessionNominees: NomineeWithCategory[] = rawNoms.map((n: Record<string, unknown>) => ({
@@ -462,49 +504,49 @@ async function presentEventBallot(params: {
     return;
   }
 
-  // Fetch nominees
-  const { data: rawNominees } = await db
-    .from("nominees")
-    .select("id, name, public_code, display_order, image_path, category_id, categories!inner(id, name, event_id, is_active)")
-    .eq("categories.event_id", event.id)
-    .eq("is_active", true)
-    .order("display_order");
-
-  if (!rawNominees || rawNominees.length === 0) {
-    await sendTelegramMessage(chatId, `❌ No active nominees found for *${event.name}*.`);
-    return;
-  }
-
-  const nominees: NomineeWithCategory[] = rawNominees.map((n: Record<string, unknown>) => ({
-    id: String(n.id),
-    name: String(n.name),
-    public_code: n.public_code ? String(n.public_code) : null,
-    display_order: Number(n.display_order ?? 0),
-    image_path: n.image_path ? String(n.image_path) : null,
-    category_id: String(n.category_id),
-    category: {
-      id: String((n.categories as Record<string, unknown>).id),
-      name: String((n.categories as Record<string, unknown>).name),
-      event_id: String((n.categories as Record<string, unknown>).event_id),
-    },
-  }));
-
-  // If voter already specified a nominee
+  // If voter already specified a nominee directly
   if (nomineeIdentifier) {
-    const matched = nominees.find((n) => {
-      if (n.public_code && n.public_code.toUpperCase() === nomineeIdentifier.toUpperCase()) return true;
-      if (n.id.toLowerCase() === nomineeIdentifier.toLowerCase()) return true;
-      if (n.name.toLowerCase().includes(nomineeIdentifier.toLowerCase())) return true;
-      return false;
-    });
+    const { data: rawNominees } = await db
+      .from("nominees")
+      .select("id, name, public_code, display_order, image_path, category_id, categories!inner(id, name, event_id, is_active)")
+      .eq("categories.event_id", event.id)
+      .eq("is_active", true);
 
-    if (matched) {
-      await selectCandidateForVoting({ chatId, eventId: event.id, nomineeId: matched.id });
-      return;
+    if (rawNominees && rawNominees.length > 0) {
+      const matched = rawNominees.find((n) => {
+        if (n.public_code && String(n.public_code).toUpperCase() === nomineeIdentifier.toUpperCase()) return true;
+        if (String(n.id).toLowerCase() === nomineeIdentifier.toLowerCase()) return true;
+        if (String(n.name).toLowerCase().includes(nomineeIdentifier.toLowerCase())) return true;
+        return false;
+      });
+
+      if (matched) {
+        await selectCandidateForVoting({ chatId, eventId: event.id, nomineeId: String(matched.id) });
+        return;
+      }
     }
   }
 
-  // Save session so voter can simply reply with candidate number (e.g. "1")
+  // Fetch active categories for this event
+  const { data: rawCategories } = await db
+    .from("categories")
+    .select("id, name, display_order")
+    .eq("event_id", event.id)
+    .eq("is_active", true)
+    .order("display_order");
+
+  if (!rawCategories || rawCategories.length === 0) {
+    await sendTelegramMessage(chatId, `❌ No active categories found for *${event.name}*.`);
+    return;
+  }
+
+  // Single-category competition: Jump straight to contestants
+  if (rawCategories.length === 1) {
+    await presentCategoryBallotById({ chatId, categoryId: rawCategories[0].id });
+    return;
+  }
+
+  // Multi-category competition: Present category selection menu
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   await db
     .from("telegram_sessions")
@@ -518,7 +560,7 @@ async function presentEventBallot(params: {
     event_id: event.id,
     state: "idle",
     metadata: {
-      step: "awaiting_candidate",
+      step: "awaiting_category",
       event_name: event.name,
       event_slug: event.slug,
       event_identifier: eventIdentifier,
@@ -530,22 +572,17 @@ async function presentEventBallot(params: {
     ? `💰 Cost: *GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote*`
     : "🎟️ *Free voting*";
 
-  const candidateRoster = nominees
+  const categoryRoster = rawCategories
     .slice(0, 15)
-    .map((n, idx) => {
-      const code = n.public_code ? ` (Code: ${n.public_code})` : "";
-      return `• *${idx + 1}* · ${n.name}${code}`;
-    })
+    .map((c, idx) => `• *${idx + 1}* · ${c.name}`)
     .join("\n");
 
-  const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
+  const moreText = rawCategories.length > 15 ? `\n_...and ${rawCategories.length - 15} more categories._` : "";
 
-  // Build inline keyboard buttons (1 candidate per row for clean mobile tap targets)
-  // Ensure callback_data is <= 64 bytes (nom:<nomineeId> is 40 bytes)
-  const buttons = nominees.slice(0, 10).map((n, idx) => [
+  const buttons = rawCategories.slice(0, 10).map((c, idx) => [
     {
-      text: `👤 ${idx + 1}. ${n.name}`.slice(0, 36),
-      callback_data: `nom:${n.id}`,
+      text: `📂 ${idx + 1}. ${c.name}`.slice(0, 36),
+      callback_data: `cat:${c.id}`,
     },
   ]);
 
@@ -556,7 +593,141 @@ async function presentEventBallot(params: {
     },
   ]);
 
-  const bodyText = `🗳️ *${event.name}*\nCategory: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}${moreText}\n\n👉 Tap a candidate below or reply with a number (e.g. 1):`;
+  const bodyText = `🗳️ *${event.name}*\n${priceText}\n\n*Select a Category:*\n${categoryRoster}${moreText}\n\n👉 Tap a category below or reply with a number (e.g. 1):`;
+
+  const eventCoverUrl = await getSignedImageUrl(event.image_path);
+  if (eventCoverUrl) {
+    await sendTelegramPhoto(chatId, eventCoverUrl, bodyText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  } else {
+    await sendTelegramMessage(chatId, bodyText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  }
+}
+
+async function presentCategoryBallotById(params: {
+  chatId: number;
+  categoryId: string;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, categoryId } = params;
+
+  const { data: category } = await db
+    .from("categories")
+    .select("id, name, event_id, events!inner(id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path)")
+    .eq("id", categoryId)
+    .single();
+
+  if (!category) {
+    await sendTelegramMessage(chatId, "❌ Category not found. Send /events to restart.");
+    return;
+  }
+
+  let event = ((category as Record<string, unknown>).events as {
+    id: string;
+    name: string;
+    slug: string;
+    voting_mode: string;
+    unit_price_minor: number;
+    free_vote_limit_per_phone: number;
+    image_path: string | null;
+  } | undefined) || null;
+
+  if (!event && category.event_id) {
+    const { data: ev } = await db
+      .from("events")
+      .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path")
+      .eq("id", category.event_id)
+      .single();
+    if (ev) event = ev;
+  }
+
+  if (!event) {
+    await sendTelegramMessage(chatId, "❌ Event details unavailable. Send /events to restart.");
+    return;
+  }
+
+  const { data: rawNominees } = await db
+    .from("nominees")
+    .select("id, name, public_code, display_order, image_path, category_id")
+    .eq("category_id", category.id)
+    .eq("is_active", true)
+    .order("display_order");
+
+  if (!rawNominees || rawNominees.length === 0) {
+    await sendTelegramMessage(chatId, `❌ No active contestants found in *${category.name}*. Send /events to restart.`);
+    return;
+  }
+
+  const { count: catCount } = await db
+    .from("categories")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", event.id)
+    .eq("is_active", true);
+
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db
+    .from("telegram_sessions")
+    .delete()
+    .eq("chat_id", chatId)
+    .neq("state", "completed");
+
+  await db.from("telegram_sessions").insert({
+    chat_id: chatId,
+    telegram_user_id: chatId,
+    event_id: event.id,
+    category_id: category.id,
+    state: "idle",
+    metadata: {
+      step: "awaiting_candidate",
+      event_name: event.name,
+      event_slug: event.slug,
+      category_id: category.id,
+      category_name: category.name,
+    },
+    expires_at: expiresAt,
+  });
+
+  const priceText = event.voting_mode === "paid"
+    ? `💰 Cost: *GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote*`
+    : "🎟️ *Free voting*";
+
+  const candidateRoster = rawNominees
+    .slice(0, 15)
+    .map((n, idx) => {
+      const code = n.public_code ? ` (Code: ${n.public_code})` : "";
+      return `• *${idx + 1}* · ${n.name}${code}`;
+    })
+    .join("\n");
+
+  const moreText = rawNominees.length > 15 ? `\n_...and ${rawNominees.length - 15} more candidates._` : "";
+
+  const buttons = rawNominees.slice(0, 10).map((n, idx) => [
+    {
+      text: `👤 ${idx + 1}. ${n.name}`.slice(0, 36),
+      callback_data: `nom:${n.id}`,
+    },
+  ]);
+
+  if (catCount && catCount > 1) {
+    buttons.push([
+      {
+        text: "📂 Browse Other Categories",
+        callback_data: `event:${event.id}`,
+      },
+    ]);
+  }
+
+  buttons.push([
+    {
+      text: "🔄 Browse Other Competitions",
+      callback_data: "events",
+    },
+  ]);
+
+  const bodyText = `🗳️ *${event.name}*\nCategory: *${category.name}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}${moreText}\n\n👉 Tap a candidate below or reply with a number (e.g. 1):`;
 
   const eventCoverUrl = await getSignedImageUrl(event.image_path);
   if (eventCoverUrl) {

@@ -42,6 +42,15 @@ const mockDbState = {
       },
     },
   ],
+  categories: [
+    {
+      id: '00000000-0000-0000-0000-000000000003',
+      name: 'Best Male Vocalist',
+      event_id: '00000000-0000-0000-0000-000000000001',
+      display_order: 0,
+      is_active: true,
+    },
+  ],
 };
 
 const mocks = {
@@ -76,7 +85,12 @@ const mocks = {
           or() { return this; },
           order() { return this; },
           limit() { return this; },
-          delete() { return this; },
+          delete() {
+            if (table === 'whatsapp_sessions') {
+              mockDbState.sessions = mockDbState.sessions.filter(s => s.state === 'completed');
+            }
+            return this;
+          },
           update(val) {
             this.updateVal = val;
             return this;
@@ -126,6 +140,7 @@ const mocks = {
           },
           single: async () => {
             if (table === 'events') return { data: mockDbState.event, error: null };
+            if (table === 'categories') return { data: mockDbState.categories[0], error: null };
             if (table === 'nominees') {
               const nom = mockDbState.nominees.find(n => n.id === query.filters.id);
               return { data: nom || mockDbState.nominees[0], error: null };
@@ -142,6 +157,10 @@ const mocks = {
             }
             if (table === 'nominees') {
               resolve({ data: mockDbState.nominees, error: null });
+            } else if (table === 'categories') {
+              resolve({ data: mockDbState.categories, error: null });
+            } else if (table === 'events') {
+              resolve({ data: [mockDbState.event], error: null });
             } else {
               resolve({ data: null, error: null });
             }
@@ -528,4 +547,50 @@ assert.match(sentMessages[3].msg, /Email Verified & Vote Recorded/i);
 assert.match(sentMessages[3].msg, /kwame@knust\.edu\.gh/i);
 assert.equal(mockDbState.sessions[0].state, 'completed');
 
-console.log('PASS: WhatsApp parser, router, free votes, paid checkout, quick vote, invite code, phone roster auto-match, student ID, voting PIN, and institutional email OTP verification!');
+// 11. Test Multi-Category Selection Flow
+mockDbState.categories = [
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    name: 'Best Male Vocalist',
+    event_id: '00000000-0000-0000-0000-000000000001',
+    display_order: 0,
+    is_active: true,
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000004',
+    name: 'Best Female Vocalist',
+    event_id: '00000000-0000-0000-0000-000000000001',
+    display_order: 1,
+    is_active: true,
+  },
+];
+mockDbState.event.voting_mode = 'free';
+mockDbState.event.verification_method = 'phone';
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Step 1: Voter initiates vote with event slug only (no nominee code)
+const browseEventMsg = { phone: '233245259221', text: 'VOTE gospel-awards', rawPayload: {} };
+await processWhatsAppVote(browseEventMsg);
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Categories:/i);
+assert.match(sentMessages[0].msg, /Best Male Vocalist/i);
+assert.equal(mockDbState.sessions.length, 1);
+assert.equal(mockDbState.sessions[0].metadata?.step, 'awaiting_category');
+
+// Step 2: Voter replies with category choice '1'
+const pickCategoryMsg = { phone: '233245259221', text: '1', rawPayload: {} };
+await processWhatsAppVote(pickCategoryMsg);
+assert.equal(sentMessages.length, 2);
+assert.match(sentMessages[1].msg, /Candidates:/i);
+assert.equal(mockDbState.sessions[0].metadata?.step, 'awaiting_candidate');
+
+// Step 3: Voter selects candidate '1'
+const pickNomineeMsg = { phone: '233245259221', text: '1', rawPayload: {} };
+await processWhatsAppVote(pickNomineeMsg);
+assert.equal(dbVotesCast.length, 1);
+assert.equal(sentMessages.length, 3);
+assert.match(sentMessages[2].msg, /Vote Cast Successfully/i);
+
+console.log('PASS: WhatsApp parser, router, category selection, free votes, paid checkout, quick vote, invite code, phone roster auto-match, student ID, voting PIN, and institutional email OTP verification!');

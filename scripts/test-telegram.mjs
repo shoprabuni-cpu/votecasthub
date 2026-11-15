@@ -57,6 +57,15 @@ const mockDbState = {
       },
     },
   ],
+  categories: [
+    {
+      id: '00000000-0000-0000-0000-000000000003',
+      name: 'Best Male Vocalist',
+      event_id: '00000000-0000-0000-0000-000000000001',
+      display_order: 0,
+      is_active: true,
+    },
+  ],
 };
 
 const mocks = {
@@ -74,7 +83,12 @@ const mocks = {
           neq() { return this; },
           order() { return this; },
           limit() { return this; },
-          delete() { return this; },
+          delete() {
+            if (table === 'telegram_sessions') {
+              mockDbState.sessions = mockDbState.sessions.filter(s => s.state === 'completed');
+            }
+            return this;
+          },
           update(val) {
             this.updateVal = val;
             return this;
@@ -125,6 +139,8 @@ const mocks = {
               resolve({ data: mockDbState.nominees, error: null });
             } else if (table === 'events') {
               resolve({ data: [mockDbState.event], error: null });
+            } else if (table === 'categories') {
+              resolve({ data: mockDbState.categories, count: mockDbState.categories.length, error: null });
             } else {
               resolve({ data: null, error: null });
             }
@@ -328,4 +344,49 @@ await processTelegramVote(tapEventCallback);
 assert.equal(sentTelegramMessages.length, 6);
 assert.match(sentTelegramMessages[5].text, /Candidates:/);
 
-console.log('PASS: Telegram parser, deep linking, 64-byte callback_data limits, candidate button callbacks, vote packages, Paystack URL buttons, and state routing!');
+// Step 6: Test multi-category event in Telegram
+mockDbState.categories = [
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    name: 'Best Male Vocalist',
+    event_id: '00000000-0000-0000-0000-000000000001',
+    display_order: 0,
+    is_active: true,
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000004',
+    name: 'Best Female Vocalist',
+    event_id: '00000000-0000-0000-0000-000000000001',
+    display_order: 1,
+    is_active: true,
+  },
+];
+
+const tapMultiCatEvent = {
+  chatId: 98765,
+  userId: 98765,
+  text: `event:${mockDbState.event.id}`,
+  isCallback: true,
+  callbackQueryId: 'cb_multicat_event',
+  messageId: 7,
+};
+await processTelegramVote(tapMultiCatEvent);
+assert.equal(sentTelegramMessages.length, 7);
+assert.match(sentTelegramMessages[6].text, /Select a Category:/);
+const catButtons = sentTelegramMessages[6].options?.reply_markup?.inline_keyboard || [];
+assert.ok(catButtons.some(row => row.some(b => b.callback_data?.startsWith('cat:'))));
+
+// Voter clicks category callback
+const tapCategoryCallback = {
+  chatId: 98765,
+  userId: 98765,
+  text: catButtons[0][0].callback_data,
+  isCallback: true,
+  callbackQueryId: 'cb_cat_pick',
+  messageId: 8,
+};
+await processTelegramVote(tapCategoryCallback);
+assert.equal(sentTelegramMessages.length, 8);
+assert.match(sentTelegramMessages[7].text, /Candidates:/);
+
+console.log('PASS: Telegram parser, deep linking, 64-byte callback_data limits, multi-category selection, candidate button callbacks, vote packages, Paystack URL buttons, and state routing!');
