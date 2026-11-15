@@ -34,6 +34,7 @@
     "test:sms-history": "node scripts/test-sms-history.mjs",
     "test:event-setup": "node scripts/test-event-setup.mjs",
     "test:whatsapp": "node scripts/test-whatsapp.mjs",
+    "test:telegram": "node scripts/test-telegram.mjs",
     "test:ussd": "node scripts/test-ussd-requests.mjs && node scripts/test-ussd-operations.mjs && node scripts/test-ussd-routes.mjs && node scripts/test-ussd-env.mjs && node scripts/test-ussd-live.mjs && node scripts/test-ussd-seed.mjs"
   },
   "dependencies": {

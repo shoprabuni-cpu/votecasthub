@@ -1,0 +1,270 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import ts from 'typescript';
+
+const require = createRequire(import.meta.url);
+const cache = new Map();
+
+// Test state
+let sentTelegramMessages = [];
+let sentTelegramPhotos = [];
+let paystackInitCalls = [];
+
+const mockDbState = {
+  sessions: [],
+  event: {
+    id: '00000000-0000-0000-0000-000000000001',
+    name: 'Ghana Gospel Awards 2026',
+    slug: 'gospel-awards',
+    voting_mode: 'paid',
+    unit_price_minor: 100,
+    free_vote_limit_per_phone: 1,
+    verification_method: 'phone',
+    starts_at: new Date(Date.now() - 3600000).toISOString(),
+    ends_at: new Date(Date.now() + 86400000).toISOString(),
+    status: 'published',
+    image_path: null,
+  },
+  nominees: [
+    {
+      id: '00000000-0000-0000-0000-000000000002',
+      name: 'Kwame Mensah',
+      public_code: '01',
+      display_order: 0,
+      image_path: null,
+      category_id: '00000000-0000-0000-0000-000000000003',
+      categories: {
+        id: '00000000-0000-0000-0000-000000000003',
+        name: 'Best Male Vocalist',
+        event_id: '00000000-0000-0000-0000-000000000001',
+        is_active: true,
+      },
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000004',
+      name: 'Akua Donkor',
+      public_code: '02',
+      display_order: 1,
+      image_path: null,
+      category_id: '00000000-0000-0000-0000-000000000003',
+      categories: {
+        id: '00000000-0000-0000-0000-000000000003',
+        name: 'Best Male Vocalist',
+        event_id: '00000000-0000-0000-0000-000000000001',
+        is_active: true,
+      },
+    },
+  ],
+};
+
+const mocks = {
+  'server-only': {},
+  '@/lib/payments/admin': {
+    paymentAdmin: () => ({
+      from: (table) => {
+        const query = {
+          table,
+          filters: {},
+          select() { return this; },
+          eq(col, val) { this.filters[col] = val; return this; },
+          gt() { return this; },
+          lte() { return this; },
+          neq() { return this; },
+          order() { return this; },
+          limit() { return this; },
+          delete() { return this; },
+          update(val) {
+            this.updateVal = val;
+            return this;
+          },
+          insert(val) {
+            const row = Array.isArray(val) ? val[0] : val;
+            const fullRow = { id: `sess_${Date.now()}`, ...row };
+            if (table === 'telegram_sessions') mockDbState.sessions.push(fullRow);
+            return Promise.resolve({ data: fullRow, error: null });
+          },
+          maybeSingle: async () => {
+            if (table === 'telegram_sessions') {
+              const active = mockDbState.sessions.find(s =>
+                (!query.filters.chat_id || s.chat_id === query.filters.chat_id) &&
+                s.state !== 'completed'
+              );
+              return { data: active || null, error: null };
+            }
+            if (table === 'events') {
+              return { data: mockDbState.event, error: null };
+            }
+            if (table === 'nominees') {
+              const nom = mockDbState.nominees.find(n => n.id === query.filters.id);
+              return { data: nom || null, error: null };
+            }
+            return { data: null, error: null };
+          },
+          single: async () => {
+            if (table === 'events') return { data: mockDbState.event, error: null };
+            if (table === 'nominees') {
+              const nom = mockDbState.nominees.find(n => n.id === query.filters.id);
+              return { data: nom || mockDbState.nominees[0], error: null };
+            }
+            if (table === 'categories') {
+              return { data: mockDbState.nominees[0].categories, error: null };
+            }
+            return { data: null, error: null };
+          },
+          then(resolve) {
+            if (this.updateVal && table === 'telegram_sessions') {
+              for (const s of mockDbState.sessions) {
+                if (this.filters.chat_id && s.chat_id !== this.filters.chat_id) continue;
+                if (this.filters.id && s.id !== this.filters.id) continue;
+                Object.assign(s, this.updateVal);
+              }
+            }
+            if (table === 'nominees') {
+              resolve({ data: mockDbState.nominees, error: null });
+            } else if (table === 'events') {
+              resolve({ data: [mockDbState.event], error: null });
+            } else {
+              resolve({ data: null, error: null });
+            }
+          },
+        };
+        return query;
+      },
+      rpc: async (name, args) => {
+        if (name === 'find_ussd_voter') return { data: 'user_tg_123', error: null };
+        if (name === 'check_whatsapp_voter_eligibility') {
+          return { data: { eligible: true, method: 'phone', remaining_votes: 1 }, error: null };
+        }
+        if (name === 'cast_verified_whatsapp_vote') {
+          return { data: 'batch_uuid_tg_123', error: null };
+        }
+        if (name === 'reserve_paystack_whatsapp_payment') {
+          return {
+            data: {
+              id: 'att_tg_123',
+              provider_reference: `VCH-TG-${Date.now()}`,
+              total_amount_minor: args.p_quantity * mockDbState.event.unit_price_minor,
+              subaccount_code: 'ACCT_mock123',
+            },
+            error: null,
+          };
+        }
+        return { data: null, error: null };
+      },
+      storage: {
+        from: () => ({
+          createSignedUrl: async () => ({ data: { signedUrl: 'https://images.unsplash.com/test.jpg' } }),
+        }),
+      },
+      auth: {
+        admin: {
+          createUser: async () => ({ data: { user: { id: 'user_tg_123' } }, error: null }),
+          updateUserById: async () => ({ data: {}, error: null }),
+        },
+      },
+    }),
+  },
+  '@/lib/payments/gateway': {
+    paystack: async (endpoint, payload) => {
+      paystackInitCalls.push({ endpoint, payload });
+      if (endpoint === '/transaction/initialize') {
+        return { authorization_url: 'https://checkout.paystack.com/mock-tg-auth-123' };
+      }
+      return {};
+    },
+  },
+  './api': {
+    sendTelegramMessage: async (chatId, text, options) => {
+      sentTelegramMessages.push({ chatId, text, options });
+      return { success: true, messageId: Math.floor(Math.random() * 1000) };
+    },
+    sendTelegramPhoto: async (chatId, photo, caption, options) => {
+      sentTelegramPhotos.push({ chatId, photo, caption, options });
+      sentTelegramMessages.push({ chatId, text: caption, options });
+      return { success: true, messageId: Math.floor(Math.random() * 1000) };
+    },
+    answerTelegramCallbackQuery: async () => ({ success: true }),
+    editMessageText: async () => ({ success: true }),
+  },
+};
+
+function load(file) {
+  file = path.resolve(file);
+  if (cache.has(file)) return cache.get(file).exports;
+  const mod = { exports: {} };
+  cache.set(file, mod);
+  const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+  }).outputText;
+  new Function('require', 'module', 'exports', code)((name) => {
+    if (mocks[name]) return mocks[name];
+    if (name.startsWith('.') || name.startsWith('@/')) {
+      const base = name.startsWith('@/') ? path.resolve('src', name.slice(2)) : path.resolve(path.dirname(file), name);
+      return load(['.ts', '.tsx'].map((ext) => base + ext).find(fs.existsSync));
+    }
+    return require(name);
+  }, mod, mod.exports);
+  return mod.exports;
+}
+
+// 1. Test Inbound Parser
+const { extractTelegramInbound } = load('src/lib/telegram/parser.ts');
+
+const msgUpdate = {
+  update_id: 100,
+  message: {
+    message_id: 1,
+    from: { id: 98765, first_name: 'Kwame', username: 'kwamem' },
+    chat: { id: 98765, type: 'private' },
+    date: 1700000000,
+    text: '/start event_gospel-awards',
+  },
+};
+const parsedMsg = extractTelegramInbound(msgUpdate);
+assert.equal(parsedMsg.chatId, 98765);
+assert.equal(parsedMsg.userId, 98765);
+assert.equal(parsedMsg.text, '/start event_gospel-awards');
+assert.equal(parsedMsg.isCallback, false);
+
+// 2. Test Voting Engine
+const { processTelegramVote } = load('src/lib/telegram/engine.ts');
+
+// Step 1: Voter opens deep link /start event_gospel-awards
+await processTelegramVote(parsedMsg);
+assert.equal(sentTelegramMessages.length, 1);
+assert.match(sentTelegramMessages[0].text, /Candidates:/);
+assert.equal(mockDbState.sessions.length, 1);
+assert.equal(mockDbState.sessions[0].state, 'idle');
+assert.equal(mockDbState.sessions[0].metadata?.step, 'awaiting_candidate');
+
+// Step 2: Voter selects candidate 1 by typing "1"
+const candidatePickMsg = {
+  chatId: 98765,
+  userId: 98765,
+  text: '1',
+  isCallback: false,
+  messageId: 2,
+};
+await processTelegramVote(candidatePickMsg);
+assert.equal(sentTelegramMessages.length, 2);
+assert.match(sentTelegramMessages[1].text, /How many votes would you like to cast/);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_quantity');
+
+// Step 3: Voter selects quantity 15 by tapping button
+const qtyCallback = {
+  chatId: 98765,
+  userId: 98765,
+  text: 'qty:15',
+  isCallback: true,
+  callbackQueryId: 'cb_qty_15',
+  messageId: 3,
+};
+await processTelegramVote(qtyCallback);
+assert.equal(paystackInitCalls.length, 1);
+assert.equal(paystackInitCalls[0].payload.amount, 1500); // 15 votes * 100 pesewas
+assert.match(sentTelegramMessages[2].text, /Confirm Your Vote for Kwame Mensah/);
+assert.equal(sentTelegramMessages[2].options?.reply_markup?.inline_keyboard?.[0]?.[0]?.url, 'https://checkout.paystack.com/mock-tg-auth-123');
+
+console.log('PASS: Telegram parser, deep linking, candidate selection, vote packages, Paystack URL buttons, and state routing!');
