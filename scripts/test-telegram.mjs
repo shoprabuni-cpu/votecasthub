@@ -389,4 +389,20 @@ await processTelegramVote(tapCategoryCallback);
 assert.equal(sentTelegramMessages.length, 8);
 assert.match(sentTelegramMessages[7].text, /Candidates:/);
 
-console.log('PASS: Telegram parser, deep linking, 64-byte callback_data limits, multi-category selection, candidate button callbacks, vote packages, Paystack URL buttons, and state routing!');
+// Step 7: Test Photo Cards callback
+mockDbState.nominees[0].image_path = 'nominee_kwame.jpg';
+const tapCardsCallback = {
+  chatId: 98765,
+  userId: 98765,
+  text: `cards:${mockDbState.categories[0].id}`,
+  isCallback: true,
+  callbackQueryId: 'cb_cards_pick',
+  messageId: 9,
+};
+await processTelegramVote(tapCardsCallback);
+// At least 2 messages: the photo card(s) and the navigation controls
+assert.ok(sentTelegramMessages.length >= 10);
+const lastMsg = sentTelegramMessages[sentTelegramMessages.length - 1];
+assert.match(lastMsg.text, /Photo Cards|Tap \[🗳️ Vote\]/i);
+
+console.log('PASS: Telegram parser, deep linking, 64-byte callback_data limits, multi-category selection, candidate photo cards, candidate button callbacks, vote packages, Paystack URL buttons, and state routing!');

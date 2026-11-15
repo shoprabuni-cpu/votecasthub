@@ -593,4 +593,17 @@ assert.equal(dbVotesCast.length, 1);
 assert.equal(sentMessages.length, 3);
 assert.match(sentMessages[2].msg, /Vote Cast Successfully/i);
 
-console.log('PASS: WhatsApp parser, router, category selection, free votes, paid checkout, quick vote, invite code, phone roster auto-match, student ID, voting PIN, and institutional email OTP verification!');
+// 12. Test Candidate Photo Cards in WhatsApp
+mockDbState.nominees[0].image_path = 'nominee_kwame.jpg';
+mockDbState.sessions = [];
+sentMessages = [];
+dbVotesCast = [];
+
+// Voter navigates to category with photo-enabled contestants
+const browseCatWithPhotosMsg = { phone: '233245259221', text: `CAT ${mockDbState.event.id} ${mockDbState.categories[0].id}`, rawPayload: {} };
+await processWhatsAppVote(browseCatWithPhotosMsg);
+assert.equal(sentMessages.length, 1);
+assert.match(sentMessages[0].msg, /Kwame Mensah/i);
+assert.match(sentMessages[0].msg, /Tap the button below to vote/i);
+
+console.log('PASS: WhatsApp parser, router, category selection, nominee photo cards, free votes, paid checkout, quick vote, invite code, phone roster auto-match, student ID, voting PIN, and institutional email OTP verification!');

@@ -1639,8 +1639,32 @@ async function presentWhatsAppCategoryBallot(params: {
 
   const moreText = rawNominees.length > 15 ? `\n_...and ${rawNominees.length - 15} more candidates._` : "";
 
-  // 1. If 1 to 3 nominees: Quick Reply Buttons
+  // 1. If 1 to 3 nominees: Quick Reply Buttons or Photo Cards
   if (rawNominees.length <= 3) {
+    const hasPhotos = rawNominees.some((n) => Boolean(n.image_path));
+    if (hasPhotos) {
+      for (const [idx, n] of rawNominees.entries()) {
+        const nomPhotoUrl = await getSignedImageUrl(n.image_path);
+        const code = n.public_code ? ` (Code: ${n.public_code})` : ` (#${idx + 1})`;
+        const cardBody = `*${n.name}*${code}\nCategory: *${category.name}*\n${priceText}\n\n👉 Tap the button below to vote:`;
+        const singleBtn = [
+          {
+            id: `VOTE ${event.slug} ${n.id}`,
+            title: `🗳️ Vote ${n.name.split(" ")[0]}`.slice(0, 20),
+          },
+        ];
+        await sendWhatsAppInteractiveButtons(
+          phone,
+          `👤 ${n.name}`.slice(0, 60),
+          cardBody,
+          singleBtn,
+          "VoteCastHub Ballot",
+          nomPhotoUrl,
+        );
+      }
+      return;
+    }
+
     const buttons = rawNominees.map((n, idx) => ({
       id: `VOTE ${event.slug} ${n.id}`,
       title: `${idx + 1}. ${n.name}`.slice(0, 20),

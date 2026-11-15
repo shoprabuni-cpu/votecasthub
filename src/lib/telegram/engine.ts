@@ -221,6 +221,12 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
+  if (isCallback && text.startsWith("cards:")) {
+    const categoryId = text.replace(/^cards:/, "");
+    await sendTelegramPhotoCards({ chatId, categoryId });
+    return;
+  }
+
   if (isCallback && text.startsWith("nom:")) {
     const rawNom = text.replace(/^nom:/, "");
     const parts = rawNom.split(":");
@@ -711,6 +717,16 @@ async function presentCategoryBallotById(params: {
     },
   ]);
 
+  const hasImages = rawNominees.some((n) => Boolean(n.image_path));
+  if (hasImages) {
+    buttons.unshift([
+      {
+        text: "🖼️ View Candidate Photo Cards",
+        callback_data: `cards:${category.id}`,
+      },
+    ]);
+  }
+
   if (catCount && catCount > 1) {
     buttons.push([
       {
@@ -739,6 +755,107 @@ async function presentCategoryBallotById(params: {
       reply_markup: { inline_keyboard: buttons },
     });
   }
+}
+
+async function sendTelegramPhotoCards(params: {
+  chatId: number;
+  categoryId: string;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, categoryId } = params;
+
+  const { data: category } = await db
+    .from("categories")
+    .select("id, name, event_id, events!inner(id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path)")
+    .eq("id", categoryId)
+    .single();
+
+  if (!category) {
+    await sendTelegramMessage(chatId, "❌ Category not found. Send /events to restart.");
+    return;
+  }
+
+  let event = ((category as Record<string, unknown>).events as {
+    id: string;
+    name: string;
+    slug: string;
+    voting_mode: string;
+    unit_price_minor: number;
+    free_vote_limit_per_phone: number;
+    image_path: string | null;
+  } | undefined) || null;
+
+  if (!event && category.event_id) {
+    const { data: ev } = await db
+      .from("events")
+      .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path")
+      .eq("id", category.event_id)
+      .single();
+    if (ev) event = ev;
+  }
+
+  if (!event) {
+    await sendTelegramMessage(chatId, "❌ Event details unavailable. Send /events to restart.");
+    return;
+  }
+
+  const { data: rawNominees } = await db
+    .from("nominees")
+    .select("id, name, public_code, display_order, image_path, category_id")
+    .eq("category_id", category.id)
+    .eq("is_active", true)
+    .order("display_order");
+
+  if (!rawNominees || rawNominees.length === 0) {
+    await sendTelegramMessage(chatId, `❌ No active contestants found in *${category.name}*. Send /events to restart.`);
+    return;
+  }
+
+  const priceText = event.voting_mode === "paid"
+    ? `💰 Cost: *GH₵${(Number(event.unit_price_minor) / 100).toFixed(2)} per vote*`
+    : "🎟️ *Free voting*";
+
+  for (const [idx, n] of rawNominees.slice(0, 10).entries()) {
+    const nomPhotoUrl = await getSignedImageUrl(n.image_path);
+    const code = n.public_code ? ` • Code: *${n.public_code}*` : ` • #${idx + 1}`;
+    const cardCaption = `👤 *${n.name}*${code}\n📂 Category: *${category.name}*\n${priceText}\n\n👉 Tap the button below to vote for ${n.name}:`;
+    const cardButtons = [
+      [
+        {
+          text: `🗳️ Vote for ${n.name}`.slice(0, 36),
+          callback_data: `nom:${n.id}`,
+        },
+      ],
+    ];
+
+    if (nomPhotoUrl) {
+      await sendTelegramPhoto(chatId, nomPhotoUrl, cardCaption, {
+        reply_markup: { inline_keyboard: cardButtons },
+      });
+    } else {
+      await sendTelegramMessage(chatId, cardCaption, {
+        reply_markup: { inline_keyboard: cardButtons },
+      });
+    }
+  }
+
+  const { count: catCount } = await db
+    .from("categories")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", event.id)
+    .eq("is_active", true);
+
+  const navButtons = [];
+  if (catCount && catCount > 1) {
+    navButtons.push([{ text: "📂 Browse Other Categories", callback_data: `event:${event.id}` }]);
+  }
+  navButtons.push([{ text: "🔄 Browse Other Competitions", callback_data: "events" }]);
+
+  await sendTelegramMessage(
+    chatId,
+    `👆 *${category.name}* (${event.name})\n\nTap [🗳️ Vote] under any candidate's photo above to cast your ballot!`,
+    { reply_markup: { inline_keyboard: navButtons } },
+  );
 }
 
 async function selectCandidateForVoting(params: {
