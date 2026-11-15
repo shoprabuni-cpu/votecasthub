@@ -576,8 +576,20 @@ export default async function PublicEventPage({ params }: Props) {
                               )
                             ) : null}
 
-                            {/* Candidate Flyer Share Button */}
-                            <div className="flex justify-end pt-1">
+                            {/* Candidate Flyer Share & WhatsApp Vote Buttons */}
+                            <div className="flex items-center justify-between pt-1 gap-2">
+                              {nominee.public_code ? (
+                                <a
+                                  href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${nominee.public_code}`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs"
+                                  title={`Vote for ${nominee.name} on WhatsApp`}
+                                >
+                                  <span>💬</span>
+                                  <span>Vote on WhatsApp</span>
+                                </a>
+                              ) : <div />}
                               <ShareButton
                                 title={nominee.name}
                                 text={`${nominee.name} — ${event.name}`}

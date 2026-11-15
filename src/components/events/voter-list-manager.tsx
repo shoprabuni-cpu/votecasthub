@@ -265,6 +265,66 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
           <button type="button" onClick={downloadClaimCodes} className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Download {claimCodes.length} private claim codes</button>
         </div>
       )}
+      {/* Voter Broadcast & Invite Drawer */}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📢</span>
+            <span className="text-xs font-bold text-emerald-950">
+              Voter Announcement &amp; Broadcast Templates
+            </span>
+          </div>
+          <span className="text-[10px] font-semibold text-emerald-800 bg-white border border-emerald-200 px-2 py-0.5 rounded">
+            Ready to Copy
+          </span>
+        </div>
+        <p className="text-[11px] text-stone-600 leading-relaxed">
+          Copy these announcement templates to post on your faculty/department WhatsApp groups or dispatch via SMS:
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              const text = `🏆 Voting is officially OPEN!\nYou are on the approved voter list.\n\n📲 Vote on WhatsApp (100% Free):\nSend "VOTE" to +233 59 299 2566, then enter your Student ID / Index Number.\n\n🌐 Vote on Web:\nVisit the voting portal and enter your Student ID.`;
+              void navigator.clipboard.writeText(text);
+              setMessage("WhatsApp broadcast announcement copied to clipboard!");
+            }}
+            className="p-3 rounded-lg bg-white border border-emerald-200 text-left hover:bg-emerald-50/50 transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-stone-900 group-hover:text-emerald-900">
+                💬 Copy WhatsApp Announcement
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-700">Copy</span>
+            </div>
+            <p className="text-[10px] text-stone-500 line-clamp-2">
+              Includes WhatsApp bot number (+233 59 299 2566), instructions, and web link.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const text = `Voting is OPEN! Vote for free on WhatsApp by sending VOTE to 0592992566 with your Student ID, or check your web ballot.`;
+              void navigator.clipboard.writeText(text);
+              setMessage("SMS blast text copied to clipboard!");
+            }}
+            className="p-3 rounded-lg bg-white border border-stone-200 text-left hover:bg-stone-50 transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-stone-900">
+                📱 Copy SMS Blast (135 chars)
+              </span>
+              <span className="text-[10px] font-semibold text-stone-600">Copy</span>
+            </div>
+            <p className="text-[10px] text-stone-500 line-clamp-2">
+              Concise text under 160 characters for bulk SMS dispatches.
+            </p>
+          </button>
+        </div>
+      </div>
+
       {/* Roster Search & Table */}
       {rows.length > 0 && (
         <div className="space-y-3">
@@ -318,6 +378,20 @@ export function VoterListManager({ eventId, categoryCount = 0, onePerCategory = 
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
+                    {r.identifier_type === "phone" && !isCheckedIn && r.label && (
+                      <a
+                        href={`https://wa.me/${r.label.replace(/\D/g, "")}?text=${encodeURIComponent(
+                          `🏆 Voting is open! You are on the approved voter roster. You can vote for free on WhatsApp by sending "VOTE" to +233 59 299 2566!`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
+                        title="Send WhatsApp invitation directly to this voter"
+                      >
+                        <span>💬</span>
+                        <span>Invite</span>
+                      </a>
+                    )}
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-stone-400">Max:</span>
                       <input

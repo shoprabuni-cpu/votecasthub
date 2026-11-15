@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,51 +13,63 @@ export async function WhatsAppInstructions({
   eventSlug: string;
   votingMode?: "free" | "paid";
 }) {
-  const configured = Boolean(
-    process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_BUSINESS_TOKEN
-  );
-  if (!configured) return null;
-
   const db = await createClient();
   const { data } = await db.rpc("get_public_ussd", { p_event_id: eventId });
   const eventCode = data?.[0]?.event_code ? String(data[0].event_code) : eventSlug;
   const isPaid = votingMode === "paid";
 
-  const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(`VOTE ${eventCode} `)}`;
+  const waMessage = `VOTE ${eventCode}`;
+  const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(waUrl)}`;
 
   return (
-    <section className="my-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
-      <div className="flex items-center gap-2 text-emerald-900">
-        <Icon name="phone" />
-        <h2 className="text-lg font-semibold">Vote via WhatsApp</h2>
+    <section className="my-5 rounded-2xl border border-emerald-300 bg-linear-to-br from-emerald-50 via-white to-stone-50 p-5 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1.5 flex-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-950">
+            <span>💬 Official WhatsApp Channel</span>
+            <span className="bg-emerald-600 size-1.5 rounded-full" />
+            <span className="font-semibold text-emerald-800">100% Free · No SMS needed</span>
+          </div>
+          <h3 className="font-serif text-lg font-bold text-stone-900">
+            Prefer voting on WhatsApp?
+          </h3>
+          <p className="text-xs text-stone-600 leading-relaxed max-w-xl">
+            You can cast your ballot directly in WhatsApp without downloading an app or waiting for SMS codes. Simply message <strong className="text-emerald-950 font-bold">{WA_DISPLAY}</strong>.
+          </p>
+        </div>
+
+        {/* Desktop QR Scan */}
+        <div className="hidden md:flex flex-col items-center gap-1 bg-white p-2 rounded-xl border border-emerald-200 shadow-2xs">
+          <img
+            src={qrUrl}
+            alt="Scan to vote on WhatsApp"
+            width={72}
+            height={72}
+            className="rounded-lg"
+          />
+          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-wider">Scan to Vote</span>
+        </div>
       </div>
 
-      <p className="mt-3 text-sm text-stone-700">
-        Send a WhatsApp message to <strong className="text-emerald-950">{WA_DISPLAY}</strong>:
-      </p>
+      <div className="mt-4 pt-3.5 border-t border-emerald-100 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium text-stone-500">Quick Command:</span>
+          <code className="rounded-lg bg-emerald-100/70 border border-emerald-200 px-2.5 py-1 font-mono text-xs font-bold text-emerald-950 select-all">
+            {waMessage}
+          </code>
+        </div>
 
-      <div className="mt-2 rounded-xl bg-white border border-emerald-200 p-3 font-mono text-sm font-semibold text-emerald-950">
-        VOTE {eventCode} &lt;NOMINEE_CODE&gt;{isPaid ? " [QUANTITY]" : ""}
-      </div>
-
-      <p className="mt-2 text-xs text-stone-600">
-        {isPaid
-          ? "You will receive a Paystack Mobile Money link on WhatsApp to complete payment and cast your vote."
-          : "Your free vote will be counted instantly with an immediate WhatsApp receipt."}
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
         <a
           href={waUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition-all active:scale-95 cursor-pointer"
         >
-          <Icon name="phone" size={16} />
-          Vote on WhatsApp
+          <Icon name="phone" size={14} />
+          <span>Open WhatsApp to Vote</span> ↗
         </a>
       </div>
     </section>
   );
 }
-

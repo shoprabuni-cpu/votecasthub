@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 
 function generateCode() {
-  return `VOTE-${crypto.randomUUID().replaceAll("-", "").slice(0, 24).toUpperCase()}`;
+  return `VIP-${crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase()}`;
 }
 
 async function digest(v: string) {
@@ -29,7 +29,8 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
   const router = useRouter();
   const [rows, setRows] = useState<AccessCodeRow[]>([]);
   const [limit, setLimit] = useState("1");
-  const [newCode, setNewCode] = useState("");
+  const [batchCount, setBatchCount] = useState<1 | 10 | 25 | 50>(1);
+  const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,37 +47,55 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
 
   useEffect(() => {
     let active = true;
-    void createClient().from("event_access_codes").select("id, max_redemptions, redemption_count, expires_at, created_at").eq("event_id", eventId).order("created_at", { ascending: false }).then(({ data, error }) => {
-      if (!active) return;
-      if (error) setMessage(error.message);
-      else setRows((data ?? []).map((row) => ({ ...row, is_expired: Boolean(row.expires_at && Date.parse(row.expires_at) <= Date.now()) })));
-    });
+    void createClient()
+      .from("event_access_codes")
+      .select("id, max_redemptions, redemption_count, expires_at, created_at")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) setMessage(error.message);
+        else setRows((data ?? []).map((row) => ({ ...row, is_expired: Boolean(row.expires_at && Date.parse(row.expires_at) <= Date.now()) })));
+      });
     return () => { active = false; };
   }, [eventId]);
 
-  const create = async () => {
+  const createBatch = async () => {
     setBusy(true);
     setCopied(false);
+    setMessage("");
     const maxUses = Number(limit);
-    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000) { setMessage("Max uses must be a whole number from 1 to 100,000."); setBusy(false); return; }
-    const value = generateCode();
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000) {
+      setMessage("Max uses must be a whole number from 1 to 100,000.");
+      setBusy(false);
+      return;
+    }
+
+    const count = batchCount;
+    const codes: string[] = [];
+    for (let i = 0; i < count; i++) {
+      codes.push(generateCode());
+    }
+
     try {
-      const { error } = await createClient().rpc("create_event_access_code", {
-        p_event_id: eventId,
-        p_code_hash: await digest(value),
-        p_max_redemptions: maxUses,
-      });
-      if (error) {
-        setNewCode("");
-        setMessage(error.message || "Could not generate access code. Please try again.");
-      } else {
-        setNewCode(value);
-        setMessage("Copy this code now to share with your voter. It will not be shown again.");
-        await load();
-        router.refresh();
+      const client = createClient();
+      for (const code of codes) {
+        const hash = await digest(code);
+        const { error } = await client.rpc("create_event_access_code", {
+          p_event_id: eventId,
+          p_code_hash: hash,
+          p_max_redemptions: maxUses,
+        });
+        if (error) throw error;
       }
-    } catch {
-      setMessage("An unexpected error occurred.");
+
+      setGeneratedCodes(codes);
+      setMessage(`Successfully generated ${count} access passcode${count === 1 ? "" : "s"}!`);
+      await load();
+      router.refresh();
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Could not generate codes. Please try again.";
+      setMessage(errMsg);
     } finally {
       setBusy(false);
     }
@@ -94,16 +113,44 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
         await load();
         router.refresh();
       }
-    } catch { setMessage("Could not revoke this code. Please try again."); } finally {
+    } catch {
+      setMessage("Could not revoke this code. Please try again.");
+    } finally {
       setBusy(false);
     }
   };
 
-  const copyCode = async () => {
-    if (!newCode) return;
-    await navigator.clipboard.writeText(newCode);
+  const copyCodes = async () => {
+    if (!generatedCodes.length) return;
+    await navigator.clipboard.writeText(generatedCodes.join("\n"));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadCsv = () => {
+    if (!generatedCodes.length) return;
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://votecasthub.com";
+    const rows = [
+      ["Passcode", "WhatsApp_Vote_Link", "Direct_Web_Link"],
+      ...generatedCodes.map((code) => [
+        code,
+        `https://wa.me/233592992566?text=${encodeURIComponent(`VOTE CODE ${code}`)}`,
+        `${siteUrl}`,
+      ]),
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `vip_passcodes_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getWhatsAppShareUrl = (code: string) => {
+    const text = `🎟️ Here is your VIP voting passcode: *${code}*\n\nVote on WhatsApp by sending this code to +233 59 299 2566, or enter it on our official voting page!`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
   };
 
   const totalUsed = rows.reduce((sum, r) => sum + r.redemption_count, 0);
@@ -114,10 +161,10 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
         <div>
           <h3 className="font-serif font-bold text-base text-stone-900">
-            Private Access Codes
+            Private VIP Access Codes
           </h3>
           <p className="text-xs text-stone-500 mt-0.5">
-            Generate single or multi-use secret passcodes for eligible voters.
+            Generate single-use or multi-use secret passcodes and dispatch invitations to eligible voters.
           </p>
         </div>
         {rows.length > 0 && (
@@ -132,12 +179,34 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
       {/* Code Generator Form */}
       <div className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-4 space-y-3">
         <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block">
-          Generate New Passcode
+          Generate New Passcodes
         </span>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Quantity Batch Selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-stone-700">Quantity:</span>
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-stone-300">
+              {([1, 10, 25, 50] as const).map((qty) => (
+                <button
+                  key={qty}
+                  type="button"
+                  onClick={() => setBatchCount(qty)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    batchCount === qty
+                      ? "bg-emerald-900 text-white shadow-2xs"
+                      : "text-stone-600 hover:bg-stone-100"
+                  }`}
+                >
+                  {qty === 1 ? "1 Code" : `${qty} Codes`}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <label htmlFor="access-limit" className="text-xs font-semibold text-stone-700 whitespace-nowrap">
-              Max uses:
+              Votes per code:
             </label>
             <input
               id="access-limit"
@@ -146,57 +215,80 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
               max="100000"
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
-              className="w-20 rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
+              className="w-16 rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-bold text-center text-stone-900 focus:border-emerald-600 focus:outline-none"
             />
           </div>
 
           <button
             type="button"
             disabled={busy}
-            onClick={create}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed"
+            onClick={createBatch}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-stone-800 transition-colors disabled:opacity-50 cursor-pointer min-h-10 ml-auto"
           >
             {busy ? (
               <>
                 <Icon name="refresh" size={13} className="animate-spin" />
-                <span>Generating…</span>
+                <span>Generating {batchCount} Codes…</span>
               </>
             ) : (
               <>
                 <Icon name="plus" size={13} />
-                <span>Create Passcode</span>
+                <span>Generate {batchCount} Passcode{batchCount === 1 ? "" : "s"}</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Generated Code Reveal Alert */}
-        {newCode && (
-          <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50/90 p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                New Passcode Created
+        {/* Generated Codes Alert & Export Controls */}
+        {generatedCodes.length > 0 && (
+          <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50/90 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-emerald-950">
+                ✅ {generatedCodes.length} Passcode{generatedCodes.length === 1 ? "" : "s"} Ready for Distribution!
               </span>
-              <button
-                type="button"
-                onClick={copyCode}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-2.5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 shadow-2xs cursor-pointer min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Icon name="copy" size={12} />
-                <span>{copied ? "Copied!" : "Copy Code"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={copyCodes}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-50 shadow-2xs cursor-pointer"
+                >
+                  <Icon name="copy" size={12} />
+                  <span>{copied ? "Copied All!" : "Copy Codes"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadCsv}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 shadow-2xs cursor-pointer"
+                >
+                  <span>📥 Download CSV with Share Links</span>
+                </button>
+              </div>
             </div>
-            <div className="font-mono text-sm sm:text-base font-bold tracking-wider text-emerald-950 select-all bg-white/70 py-1.5 px-3 rounded-lg border border-emerald-200 inline-block">
-              {newCode}
+
+            <div className="max-h-36 overflow-y-auto font-mono text-xs text-stone-800 bg-white/80 p-3 rounded-xl border border-emerald-200 divide-y divide-emerald-100">
+              {generatedCodes.map((code) => (
+                <div key={code} className="py-1 flex items-center justify-between">
+                  <span className="font-bold select-all">{code}</span>
+                  <a
+                    href={getWhatsAppShareUrl(code)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100/70 hover:bg-emerald-200 px-2 py-0.5 rounded transition-colors"
+                  >
+                    💬 WhatsApp Invite
+                  </a>
+                </div>
+              ))}
             </div>
+
             <p className="text-[11px] text-emerald-900/80">
-              ⚠️ Copy this code now. For security, only the cryptographic hash is stored and this plain code cannot be recovered later.
+              💡 <strong>Security Notice:</strong> Passcodes are hashed with SHA-256 for fraud prevention. Download or copy your codes now to distribute to attendees.
             </p>
           </div>
         )}
       </div>
 
-      {message && !newCode && (
+      {message && !generatedCodes.length && (
         <p className="text-xs text-stone-600 font-medium" role="status">
           {message}
         </p>
@@ -209,7 +301,7 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
         </span>
 
         {rows.length > 0 ? (
-          <div className="divide-y divide-stone-100 rounded-xl border border-stone-200/90 overflow-hidden">
+          <div className="divide-y divide-stone-100 rounded-xl border border-stone-200/90 overflow-hidden max-h-80 overflow-y-auto">
             {rows.map((row) => {
               const isRevoked = row.is_expired === true;
               const isFullyUsed = row.redemption_count >= row.max_redemptions;
@@ -240,7 +332,7 @@ export function AccessCodeManager({ eventId }: { eventId: string }) {
                       type="button"
                       disabled={busy}
                       onClick={() => revoke(row.id)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed"
+                      className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-stone-100 cursor-pointer disabled:opacity-50 border border-stone-200 bg-white shadow-2xs rounded-lg px-3 py-1.5"
                     >
                       Revoke Pass
                     </button>
