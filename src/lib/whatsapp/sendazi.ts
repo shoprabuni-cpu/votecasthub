@@ -160,6 +160,39 @@ export async function sendWhatsAppImage(
   return { success: false, error: "Not configured" };
 }
 
+function formatListAsText(
+  headerText: string,
+  bodyText: string,
+  sections: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }>
+): string {
+  let text = `${headerText}\n\n${bodyText}`;
+  if (!bodyText.includes("•")) {
+    const listItems = sections
+      .flatMap((sec) => sec.rows)
+      .map((r, i) => `• *${i + 1}* · ${r.title}${r.description ? ` (${r.description})` : ""}`)
+      .join("\n");
+    if (listItems) {
+      text += `\n\n${listItems}\n\n👉 Reply with a number or name to select.`;
+    }
+  }
+  return text;
+}
+
+function formatButtonsAsText(
+  headerText: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>
+): string {
+  let text = `${headerText}\n\n${bodyText}`;
+  if (!bodyText.includes("1️⃣") && !bodyText.includes("•")) {
+    const btnItems = buttons.map((b, i) => `${i + 1}️⃣ *${b.title}*`).join("\n");
+    if (btnItems) {
+      text += `\n\n${btnItems}\n\n👉 Reply with a number to select.`;
+    }
+  }
+  return text;
+}
+
 export async function sendWhatsAppInteractiveButtons(
   to: string,
   headerText: string,
@@ -210,16 +243,19 @@ export async function sendWhatsAppInteractiveButtons(
       });
 
       if (!response.ok) {
-        return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+        const errBody = await response.text().catch(() => "");
+        console.warn("[Meta WhatsApp] Button message rejected, falling back to text", { status: response.status, err: errBody });
+        return sendWhatsAppMessage(to, formatButtonsAsText(headerText, bodyText, buttons));
       }
 
       return { success: true };
-    } catch {
-      return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+    } catch (err) {
+      console.warn("[Meta WhatsApp] Interactive button dispatch failed, falling back to text", err);
+      return sendWhatsAppMessage(to, formatButtonsAsText(headerText, bodyText, buttons));
     }
   }
 
-  return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+  return sendWhatsAppMessage(to, formatButtonsAsText(headerText, bodyText, buttons));
 }
 
 export async function sendWhatsAppInteractiveList(
@@ -236,6 +272,7 @@ export async function sendWhatsAppInteractiveList(
   const normalizedTo = normalizePhone(to);
   const metaToken = process.env.WHATSAPP_BUSINESS_TOKEN;
   const metaPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const cleanButtonLabel = buttonLabel.replace(/[^\x20-\x7E]/g, "").trim().slice(0, 20) || "Select Option";
 
   if (metaToken && metaPhoneId) {
     try {
@@ -256,9 +293,9 @@ export async function sendWhatsAppInteractiveList(
             body: { text: bodyText.slice(0, 1024) },
             footer: { text: footerText.slice(0, 60) },
             action: {
-              button: buttonLabel.slice(0, 20),
+              button: cleanButtonLabel,
               sections: sections.slice(0, 10).map((sec) => ({
-                title: sec.title.slice(0, 24),
+                title: sec.title.replace(/[^\x20-\x7E]/g, "").slice(0, 24) || "Options",
                 rows: sec.rows.slice(0, 10).map((r) => ({
                   id: r.id.slice(0, 256),
                   title: r.title.slice(0, 24),
@@ -273,15 +310,18 @@ export async function sendWhatsAppInteractiveList(
       });
 
       if (!response.ok) {
-        return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+        const errBody = await response.text().catch(() => "");
+        console.warn("[Meta WhatsApp] List message rejected, falling back to text", { status: response.status, err: errBody });
+        return sendWhatsAppMessage(to, formatListAsText(headerText, bodyText, sections));
       }
 
       return { success: true };
-    } catch {
-      return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+    } catch (err) {
+      console.warn("[Meta WhatsApp] Interactive list dispatch failed, falling back to text", err);
+      return sendWhatsAppMessage(to, formatListAsText(headerText, bodyText, sections));
     }
   }
 
-  return sendWhatsAppMessage(to, `${headerText}\n\n${bodyText}`);
+  return sendWhatsAppMessage(to, formatListAsText(headerText, bodyText, sections));
 }
 

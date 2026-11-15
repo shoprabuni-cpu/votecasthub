@@ -77,6 +77,79 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .limit(1)
       .maybeSingle();
 
+    // If active session is awaiting candidate selection and voter replies with number, code or name
+    if (activeSession && activeSession.state === "awaiting_candidate" && activeSession.event_id) {
+      if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(text.trim().toUpperCase())) {
+        const { data: sessionEvent } = await db
+          .from("events")
+          .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path")
+          .eq("id", activeSession.event_id)
+          .single();
+
+        if (sessionEvent) {
+          const { data: rawNoms } = await db
+            .from("nominees")
+            .select("id, name, public_code, display_order, image_path, category_id, categories!inner(id, name, event_id, is_active)")
+            .eq("categories.event_id", sessionEvent.id)
+            .eq("is_active", true)
+            .order("display_order");
+
+          if (rawNoms && rawNoms.length > 0) {
+            const sessionNominees: NomineeWithCategory[] = rawNoms.map((n: Record<string, unknown>) => ({
+              id: String(n.id),
+              name: String(n.name),
+              public_code: n.public_code ? String(n.public_code) : null,
+              display_order: Number(n.display_order ?? 0),
+              image_path: n.image_path ? String(n.image_path) : null,
+              category_id: String(n.category_id),
+              category: {
+                id: String((n.categories as Record<string, unknown>).id),
+                name: String((n.categories as Record<string, unknown>).name),
+                event_id: String((n.categories as Record<string, unknown>).event_id),
+              },
+            }));
+
+            const candidateInput = text.replace(/^(VOTE\s+)/i, "").trim();
+            const matchedNom = sessionNominees.find((n, idx) => {
+              const num = idx + 1;
+              if (candidateInput === String(num)) return true;
+              if (n.public_code && n.public_code.toUpperCase() === candidateInput.toUpperCase()) return true;
+              const targetNum = parseInt(candidateInput, 10);
+              const nomNum = parseInt(n.public_code || "", 10);
+              if (!isNaN(targetNum) && !isNaN(nomNum) && targetNum === nomNum) return true;
+              if (n.name.toLowerCase().includes(candidateInput.toLowerCase())) return true;
+              return false;
+            });
+
+            if (matchedNom) {
+              if (sessionEvent.voting_mode === "free") {
+                await handleFreeVote({
+                  phone,
+                  phoneHash,
+                  event: sessionEvent,
+                  category: matchedNom.category,
+                  nominee: matchedNom,
+                  quantity: 1,
+                });
+                return;
+              }
+
+              // Paid voting -> Prompt for quantity
+              await promptPaidVoteQuantity({
+                db,
+                phone,
+                phoneHash,
+                event: sessionEvent,
+                matched: matchedNom,
+                existingSessionId: activeSession.id,
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+
     // If active session is awaiting quantity and user sends a number or taps QTY button
     if (activeSession && activeSession.state === "awaiting_quantity" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
       const cleanQty = text.replace(/^(QTY\s*)/i, "").replace(/\D/g, "");
@@ -86,13 +159,23 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         return;
       }
 
+      let quantityToVote = qtyParsed;
+      const pkgList = activeSession.metadata?.qty_packages;
+      // If user typed 1, 2, or 3, check if it maps to package 1, 2, or 3
+      if (Array.isArray(pkgList) && (qtyParsed === 1 || qtyParsed === 2 || qtyParsed === 3)) {
+        const minVotes = Number(activeSession.metadata?.min_votes) || pkgList[0] || 1;
+        if (minVotes > 3) {
+          quantityToVote = Number(pkgList[qtyParsed - 1]) || qtyParsed;
+        }
+      }
+
       await handlePaidVoteCheckout({
         phone,
         phoneHash,
         eventId: activeSession.event_id,
         categoryId: activeSession.category_id,
         nomineeId: activeSession.nominee_id,
-        quantity: qtyParsed,
+        quantity: quantityToVote,
         existingSessionId: activeSession.id,
       });
       return;
@@ -302,20 +385,52 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
 
     const eventCoverUrl = await getSignedImageUrl(event.image_path);
 
-    // 1. If 1 to 3 nominees: Show Interactive Quick Reply Buttons with Cover Image Header!
+    // Save session so voter can simply reply with candidate number (e.g. "1") or name
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await db
+      .from("whatsapp_sessions")
+      .delete()
+      .eq("phone", phone)
+      .neq("state", "completed");
+
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: phoneHash,
+      event_id: event.id,
+      state: "awaiting_candidate",
+      metadata: {
+        event_name: event.name,
+        event_slug: event.slug,
+        event_identifier: eventIdentifier,
+      },
+      expires_at: expiresAt,
+    });
+
+    const candidateRoster = nominees
+      .slice(0, 15)
+      .map((n, idx) => {
+        const num = idx + 1;
+        const code = n.public_code ? ` (Code: ${n.public_code})` : "";
+        return `• *${num}* · ${n.name}${code}`;
+      })
+      .join("\n");
+
+    const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
+
+    // 1. If 1 to 3 nominees: Show Interactive Quick Reply Buttons
     if (nominees.length <= 3) {
       const buttons = nominees.map((n, idx) => {
         const code = n.public_code || String(idx + 1).padStart(2, "0");
         return {
           id: `VOTE ${eventIdentifier} ${code}`,
-          title: `${code}: ${n.name}`.slice(0, 20),
+          title: `${idx + 1}. ${n.name}`.slice(0, 20),
         };
       });
 
       await sendWhatsAppInteractiveButtons(
         phone,
         `🗳️ ${event.name}`.slice(0, 60),
-        `Category: ${nominees[0]?.category.name || "Contestants"}\n${priceText}\n\nTap a candidate below to vote:`,
+        `Category: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap a candidate below or reply with a number (e.g. 1):`,
         buttons,
         "VoteCastHub Ballot",
         eventCoverUrl,
@@ -329,7 +444,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         const code = n.public_code || String(idx + 1).padStart(2, "0");
         return {
           id: `VOTE ${eventIdentifier} ${code}`,
-          title: n.name.slice(0, 24),
+          title: `${idx + 1}. ${n.name}`.slice(0, 24),
           description: `Code: ${code} · ${n.category.name}`.slice(0, 72),
         };
       });
@@ -337,8 +452,8 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       await sendWhatsAppInteractiveList(
         phone,
         `🗳️ ${event.name}`.slice(0, 60),
-        `Category: ${nominees[0]?.category.name || "Contestants"}\n${priceText}\n\nTap the button below to pick your candidate:`,
-        "Select Candidate 👤",
+        `Category: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}\n\n👉 Tap the button below or reply with a number (e.g. 1):`,
+        "Select Candidate",
         [
           {
             title: "Candidates",
@@ -350,14 +465,8 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       return;
     }
 
-    // 3. Fallback for > 10 nominees (text list with event cover if available)
-    const list = nominees.slice(0, 15).map((n, idx) => {
-      const code = n.public_code || String(idx + 1).padStart(2, "0");
-      return `• *${code}*: ${n.name} (${n.category.name})`;
-    }).join("\n");
-
-    const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
-    const rosterText = `🗳️ *${event.name}*\n${priceText}\n\nTo vote, reply with:\n*VOTE ${eventIdentifier} <CODE>*\n\n*Candidates:*\n${list}${moreText}\n\n_Example:_\n*VOTE ${eventIdentifier} ${nominees[0]?.public_code || "01"}*`;
+    // 3. Fallback for > 10 nominees
+    const rosterText = `🗳️ *${event.name}*\nCategory: *${nominees[0]?.category.name || "Contestants"}*\n${priceText}\n\n*Candidates:*\n${candidateRoster}${moreText}\n\n👉 Reply with a candidate *number (e.g. 1)*, *code*, or *name* to vote.`;
 
     if (eventCoverUrl) {
       await sendWhatsAppImage(phone, eventCoverUrl, rosterText);
@@ -420,51 +529,117 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       });
     } else {
       // Prompt for quantity with interactive buttons and nominee photo!
-      const voteRequest = randomUUID();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-      await db.from("whatsapp_sessions").insert({
+      await promptPaidVoteQuantity({
+        db,
         phone,
-        phone_hash: phoneHash,
-        event_id: event.id,
+        phoneHash,
+        event,
+        matched,
+      });
+    }
+  }
+}
+
+async function promptPaidVoteQuantity(params: {
+  db: any;
+  phone: string;
+  phoneHash: string;
+  event: {
+    id: string;
+    name: string;
+    unit_price_minor: number;
+    image_path?: string | null;
+  };
+  matched: NomineeWithCategory;
+  existingSessionId?: string;
+}): Promise<void> {
+  const { db, phone, phoneHash, event, matched, existingSessionId } = params;
+
+  const unitPriceMinor = Math.max(1, Number(event.unit_price_minor) || 100);
+  const minVotes = Math.max(1, Math.ceil(100 / unitPriceMinor));
+  const priceGhs = (unitPriceMinor / 100).toFixed(2);
+
+  const qty1 = minVotes;
+  const qty2 = minVotes === 1 ? 5 : minVotes * 2;
+  const qty3 = minVotes === 1 ? 10 : minVotes * 5;
+
+  const cost1 = ((qty1 * unitPriceMinor) / 100).toFixed(2);
+  const cost2 = ((qty2 * unitPriceMinor) / 100).toFixed(2);
+  const cost3 = ((qty3 * unitPriceMinor) / 100).toFixed(2);
+
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const voteRequest = randomUUID();
+
+  if (existingSessionId) {
+    await db
+      .from("whatsapp_sessions")
+      .update({
         category_id: matched.category_id,
         nominee_id: matched.id,
         state: "awaiting_quantity",
         vote_request: voteRequest,
         expires_at: expiresAt,
-      });
+        metadata: {
+          event_name: event.name,
+          category_name: matched.category.name,
+          nominee_name: matched.name,
+          nominee_image_path: matched.image_path,
+          min_votes: minVotes,
+          qty_packages: [qty1, qty2, qty3],
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingSessionId);
+  } else {
+    await db
+      .from("whatsapp_sessions")
+      .delete()
+      .eq("phone", phone)
+      .neq("state", "completed");
 
-      const unitPriceMinor = Math.max(1, Number(event.unit_price_minor) || 100);
-      const minVotes = Math.max(1, Math.ceil(100 / unitPriceMinor));
-      const priceGhs = (unitPriceMinor / 100).toFixed(2);
-      const nomineePhotoUrl = await getSignedImageUrl(matched.image_path);
-
-      const qty1 = minVotes;
-      const qty2 = minVotes === 1 ? 5 : minVotes * 2;
-      const qty3 = minVotes === 1 ? 10 : minVotes * 5;
-
-      const buttons = [
-        { id: `QTY ${qty1}`, title: `${qty1} Vote${qty1 > 1 ? "s" : ""} (GH₵${((qty1 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
-        { id: `QTY ${qty2}`, title: `${qty2} Votes (GH₵${((qty2 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
-        { id: `QTY ${qty3}`, title: `${qty3} Votes (GH₵${((qty3 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
-      ];
-
-      let promptBody = `You selected *${matched.name}* in *${matched.category.name}* (${event.name}).\nPrice: *GH₵${priceGhs} per vote*.`;
-      if (minVotes > 1) {
-        promptBody += `\n\n*(ℹ️ Mobile Money minimum checkout is GH₵ 1.00 — min package is ${minVotes} votes)*`;
-      }
-      promptBody += `\n\nHow many votes would you like to cast? Tap a button below or reply with a number:`;
-
-      await sendWhatsAppInteractiveButtons(
-        phone,
-        `🗳️ ${matched.name}`.slice(0, 60),
-        promptBody,
-        buttons,
-        minVotes > 1 ? `Or reply with ${minVotes}+ (e.g. ${minVotes * 2}, ${minVotes * 5})` : "Or reply with any number (e.g. 20, 50)",
-        nomineePhotoUrl,
-      );
-    }
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: phoneHash,
+      event_id: event.id,
+      category_id: matched.category_id,
+      nominee_id: matched.id,
+      state: "awaiting_quantity",
+      vote_request: voteRequest,
+      expires_at: expiresAt,
+      metadata: {
+        event_name: event.name,
+        category_name: matched.category.name,
+        nominee_name: matched.name,
+        nominee_image_path: matched.image_path,
+        min_votes: minVotes,
+        qty_packages: [qty1, qty2, qty3],
+      },
+    });
   }
+
+  const nomineePhotoUrl = await getSignedImageUrl(matched.image_path);
+
+  // Button titles must be <= 20 chars and plain ASCII to satisfy Meta WhatsApp API
+  const buttons = [
+    { id: `QTY ${qty1}`, title: `${qty1} Vote${qty1 > 1 ? "s" : ""} · GHc${cost1}`.slice(0, 20) },
+    { id: `QTY ${qty2}`, title: `${qty2} Votes · GHc${cost2}`.slice(0, 20) },
+    { id: `QTY ${qty3}`, title: `${qty3} Votes · GHc${cost3}`.slice(0, 20) },
+  ];
+
+  let promptBody = `You selected *${matched.name}* in *${matched.category.name}* (${event.name}).\nPrice: *GH₵${priceGhs} per vote*.`;
+  if (minVotes > 1) {
+    promptBody += `\n\nℹ️ _Mobile Money minimum checkout is GH₵ 1.00 (min package: ${minVotes} votes)_`;
+  }
+  promptBody += `\n\nHow many votes would you like to cast?\n*Choose a Vote Package:*\n1️⃣ *${qty1} Vote${qty1 > 1 ? "s" : ""}* — GH₵ ${cost1}\n2️⃣ *${qty2} Votes* — GH₵ ${cost2}\n3️⃣ *${qty3} Votes* — GH₵ ${cost3}\n\n👉 Tap a button below or reply with a number (*${qty1}*, *${qty2}*, *${qty3}*, or any amount):`;
+
+  await sendWhatsAppInteractiveButtons(
+    phone,
+    `🗳️ ${matched.name}`.slice(0, 60),
+    promptBody,
+    buttons,
+    minVotes > 1 ? `Min: ${minVotes} votes · GHc${cost1}` : "Or reply with any number",
+    nomineePhotoUrl,
+  );
 }
 
 async function resolveWhatsAppVoterUserId(db: any, phone: string): Promise<string | null> {
@@ -1212,12 +1387,17 @@ async function handlePaidVoteCheckout(params: {
     });
   }
 
-  // 4. Send payment link back to voter with candidate image
+  // 4. Send payment link back to voter with candidate image and direct clickable link
   const nomineePhotoUrl = await getSignedImageUrl(nominee.image_path);
   const checkoutMsg = `🗳️ *Confirm Your Vote for ${nominee.name}*\n• Event: *${event.name}*\n• Category: *${category?.name || "Contestant"}*\n• Quantity: *${quantity} vote(s)*\n• Total: *GH₵${totalGhs}*\n\n💳 *Tap to Pay with Mobile Money (MTN, Telecel, AT) or Card:*\n👉 ${authUrl}\n\n_Your votes will be confirmed automatically once payment is approved._`;
 
   if (nomineePhotoUrl) {
     await sendWhatsAppImage(phone, nomineePhotoUrl, checkoutMsg);
+    // When photo is attached, also send link as standalone text so it is 1-tap clickable on all WhatsApp clients
+    await sendWhatsAppMessage(
+      phone,
+      `👉 *Tap to Complete Payment (GH₵${totalGhs}):*\n${authUrl}\n\n_Supports MTN Mobile Money, Telecel Cash, AT Money, and Cards._`,
+    );
   } else {
     await sendWhatsAppMessage(phone, checkoutMsg);
   }

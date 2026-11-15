@@ -76,6 +76,7 @@ const mocks = {
           or() { return this; },
           order() { return this; },
           limit() { return this; },
+          delete() { return this; },
           update(val) {
             this.updateVal = val;
             return this;
