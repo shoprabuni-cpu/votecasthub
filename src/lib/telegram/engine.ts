@@ -105,7 +105,34 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
-  // 2. Fetch Active Session
+  // 2. Navigation Commands: /start, /events, /menu, /help (always prioritized regardless of prior session state)
+  if (upper.startsWith("/START")) {
+    const startParam = text.replace(/^\/start\s*/i, "").trim();
+
+    if (startParam.startsWith("event_")) {
+      const eventSlug = startParam.replace(/^event_/, "");
+      await presentEventBallot({ chatId, eventIdentifier: eventSlug });
+      return;
+    }
+
+    if (startParam.startsWith("vote_")) {
+      const parts = startParam.replace(/^vote_/, "").split("_");
+      const eventSlug = parts[0];
+      const nomineeCode = parts[1];
+      await presentEventBallot({ chatId, eventIdentifier: eventSlug, nomineeIdentifier: nomineeCode });
+      return;
+    }
+
+    await presentCompetitionsList(chatId);
+    return;
+  }
+
+  if (["/EVENTS", "EVENTS", "VOTE", "MENU", "HELP", "/HELP"].includes(upper)) {
+    await presentCompetitionsList(chatId);
+    return;
+  }
+
+  // 3. Fetch Active Session
   const { data: activeSession } = await db
     .from("telegram_sessions")
     .select("id, chat_id, telegram_user_id, phone, phone_hash, event_id, category_id, nominee_id, quantity, state, reference, payment_url, metadata, expires_at")
@@ -189,9 +216,11 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   }
 
   if (isCallback && text.startsWith("nom:")) {
-    const parts = text.split(":");
-    const eventId = parts[1];
-    const nomineeId = parts[2];
+    const rawNom = text.replace(/^nom:/, "");
+    const parts = rawNom.split(":");
+    // Supports both nom:<nomineeId> and legacy nom:<eventId>:<nomineeId>
+    const nomineeId = parts.length > 1 ? parts[1] : parts[0];
+    const eventId = parts.length > 1 ? parts[0] : activeSession?.event_id;
     await selectCandidateForVoting({ chatId, eventId, nomineeId, activeSessionId: activeSession?.id });
     return;
   }
@@ -358,35 +387,7 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
-  // 11. Command: /start (with optional deep-linking parameter)
-  if (upper.startsWith("/START")) {
-    const startParam = text.replace(/^\/start\s*/i, "").trim();
-
-    if (startParam.startsWith("event_")) {
-      const eventSlug = startParam.replace(/^event_/, "");
-      await presentEventBallot({ chatId, eventIdentifier: eventSlug });
-      return;
-    }
-
-    if (startParam.startsWith("vote_")) {
-      const parts = startParam.replace(/^vote_/, "").split("_");
-      const eventSlug = parts[0];
-      const nomineeCode = parts[1];
-      await presentEventBallot({ chatId, eventIdentifier: eventSlug, nomineeIdentifier: nomineeCode });
-      return;
-    }
-
-    // Default /start or /events -> list ongoing competitions
-    await presentCompetitionsList(chatId);
-    return;
-  }
-
-  if (["/EVENTS", "EVENTS", "VOTE", "MENU", "HELP", "/HELP"].includes(upper)) {
-    await presentCompetitionsList(chatId);
-    return;
-  }
-
-  // 12. Free-form text parser: Check if text is event code or name
+  // 11. Free-form text parser: Check if text is event code or name
   await presentEventBallot({ chatId, eventIdentifier: text.replace(/^VOTE\s+/i, "").trim() });
 }
 
@@ -414,7 +415,7 @@ async function presentCompetitionsList(chatId: number): Promise<void> {
   const buttons = events.map((ev) => [
     {
       text: `🏆 ${ev.name}`.slice(0, 36),
-      callback_data: `event:${ev.slug}`,
+      callback_data: `event:${ev.id}`,
     },
   ]);
 
@@ -540,10 +541,11 @@ async function presentEventBallot(params: {
   const moreText = nominees.length > 15 ? `\n_...and ${nominees.length - 15} more candidates._` : "";
 
   // Build inline keyboard buttons (1 candidate per row for clean mobile tap targets)
+  // Ensure callback_data is <= 64 bytes (nom:<nomineeId> is 40 bytes)
   const buttons = nominees.slice(0, 10).map((n, idx) => [
     {
       text: `👤 ${idx + 1}. ${n.name}`.slice(0, 36),
-      callback_data: `nom:${event.id}:${n.id}`,
+      callback_data: `nom:${n.id}`,
     },
   ]);
 
@@ -570,22 +572,37 @@ async function presentEventBallot(params: {
 
 async function selectCandidateForVoting(params: {
   chatId: number;
-  eventId: string;
   nomineeId: string;
+  eventId?: string;
   activeSessionId?: string;
 }): Promise<void> {
   const db = paymentAdmin();
-  const { chatId, eventId, nomineeId, activeSessionId } = params;
+  const { chatId, nomineeId, activeSessionId } = params;
 
-  const { data: event } = await db.from("events").select("id, name, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path").eq("id", eventId).single();
-  const { data: nominee } = await db.from("nominees").select("id, name, image_path, category_id, categories!inner(id, name)").eq("id", nomineeId).single();
+  const { data: nominee } = await db
+    .from("nominees")
+    .select("id, name, image_path, category_id, categories!inner(id, name, event_id)")
+    .eq("id", nomineeId)
+    .single();
 
-  if (!event || !nominee) {
+  if (!nominee) {
     await sendTelegramMessage(chatId, "❌ Selection unavailable. Send /events to restart.");
     return;
   }
 
-  const category = nominee.categories as unknown as { id: string; name: string };
+  const category = nominee.categories as unknown as { id: string; name: string; event_id: string };
+  const targetEventId = params.eventId || category.event_id;
+
+  const { data: event } = await db
+    .from("events")
+    .select("id, name, voting_mode, unit_price_minor, free_vote_limit_per_phone, image_path")
+    .eq("id", targetEventId)
+    .single();
+
+  if (!event) {
+    await sendTelegramMessage(chatId, "❌ Competition unavailable. Send /events to restart.");
+    return;
+  }
 
   if (event.voting_mode === "free") {
     // Check if phone number is known
@@ -658,6 +675,7 @@ async function selectCandidateForVoting(params: {
     await db
       .from("telegram_sessions")
       .update({
+        event_id: event.id,
         category_id: category.id,
         nominee_id: nominee.id,
         state: "awaiting_quantity",

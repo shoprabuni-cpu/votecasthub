@@ -239,6 +239,19 @@ assert.equal(mockDbState.sessions.length, 1);
 assert.equal(mockDbState.sessions[0].state, 'idle');
 assert.equal(mockDbState.sessions[0].metadata?.step, 'awaiting_candidate');
 
+// Step 1b: Verify all generated inline keyboard callback_data are <= 64 bytes (strict Telegram constraint)
+const initialButtons = sentTelegramMessages[0].options?.reply_markup?.inline_keyboard || [];
+for (const row of initialButtons) {
+  for (const btn of row) {
+    if (btn.callback_data) {
+      assert.ok(
+        Buffer.byteLength(btn.callback_data, 'utf8') <= 64,
+        `Button callback_data "${btn.callback_data}" exceeds Telegram 64-byte limit (${Buffer.byteLength(btn.callback_data, 'utf8')} bytes)`
+      );
+    }
+  }
+}
+
 // Step 2: Voter selects candidate 1 by typing "1"
 const candidatePickMsg = {
   chatId: 98765,
@@ -267,4 +280,52 @@ assert.equal(paystackInitCalls[0].payload.amount, 1500); // 15 votes * 100 pesew
 assert.match(sentTelegramMessages[2].text, /Confirm Your Vote for Kwame Mensah/);
 assert.equal(sentTelegramMessages[2].options?.reply_markup?.inline_keyboard?.[0]?.[0]?.url, 'https://checkout.paystack.com/mock-tg-auth-123');
 
-console.log('PASS: Telegram parser, deep linking, candidate selection, vote packages, Paystack URL buttons, and state routing!');
+// Step 4: Test selecting candidate directly via inline button (nom:<nomineeId>)
+const candidateButtonCallback = {
+  chatId: 98765,
+  userId: 98765,
+  text: `nom:${mockDbState.nominees[1].id}`,
+  isCallback: true,
+  callbackQueryId: 'cb_nom_2',
+  messageId: 4,
+};
+await processTelegramVote(candidateButtonCallback);
+assert.equal(sentTelegramMessages.length, 4);
+assert.match(sentTelegramMessages[3].text, /Akua Donkor/);
+assert.equal(mockDbState.sessions[0].state, 'awaiting_quantity');
+
+// Step 5: Test browsing /events and tapping event button (event:<eventId>)
+const eventsCommand = {
+  chatId: 98765,
+  userId: 98765,
+  text: '/events',
+  isCallback: false,
+  messageId: 5,
+};
+await processTelegramVote(eventsCommand);
+assert.equal(sentTelegramMessages.length, 5);
+const eventsButtons = sentTelegramMessages[4].options?.reply_markup?.inline_keyboard || [];
+for (const row of eventsButtons) {
+  for (const btn of row) {
+    if (btn.callback_data) {
+      assert.ok(
+        Buffer.byteLength(btn.callback_data, 'utf8') <= 64,
+        `Event button callback_data "${btn.callback_data}" exceeds Telegram 64-byte limit`
+      );
+    }
+  }
+}
+
+const tapEventCallback = {
+  chatId: 98765,
+  userId: 98765,
+  text: eventsButtons[0][0].callback_data,
+  isCallback: true,
+  callbackQueryId: 'cb_event_pick',
+  messageId: 6,
+};
+await processTelegramVote(tapEventCallback);
+assert.equal(sentTelegramMessages.length, 6);
+assert.match(sentTelegramMessages[5].text, /Candidates:/);
+
+console.log('PASS: Telegram parser, deep linking, 64-byte callback_data limits, candidate button callbacks, vote packages, Paystack URL buttons, and state routing!');
