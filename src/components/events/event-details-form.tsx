@@ -199,10 +199,6 @@ export function EventDetailsForm({
         setStepError("Please set the date and time when voting ends.");
         return false;
       }
-      if (new Date(`${values.endsAt}Z`) <= new Date()) {
-        setStepError("Choose a voting closing time in the future.");
-        return false;
-      }
       if (new Date(`${values.startsAt}Z`) >= new Date(`${values.endsAt}Z`)) {
         setStepError("Voting end time must be after the start time.");
         return false;
@@ -323,7 +319,46 @@ export function EventDetailsForm({
           })}
         </div>
       </div>}
-      {creationFlow && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-sm font-semibold text-emerald-900">Step 1 of 4 · Event details</p><ol aria-label="Event setup progress" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{["Event details", "Categories & nominees", "Voting settings", "Review & Submit"].map((label, index) => <li key={label} aria-current={index === 0 ? "step" : undefined} className="flex items-start gap-2 text-xs font-semibold leading-5 text-stone-600"><span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${index === 0 ? "bg-emerald-900 text-white" : "bg-stone-200 text-stone-600"}`}>{index + 1}</span><span className="pt-1">{label}</span></li>)}</ol></div>}
+      {creationFlow && (
+        <div className="mb-6 rounded-2xl border border-stone-200/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { id: 1, title: "Event Basics", subtitle: "Name, story & dates" },
+              { id: 2, title: "Contestants", subtitle: "Categories & nominees" },
+              { id: 3, title: "Rules & Channels", subtitle: "Pricing, limits & WhatsApp" },
+              { id: 4, title: "Review & Submit", subtitle: "Platform pre-flight" },
+            ].map((s) => {
+              const isCurrent = s.id === 1;
+              return (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-2.5 rounded-xl p-2.5 text-left transition-all ${
+                    isCurrent
+                      ? "bg-emerald-900 text-white shadow-xs ring-1 ring-emerald-800"
+                      : "text-stone-400 bg-stone-50/50"
+                  }`}
+                >
+                  <div
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                      isCurrent ? "bg-emerald-700 text-white" : "bg-stone-200/70 text-stone-500"
+                    }`}
+                  >
+                    {s.id}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-bold leading-tight truncate ${isCurrent ? "text-white" : "text-stone-600"}`}>
+                      {s.title}
+                    </p>
+                    <p className={`text-[10px] leading-tight truncate hidden md:block ${isCurrent ? "text-emerald-200/90" : "text-stone-400"}`}>
+                      {s.subtitle}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <form ref={formRef} action={formAction} onSubmit={event => { if (grouped && (!validateStep(1) || !validateStep(2))) event.preventDefault(); }} className="relative">
         {grouped && <input type="hidden" name="setupFlow" value="guided" />}
@@ -334,7 +369,7 @@ export function EventDetailsForm({
         <input type="hidden" name="description" value={values.description} />
         <input type="hidden" name="votingMode" value={votingMode} />
         <input type="hidden" name="verificationMethod" value={verificationMethod} />
-        <input type="hidden" name="votingRule" value={votingRule} />
+        <input type="hidden" id="input-voting-rule" name="votingRule" value={votingRule} />
         <input type="hidden" name="priceGhs" value={values.priceGhs} />
         <input type="hidden" name="freeVoteLimit" value={values.freeVoteLimit} />
         <input type="hidden" name="votingRules" value={values.votingRules} />

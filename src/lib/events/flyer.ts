@@ -1,4 +1,5 @@
 import { eventPresentation, ghanaDate } from "./presentation";
+import { generateQrDataUrl } from "@/lib/qr";
 
 export type FlyerDetails = {
   ussd?: { event_code: number; dial_code: string; network_notice: string };
@@ -333,7 +334,8 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
 
   let qrLoaded = false;
   try {
-    const qrImg = await loadPhoto(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}`);
+    const qrDataUrl = await generateQrDataUrl(url, { width: 240, margin: 1 });
+    const qrImg = await loadPhoto(qrDataUrl);
     drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxW, qrBoxH, 14);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
@@ -345,8 +347,8 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
     ctx.fillStyle = "#111827";
     ctx.fillText("SCAN TO VOTE", qrBoxX + qrBoxW / 2, qrBoxY + 144);
     qrLoaded = true;
-  } catch {
-    // If QR fetch fails, we skip and use full width
+  } catch (qrErr) {
+    console.warn("[Flyer] Failed to render QR code", qrErr);
   }
 
   const channelsW = qrLoaded ? cardW - qrBoxW - 68 : cardW - 48;

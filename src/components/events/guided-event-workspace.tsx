@@ -6,8 +6,8 @@ import { EventSetupContext, type SetupEditor, type SetupSection } from "./event-
 
 const steps = [
   { id: "details", label: "Event Basics" },
-  { id: "voting", label: "Rules & Channels" },
   { id: "nominees", label: "Contestants" },
+  { id: "voting", label: "Rules & Channels" },
   { id: "review", label: "Review & Submit" },
 ] as const;
 const buttonStyle = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -61,7 +61,7 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
       setMessage("Voting settings saved. Complete the required voter access or payment setup below before continuing.");
       return;
     }
-    void go(section === "details" ? "voting" : "nominees", true);
+    void go(section === "details" ? "nominees" : "review", true);
   }
   function next() {
     if (busy || requestedSave.current) return;
@@ -74,13 +74,13 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
         setMessage("Add at least one category and an active nominee in each category before continuing.");
         return;
       }
-      void go("review");
+      void go("voting");
       return;
     }
     if (section === "details") {
       if (!editorControls.current || !editorControls.current.validate()) return;
       if (!editorState.dirty) {
-        void go("voting");
+        void go("nominees");
         return;
       }
       continueAfterSave.current = true;
@@ -95,7 +95,7 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
           setMessage("Complete the required voter access or payment setup below before continuing.");
           return;
         }
-        void go("nominees");
+        void go("review");
         return;
       }
       continueAfterSave.current = true;

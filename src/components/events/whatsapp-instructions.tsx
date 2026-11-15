@@ -1,5 +1,6 @@
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
+import { generateQrDataUrl } from "@/lib/qr";
 
 const WA_NUMBER = "233592992566";
 const WA_DISPLAY = "+233 59 299 2566";
@@ -20,7 +21,7 @@ export async function WhatsAppInstructions({
 
   const waMessage = `VOTE ${eventCode}`;
   const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(waUrl)}`;
+  const qrUrl = await generateQrDataUrl(waUrl, { width: 160, margin: 1 });
 
   return (
     <section className="my-5 rounded-2xl border border-emerald-300 bg-linear-to-br from-emerald-50 via-white to-stone-50 p-5 shadow-xs">
