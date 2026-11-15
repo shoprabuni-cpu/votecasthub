@@ -78,7 +78,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .maybeSingle();
 
     // If active session is awaiting candidate selection and voter replies with number, code or name
-    if (activeSession && activeSession.state === "awaiting_candidate" && activeSession.event_id) {
+    if (activeSession && (activeSession.state === "awaiting_candidate" || activeSession.state === "idle") && activeSession.event_id) {
       if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(text.trim().toUpperCase())) {
         const { data: sessionEvent } = await db
           .from("events")
@@ -113,10 +113,13 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
             const matchedNom = sessionNominees.find((n, idx) => {
               const num = idx + 1;
               if (candidateInput === String(num)) return true;
+              if (candidateInput === String(num).padStart(2, "0")) return true;
               if (n.public_code && n.public_code.toUpperCase() === candidateInput.toUpperCase()) return true;
               const targetNum = parseInt(candidateInput, 10);
               const nomNum = parseInt(n.public_code || "", 10);
               if (!isNaN(targetNum) && !isNaN(nomNum) && targetNum === nomNum) return true;
+              if (n.id.toLowerCase() === candidateInput.toLowerCase()) return true;
+              if (n.id.toLowerCase().startsWith(candidateInput.toLowerCase())) return true;
               if (n.name.toLowerCase().includes(candidateInput.toLowerCase())) return true;
               return false;
             });
@@ -393,18 +396,22 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .eq("phone", phone)
       .neq("state", "completed");
 
-    await db.from("whatsapp_sessions").insert({
+    const { error: sessionInsertErr } = await db.from("whatsapp_sessions").insert({
       phone,
       phone_hash: phoneHash,
       event_id: event.id,
-      state: "awaiting_candidate",
+      state: "idle",
       metadata: {
+        step: "awaiting_candidate",
         event_name: event.name,
         event_slug: event.slug,
         event_identifier: eventIdentifier,
       },
       expires_at: expiresAt,
     });
+    if (sessionInsertErr) {
+      console.error("[WhatsApp] Failed to create candidate voting session", sessionInsertErr);
+    }
 
     const candidateRoster = nominees
       .slice(0, 15)
@@ -420,9 +427,8 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     // 1. If 1 to 3 nominees: Show Interactive Quick Reply Buttons
     if (nominees.length <= 3) {
       const buttons = nominees.map((n, idx) => {
-        const code = n.public_code || String(idx + 1).padStart(2, "0");
         return {
-          id: `VOTE ${eventIdentifier} ${code}`,
+          id: `VOTE ${eventIdentifier} ${n.id}`,
           title: `${idx + 1}. ${n.name}`.slice(0, 20),
         };
       });
@@ -443,7 +449,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       const rows = nominees.map((n, idx) => {
         const code = n.public_code || String(idx + 1).padStart(2, "0");
         return {
-          id: `VOTE ${eventIdentifier} ${code}`,
+          id: `VOTE ${eventIdentifier} ${n.id}`,
           title: `${idx + 1}. ${n.name}`.slice(0, 24),
           description: `Code: ${code} · ${n.category.name}`.slice(0, 72),
         };

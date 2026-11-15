@@ -294,14 +294,23 @@ export async function sendWhatsAppInteractiveList(
             footer: { text: footerText.slice(0, 60) },
             action: {
               button: cleanButtonLabel,
-              sections: sections.slice(0, 10).map((sec) => ({
-                title: sec.title.replace(/[^\x20-\x7E]/g, "").slice(0, 24) || "Options",
-                rows: sec.rows.slice(0, 10).map((r) => ({
-                  id: r.id.slice(0, 256),
-                  title: r.title.slice(0, 24),
-                  description: r.description ? r.description.slice(0, 72) : undefined,
-                })),
-              })),
+              sections: sections.slice(0, 10).map((sec) => {
+                const seenRowIds = new Set<string>();
+                const uniqueRows = sec.rows.filter((r) => {
+                  const cleanId = r.id.trim().slice(0, 256);
+                  if (seenRowIds.has(cleanId)) return false;
+                  seenRowIds.add(cleanId);
+                  return true;
+                });
+                return {
+                  title: sec.title.replace(/[^\x20-\x7E]/g, "").slice(0, 24) || "Options",
+                  rows: uniqueRows.slice(0, 10).map((r) => ({
+                    id: r.id.slice(0, 256),
+                    title: r.title.slice(0, 24),
+                    description: r.description ? r.description.slice(0, 72) : undefined,
+                  })),
+                };
+              }),
             },
           },
         }),
