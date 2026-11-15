@@ -41,9 +41,36 @@ export function ShareButton({ title, text, url, flyer }: { title: string; text: 
   return <div className="share-tools"><div className="share-actions"><button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={shareLink}>Share link ↗</button>{flyer && <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={make} disabled={busy}>{busy?"Creating flyer…":"Create share flyer"}</button>}</div>
     {message && <p className="share-feedback" role="status">{message}</p>}
     {message && <input className="share-link-copy" aria-label="Public sharing link" readOnly value={typeof window!=="undefined"?publicUrl():url} onFocus={e=>e.target.select()} />}
-    <AppModal open={open} title="Your share flyer" message="Share the image and link with your community, or download a PNG for your next post." confirmLabel="Share flyer" cancelLabel="Done" onCancel={()=>setOpen(false)} onConfirm={shareFlyer}>
+    <AppModal open={open} title="Official Campaign Flyer" message="Download your high-resolution flyer or share directly to your WhatsApp Status and social media." confirmLabel="Share flyer" cancelLabel="Close" onCancel={()=>setOpen(false)} onConfirm={shareFlyer}>
       {/* eslint-disable-next-line @next/next/no-img-element -- Local canvas blob preview does not use the image optimization server. */}
-      {preview && <><img className="flyer-preview" src={preview.url} alt={`Share flyer for ${title}`} width={1080} height={1350}/>{preview.photoMissing && <p role="status">The photo could not load, so this preview uses a branded background. Refresh the page to retry with the photo.</p>}<button className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={download}>Download PNG</button></>}
+      {preview && (
+        <div className="space-y-3">
+          <img className="flyer-preview rounded-xl border border-stone-200 shadow-md" src={preview.url} alt={`Share flyer for ${title}`} width={1080} height={1350}/>
+          {preview.photoMissing && <p role="status" className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">The nominee photo could not load in time, so this flyer uses a prestigious monogram seal. Refresh the page to retry with the full photo.</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <span className="text-[11px] text-stone-500 font-medium">1080 × 1350 px &middot; HD Social &amp; Print Ready</span>
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`🏆 Support *${title}*! Cast your vote now on WhatsApp or Web:\n${publicUrl()}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100/80 shadow-2xs"
+              >
+                <span>💬</span>
+                <span>Share to WhatsApp</span>
+              </a>
+              <button
+                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-stone-800 cursor-pointer"
+                type="button"
+                onClick={download}
+              >
+                <span>📥</span>
+                <span>Download PNG</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppModal>
   </div>;
 }

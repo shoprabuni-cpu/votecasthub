@@ -288,6 +288,7 @@ export default async function PublicEventPage({ params }: Props) {
               status: event.status,
               votingMode: event.voting_mode,
               unitPriceMinor: event.unit_price_minor,
+              eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
             }}
           />
         </div>
@@ -605,6 +606,7 @@ export default async function PublicEventPage({ params }: Props) {
                                   status: event.status,
                                   votingMode: event.voting_mode,
                                   unitPriceMinor: event.unit_price_minor,
+                                  eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
                                 }}
                               />
                             </div>
