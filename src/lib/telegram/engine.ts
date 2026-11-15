@@ -1086,6 +1086,14 @@ async function handlePaidVoteCheckout(params: {
     return;
   }
 
+  // Re-tag reference to VCH-TG- so it is identified as a Telegram payment
+  const tgRef = `VCH-TG-${voteRequest.replace(/-/g, "")}`;
+  await db
+    .from("payment_attempts")
+    .update({ provider_reference: tgRef, idempotency_key: `tg-paystack-${voteRequest}` })
+    .eq("id", attempt.id);
+  attempt.provider_reference = tgRef;
+
   const totalAmountMinor = Number(attempt.total_amount_minor);
   const totalGhs = (totalAmountMinor / 100).toFixed(2);
   const subaccount = attempt.subaccount_code;

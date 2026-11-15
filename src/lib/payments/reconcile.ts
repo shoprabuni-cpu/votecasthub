@@ -8,7 +8,17 @@ import { paymentAdmin } from "./admin";
 import { paystack } from "./gateway";
 import { paystackSecret } from "./paystack";
 
-const txSchema=z.object({id:z.number().int().positive().safe(),reference:z.string(),status:z.string(),amount:z.number().int().positive().safe(),currency:z.string(),domain:z.enum(["live","test"]),fees:z.number().int().nonnegative().safe().nullable(),subaccount:z.object({subaccount_code:z.string().optional()}).nullable().optional()});
+const txSchema=z.object({
+  id:z.number().int().positive().safe(),
+  reference:z.string(),
+  status:z.string(),
+  amount:z.number().int().positive().safe(),
+  currency:z.string(),
+  domain:z.enum(["live","test"]),
+  fees:z.number().int().nonnegative().safe().nullable(),
+  subaccount:z.object({subaccount_code:z.string().optional()}).nullable().optional(),
+  metadata:z.record(z.string(), z.any()).nullable().optional(),
+});
 type Transaction=z.infer<typeof txSchema>;
 async function applyTransaction(t:Transaction,allowReversed=false){
   if(t.domain!==(paystackSecret().startsWith("sk_live_")?"live":"test"))throw new Error("Payment mode mismatch");
@@ -21,28 +31,37 @@ async function applyTransaction(t:Transaction,allowReversed=false){
     if(!subaccount){const {data:a,error:e}=await db.from("organization_paystack_accounts").select("subaccount_code").eq("organization_id",p.organization_id).single();if(e)throw e;subaccount=a.subaccount_code;}
     if(Number(p.total_amount_minor)!==t.amount||p.currency!==t.currency||t.subaccount?.subaccount_code!==subaccount||t.fees===null)throw new Error("Payment verification mismatch");
     const {error:e}=await db.rpc("confirm_paid_vote",{p_reference:t.reference,p_transaction_id:t.id,p_paid_amount_minor:t.amount,p_provider_fee_minor:t.fees});if(e)throw e;
-    if(t.reference.startsWith("VCH-WA-")){
-      try{
-        const {data:session}=await db.from("whatsapp_sessions").select("phone,quantity,nominee_id,event_id").eq("reference",t.reference).maybeSingle();
-        if(session?.phone&&session.nominee_id&&session.event_id){
-          const {data:nom}=await db.from("nominees").select("name").eq("id",session.nominee_id).maybeSingle();
-          const {data:evt}=await db.from("events").select("name").eq("id",session.event_id).maybeSingle();
-          const receiptText=`🎉 *Payment Confirmed!* 🗳️\n\n*${session.quantity ?? 1} vote(s)* have been recorded for *${nom?.name || "your nominee"}* (${evt?.name || "Event"}).\nReceipt Ref: *${t.reference}*.\n\nThank you for voting with VoteCastHub!`;
-          sendWhatsAppMessage(session.phone,receiptText).catch(err=>console.error("[WhatsApp] Receipt push failed",err));
-        }
-      }catch(err){console.error("[WhatsApp] Receipt lookup error",err);}
-    }
-    if(t.reference.startsWith("VCH-TG-")){
-      try{
-        const {data:session}=await db.from("telegram_sessions").select("chat_id,quantity,nominee_id,event_id").eq("reference",t.reference).maybeSingle();
-        if(session?.chat_id&&session.nominee_id&&session.event_id){
-          const {data:nom}=await db.from("nominees").select("name").eq("id",session.nominee_id).maybeSingle();
-          const {data:evt}=await db.from("events").select("name").eq("id",session.event_id).maybeSingle();
-          const receiptText=`🎉 *Payment Confirmed!* 🗳️\n\n*${session.quantity ?? 1} vote(s)* have been recorded for *${nom?.name || "your nominee"}* (${evt?.name || "Event"}).\nReceipt Ref: *${t.reference}*.\n\nThank you for voting with VoteCastHub!`;
-          sendTelegramMessage(session.chat_id,receiptText).catch(err=>console.error("[Telegram] Receipt push failed",err));
-        }
-      }catch(err){console.error("[Telegram] Receipt lookup error",err);}
-    }
+    // 1. Dispatch Telegram Receipt if this was a Telegram vote
+    try{
+      const {data:tgSession}=await db.from("telegram_sessions").select("chat_id,quantity,nominee_id,event_id").eq("reference",t.reference).maybeSingle();
+      const tgChatId=tgSession?.chat_id||(t.metadata?.channel==="telegram"?Number(t.metadata.chat_id):null);
+      const tgNomId=tgSession?.nominee_id||(t.metadata?.channel==="telegram"?t.metadata.nominee_id:null);
+      const tgEvtId=tgSession?.event_id||(t.metadata?.channel==="telegram"?t.metadata.event_id:null);
+      const tgQty=tgSession?.quantity??(t.metadata?.quantity?Number(t.metadata.quantity):1);
+      if(tgChatId&&tgNomId&&tgEvtId){
+        const {data:nom}=await db.from("nominees").select("name").eq("id",tgNomId).maybeSingle();
+        const {data:evt}=await db.from("events").select("name").eq("id",tgEvtId).maybeSingle();
+        const safeNom=(nom?.name||"your candidate").replace(/[<>&]/g,"");
+        const safeEvt=(evt?.name||"Competition").replace(/[<>&]/g,"");
+        const receiptHtml=`🎉 <b>Payment Confirmed!</b> 🗳️\n\n<b>${tgQty} vote(s)</b> have been recorded for <b>${safeNom}</b> (${safeEvt}).\nReceipt Ref: <code>${t.reference}</code>.\n\nThank you for voting with VoteCastHub!`;
+        sendTelegramMessage(tgChatId,receiptHtml,{parse_mode:"HTML"}).catch(err=>console.error("[Telegram] Receipt push failed",err));
+      }
+    }catch(err){console.error("[Telegram] Receipt lookup error",err);}
+
+    // 2. Dispatch WhatsApp Receipt if this was a WhatsApp vote
+    try{
+      const {data:waSession}=await db.from("whatsapp_sessions").select("phone,quantity,nominee_id,event_id").eq("reference",t.reference).maybeSingle();
+      const waPhone=waSession?.phone||(t.metadata?.channel==="whatsapp"?String(t.metadata.phone):null);
+      const waNomId=waSession?.nominee_id||(t.metadata?.channel==="whatsapp"?t.metadata.nominee_id:null);
+      const waEvtId=waSession?.event_id||(t.metadata?.channel==="whatsapp"?t.metadata.event_id:null);
+      const waQty=waSession?.quantity??(t.metadata?.quantity?Number(t.metadata.quantity):1);
+      if(waPhone&&waNomId&&waEvtId){
+        const {data:nom}=await db.from("nominees").select("name").eq("id",waNomId).maybeSingle();
+        const {data:evt}=await db.from("events").select("name").eq("id",waEvtId).maybeSingle();
+        const receiptText=`🎉 *Payment Confirmed!* 🗳️\n\n*${waQty} vote(s)* have been recorded for *${nom?.name || "your nominee"}* (${evt?.name || "Event"}).\nReceipt Ref: *${t.reference}*.\n\nThank you for voting with VoteCastHub!`;
+        sendWhatsAppMessage(waPhone,receiptText).catch(err=>console.error("[WhatsApp] Receipt push failed",err));
+      }
+    }catch(err){console.error("[WhatsApp] Receipt lookup error",err);}
   }else if(t.reference.startsWith("VCH-ACCESS-")){
     if(t.currency!=="GHS")throw new Error("Access currency mismatch");
     const {error:e}=await db.rpc("fulfill_ussd_access",{p_reference:t.reference,p_transaction_id:t.id,p_amount_minor:t.amount});if(e)throw e;
