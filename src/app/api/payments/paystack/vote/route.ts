@@ -25,7 +25,11 @@ export async function POST(request:Request){
   const {data:operation,error:operationError}=await db.from("payment_account_operations").select("organization_id").eq("organization_id",event.organization_id).maybeSingle();
   if(operationError||operation)return Response.json({error:"The organizer payment account is being updated. Please try again shortly."},{status:409});
   const total=Number(event.unit_price_minor)*p.quantity;
-  if(!Number.isSafeInteger(total)||total<100||total>100000000||event.currency!=="GHS")return Response.json({error:"Checkout total must be between GH₵1 and GH₵1,000,000."},{status:400});
+  if(!Number.isSafeInteger(total)||total>100000000||event.currency!=="GHS")return Response.json({error:"Checkout total must be between GH₵1 and GH₵1,000,000."},{status:400});
+  if(total<100){
+    const minQty = Math.ceil(100 / Math.max(1, Number(event.unit_price_minor)));
+    return Response.json({error:`Mobile Money & Paystack require a minimum checkout of GH₵1.00. Please select at least ${minQty} vote${minQty>1?"s":""} to continue.`},{status:400});
+  }
   const origin=siteUrl();
   const session=await reserveCheckout(p.requestKey,{...p,price:event.unit_price_minor},`VCH-VOTE-${randomUUID().replaceAll("-","")}`);
   if(!session.fresh){

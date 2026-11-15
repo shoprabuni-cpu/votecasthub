@@ -614,6 +614,28 @@ export function EventDetailsForm({
                         </button>
                       ))}
                     </div>
+
+                    {/* Minimum Telco / Paystack Transaction Notice */}
+                    {(() => {
+                      const numP = Number.parseFloat(values.priceGhs) || 0;
+                      if (numP > 0 && numP < 1.00) {
+                        const minVotes = Math.ceil(1.00 / numP);
+                        const minTotal = (minVotes * numP).toFixed(2);
+                        return (
+                          <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                              <span>ℹ️</span>
+                              <span>Mobile Money Minimum Checkout: GH₵ 1.00</span>
+                            </div>
+                            <p className="text-[11px] text-amber-900 leading-relaxed">
+                              Paystack and Ghana telcos (MTN MoMo, Telecel Cash, AT Money) have a minimum checkout threshold of <strong>GH₵ 1.00</strong>. At <strong>GH₵ {numP.toFixed(2)}</strong> per vote, voters will be prompted to purchase a minimum package of <strong>{minVotes} votes (GH₵ {minTotal})</strong> at checkout.
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <p className="text-[11px] text-amber-900/80 leading-relaxed">
                       💡 <strong>Note on payouts:</strong> You can set up this event now. Before paid voting goes live, connect your Paystack account in Payments.
                     </p>

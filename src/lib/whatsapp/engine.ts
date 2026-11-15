@@ -434,21 +434,33 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         expires_at: expiresAt,
       });
 
-      const priceGhs = (event.unit_price_minor / 100).toFixed(2);
+      const unitPriceMinor = Math.max(1, Number(event.unit_price_minor) || 100);
+      const minVotes = Math.max(1, Math.ceil(100 / unitPriceMinor));
+      const priceGhs = (unitPriceMinor / 100).toFixed(2);
       const nomineePhotoUrl = await getSignedImageUrl(matched.image_path);
 
+      const qty1 = minVotes;
+      const qty2 = minVotes === 1 ? 5 : minVotes * 2;
+      const qty3 = minVotes === 1 ? 10 : minVotes * 5;
+
       const buttons = [
-        { id: "QTY 1", title: `1 Vote (GH₵${priceGhs})`.slice(0, 20) },
-        { id: "QTY 5", title: `5 Votes (GH₵${(Number(priceGhs) * 5).toFixed(2)})`.slice(0, 20) },
-        { id: "QTY 10", title: `10 Votes (GH₵${(Number(priceGhs) * 10).toFixed(2)})`.slice(0, 20) },
+        { id: `QTY ${qty1}`, title: `${qty1} Vote${qty1 > 1 ? "s" : ""} (GH₵${((qty1 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
+        { id: `QTY ${qty2}`, title: `${qty2} Votes (GH₵${((qty2 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
+        { id: `QTY ${qty3}`, title: `${qty3} Votes (GH₵${((qty3 * unitPriceMinor) / 100).toFixed(2)})`.slice(0, 20) },
       ];
+
+      let promptBody = `You selected *${matched.name}* in *${matched.category.name}* (${event.name}).\nPrice: *GH₵${priceGhs} per vote*.`;
+      if (minVotes > 1) {
+        promptBody += `\n\n*(ℹ️ Mobile Money minimum checkout is GH₵ 1.00 — min package is ${minVotes} votes)*`;
+      }
+      promptBody += `\n\nHow many votes would you like to cast? Tap a button below or reply with a number:`;
 
       await sendWhatsAppInteractiveButtons(
         phone,
         `🗳️ ${matched.name}`.slice(0, 60),
-        `You selected *${matched.name}* in *${matched.category.name}* (${event.name}).\nPrice: *GH₵${priceGhs} per vote*.\n\nHow many votes would you like to cast? Tap a button below or reply with a number:`,
+        promptBody,
         buttons,
-        "Or reply with any number (e.g. 20, 50)",
+        minVotes > 1 ? `Or reply with ${minVotes}+ (e.g. ${minVotes * 2}, ${minVotes * 5})` : "Or reply with any number (e.g. 20, 50)",
         nomineePhotoUrl,
       );
     }
@@ -1095,6 +1107,18 @@ async function handlePaidVoteCheckout(params: {
 
   if (!event || !nominee) {
     await sendWhatsAppMessage(phone, "❌ Selection unavailable. Please send VOTE to start over.");
+    return;
+  }
+
+  // Enforce Mobile Money / Paystack GH₵ 1.00 minimum transaction threshold
+  const unitPriceMinor = Math.max(1, Number(event.unit_price_minor) || 100);
+  const minVotes = Math.max(1, Math.ceil(100 / unitPriceMinor));
+  if (quantity < minVotes) {
+    const minGhs = ((minVotes * unitPriceMinor) / 100).toFixed(2);
+    await sendWhatsAppMessage(
+      phone,
+      `⚠️ *Minimum Mobile Money Checkout is GH₵ 1.00*\n\nTelco networks and Paystack require a minimum checkout of GH₵ 1.00.\nAt GH₵ ${(unitPriceMinor / 100).toFixed(2)} per vote, the minimum purchase is *${minVotes} votes (GH₵ ${minGhs})*.\n\nPlease reply with *${minVotes}* or more to continue:`,
+    );
     return;
   }
 
