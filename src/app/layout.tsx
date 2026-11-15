@@ -19,8 +19,8 @@ export const metadata: Metadata = {
     other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
   },
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "VotecastHub" },
+  icons: { icon: "/images/votecasthub-logo.png", apple: "/images/votecasthub-logo.png" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "VoteCastHub" },
   formatDetection: { telephone: false },
 };
 

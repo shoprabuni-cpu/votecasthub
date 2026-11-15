@@ -2,6 +2,7 @@ import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { SiteHeader } from "@/components/site-header";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const metadata = publicMetadata("Privacy Policy", "How VotecastHub GH uses your information for accounts, events, voting and payments.", "/privacy");
 
@@ -27,5 +28,5 @@ export default function PrivacyPage() {
     <section><h2>Your requests and privacy rights</h2><p>You can contact us to request access to your personal information, correct inaccurate details, ask for deletion, or raise a concern about its use. We may need to verify your identity before handling a request. Requests are handled subject to Ghana’s Data Protection Act, 2012 (Act 843). You can also contact the <a href="https://dpc.gov.gh/for-individuals/" rel="noreferrer">Ghana Data Protection Commission</a> about your rights or a complaint.</p></section>
     <section><h2>Nominee information and children</h2><p>Organizers must have permission or another appropriate basis to upload nominee information and photographs. Where nominees are children, organizers must obtain any required permission from a parent or guardian. Contact us if you believe an event includes personal information or an image that should not have been published.</p></section>
     <section><h2>Updates and contact</h2><p>We update this policy when our services or data practices change. The date above shows the latest update. Send privacy requests to <a href="mailto:support@votecasthub.com">support@votecasthub.com</a>, and include enough detail for us to identify the account or event concerned. Do not include passwords, payment PINs or verification codes.</p></section>
-  </article><footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer></main>;
+  </article><footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer></main>;
 }

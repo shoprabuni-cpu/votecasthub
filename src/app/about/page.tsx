@@ -1,5 +1,6 @@
 import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata = publicMetadata("About VotecastHub", "Learn about VotecastHub GH and how it supports event organizers and voters across Ghana.", "/about");
@@ -16,4 +17,4 @@ export default function AboutPage() {
   </article><LegalFooter /></main>;
 }
 
-function LegalFooter() { return <footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>; }
+function LegalFooter() { return <footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer>; }

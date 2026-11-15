@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Icon } from "@/components/icon";
 import { ghanaDate } from "@/lib/events/presentation";
 import { generateQrDataUrl } from "@/lib/qr";
@@ -55,7 +56,14 @@ export function EventPromotionTools({ name, url, endsAt, phase = "open" }: { nam
     <div className="bg-linear-to-br from-emerald-50 to-white p-5 sm:p-6"><div className="flex items-start gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-900"><Icon name="users" size={21} /></span><div><h2 id="promote-event-title" className="text-lg font-semibold text-stone-900">{phase === "ended" ? "Share your event highlights" : "Bring your audience to your event"}</h2><p className="mt-1 text-sm leading-6 text-stone-600">{phase === "ended" ? "Send people to the event page to explore the nominees and available results." : phase === "paused" ? "Share the event page while voting is paused. Your message will make the pause clear." : phase === "scheduled" ? "Let people meet the nominees before voting opens." : "One link takes voters straight to your event. Share it with your community."}</p></div></div>
       <label htmlFor={linkId} className="mt-5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Your event link</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id={linkId} ref={linkInput} className="min-h-12 min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-base text-stone-700 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 sm:text-sm" readOnly value={url} onFocus={event => event.target.select()} /><button type="button" disabled={copying} onClick={() => copy(url)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed"><Icon name="copy" size={17} />{copying ? "Copying…" : "Copy event link"}</button></div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"><Icon name="phone" size={17} />Share on WhatsApp<span className="sr-only"> (opens WhatsApp in a new tab)</span></a>
+        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 shadow-2xs">
+          <Image src="/images/whatsapp-logo.jpg" alt="" width={18} height={18} className="rounded-full" />
+          <span>Share on WhatsApp</span>
+        </a>
+        <a href={`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 hover:bg-sky-100 shadow-2xs">
+          <Image src="/images/telegram-logo.jpg" alt="" width={18} height={18} className="rounded-full" />
+          <span>Share on Telegram</span>
+        </a>
         <button
           type="button"
           onClick={loadQr}

@@ -1,9 +1,12 @@
+import Image from "next/image";
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 import { generateQrDataUrl } from "@/lib/qr";
 
 const WA_NUMBER = "233592992566";
 const WA_DISPLAY = "+233 59 299 2566";
+const TG_BOT_USERNAME = "VotecastHubGH_bot";
+const TG_BOT_DISPLAY = "@VotecastHubGH_bot";
 
 export async function WhatsAppInstructions({
   eventId,
@@ -21,22 +24,29 @@ export async function WhatsAppInstructions({
 
   const waMessage = `VOTE ${eventCode}`;
   const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
+  const tgUrl = `https://t.me/${TG_BOT_USERNAME}?start=event_${eventSlug}`;
   const qrUrl = await generateQrDataUrl(waUrl, { width: 160, margin: 1 });
 
   return (
-    <section className="my-5 rounded-2xl border border-emerald-300 bg-linear-to-br from-emerald-50 via-white to-stone-50 p-5 shadow-xs">
+    <section className="my-5 rounded-2xl border border-emerald-300 bg-linear-to-br from-emerald-50/70 via-white to-sky-50/40 p-5 shadow-xs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1.5 flex-1">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-950">
-            <span>💬 Official WhatsApp Channel</span>
-            <span className="bg-emerald-600 size-1.5 rounded-full" />
-            <span className="font-semibold text-emerald-800">100% Free · No SMS needed</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-950">
+              <span className="size-1.5 rounded-full bg-emerald-600" />
+              <span>WhatsApp &amp; Telegram Bot Voting</span>
+            </div>
+            <span className="text-[11px] font-semibold text-emerald-800">
+              100% Free · No App Download Needed
+            </span>
           </div>
           <h3 className="font-serif text-lg font-bold text-stone-900">
-            Prefer voting on WhatsApp?
+            Prefer voting on WhatsApp or Telegram?
           </h3>
           <p className="text-xs text-stone-600 leading-relaxed max-w-xl">
-            You can cast your ballot directly in WhatsApp without downloading an app or waiting for SMS codes. Simply message <strong className="text-emerald-950 font-bold">{WA_DISPLAY}</strong>.
+            Cast your ballot directly in your favorite chat app. Message WhatsApp at{" "}
+            <strong className="text-emerald-950 font-bold">{WA_DISPLAY}</strong> or launch our Telegram bot{" "}
+            <strong className="text-sky-950 font-bold">{TG_BOT_DISPLAY}</strong> with instant Mobile Money payments.
           </p>
         </div>
 
@@ -49,7 +59,7 @@ export async function WhatsAppInstructions({
             height={72}
             className="rounded-lg"
           />
-          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-wider">Scan to Vote</span>
+          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-wider">Scan for Bot</span>
         </div>
       </div>
 
@@ -61,15 +71,39 @@ export async function WhatsAppInstructions({
           </code>
         </div>
 
-        <a
-          href={waUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition-all active:scale-95 cursor-pointer"
-        >
-          <Icon name="phone" size={14} />
-          <span>Open WhatsApp to Vote</span> ↗
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs transition-all active:scale-95 cursor-pointer"
+          >
+            <Image
+              src="/images/whatsapp-logo.jpg"
+              alt=""
+              width={16}
+              height={16}
+              className="rounded-full"
+            />
+            <span>Vote on WhatsApp</span> ↗
+          </a>
+
+          <a
+            href={tgUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 shadow-xs transition-all active:scale-95 cursor-pointer"
+          >
+            <Image
+              src="/images/telegram-logo.jpg"
+              alt=""
+              width={16}
+              height={16}
+              className="rounded-full"
+            />
+            <span>Vote on Telegram</span> ↗
+          </a>
+        </div>
       </div>
     </section>
   );

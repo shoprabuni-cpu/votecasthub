@@ -325,7 +325,7 @@ export function EventDetailsForm({
             {[
               { id: 1, title: "Event Basics", subtitle: "Name, story & dates" },
               { id: 2, title: "Contestants", subtitle: "Categories & nominees" },
-              { id: 3, title: "Rules & Channels", subtitle: "Pricing, limits & WhatsApp" },
+              { id: 3, title: "Rules & Channels", subtitle: "Pricing, WhatsApp & Telegram" },
               { id: 4, title: "Review & Submit", subtitle: "Platform pre-flight" },
             ].map((s) => {
               const isCurrent = s.id === 1;
@@ -905,11 +905,17 @@ export function EventDetailsForm({
                           </a>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60 text-[11px]">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-emerald-200/60 text-[11px]">
                           <div className="rounded-lg bg-white p-2.5 border border-emerald-100">
                             <span className="font-bold text-emerald-950 block">💬 WhatsApp Voting: Free</span>
                             <span className="text-stone-500 leading-snug">
                               Voters are authenticated natively by WhatsApp. Uses 0 SMS credits.
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-white p-2.5 border border-sky-100">
+                            <span className="font-bold text-sky-950 block">✈️ Telegram Voting: Free</span>
+                            <span className="text-stone-500 leading-snug">
+                              Native contact verification on @VotecastHubGH_bot. Uses 0 SMS credits.
                             </span>
                           </div>
                           <div className="rounded-lg bg-white p-2.5 border border-emerald-100">

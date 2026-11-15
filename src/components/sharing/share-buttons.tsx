@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { AppModal } from "@/components/ui/app-modal";
 import { createFlyer, type FlyerDetails } from "@/lib/events/flyer";
 export function ShareButton({ title, text, url, flyer }: { title: string; text: string; url: string; flyer?: FlyerDetails }) {
@@ -49,15 +50,24 @@ export function ShareButton({ title, text, url, flyer }: { title: string; text: 
           {preview.photoMissing && <p role="status" className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">The nominee photo could not load in time, so this flyer uses a prestigious monogram seal. Refresh the page to retry with the full photo.</p>}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <span className="text-[11px] text-stone-500 font-medium">1080 × 1350 px &middot; HD Social &amp; Print Ready</span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(`🏆 Support *${title}*! Cast your vote now on WhatsApp or Web:\n${publicUrl()}`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`🏆 Support *${title}*! Cast your vote now on WhatsApp, Telegram or Web:\n${publicUrl()}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100/80 shadow-2xs"
               >
-                <span>💬</span>
-                <span>Share to WhatsApp</span>
+                <Image src="/images/whatsapp-logo.jpg" alt="" width={15} height={15} className="rounded-full" />
+                <span>WhatsApp</span>
+              </a>
+              <a
+                href={`https://t.me/share/url?url=${encodeURIComponent(publicUrl())}&text=${encodeURIComponent(`🏆 Support *${title}*! Cast your vote now on Telegram, WhatsApp or Web.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100/80 shadow-2xs"
+              >
+                <Image src="/images/telegram-logo.jpg" alt="" width={15} height={15} className="rounded-full" />
+                <span>Telegram</span>
               </a>
               <button
                 className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-stone-800 cursor-pointer"

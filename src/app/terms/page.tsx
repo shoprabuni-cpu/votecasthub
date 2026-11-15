@@ -1,6 +1,7 @@
 import { publicMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const metadata = publicMetadata("Terms & Conditions", "Terms for organizers and participants using VotecastHub GH.", "/terms");
 
@@ -21,5 +22,5 @@ export default function TermsPage() {
     <section><h2>9. Availability and account closure</h2><p>Maintenance, network problems and provider outages can interrupt the service. We do not guarantee continuous availability. Organizers should keep copies of important event records and communicate significant changes to participants.</p><p>You can stop using the platform and contact support to request account closure. We may suspend or close accounts for violations, security risks or legal requirements. Account closure does not erase outstanding transaction obligations. Data requests and retained records are covered by our <Link href="/privacy">Privacy Policy</Link>.</p></section>
     <section><h2>10. Responsibility and applicable law</h2><p>VotecastHub GH provides the tools for event setup, voting and payment records. Organizers are responsible for running their events and communicating their decisions. These terms do not exclude any responsibility or consumer right that cannot legally be excluded.</p><p>These terms are governed by the laws of Ghana. Contact us first with details of a concern so we can investigate. This does not prevent you from using any complaint process or legal remedy available to you.</p></section>
     <section><h2>11. Updates and contact</h2><p>We update these terms when services or conditions change and publish the updated date above. Review the terms before making a new purchase or submitting an event. Questions about these terms can be sent to <a href="mailto:info@votecasthub.com">info@votecasthub.com</a>.</p></section>
-  </article><footer className="site-footer"><Link className="brand footer-brand" href="/"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer></main>;
+  </article><footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a></nav><span>© {new Date().getFullYear()} VotecastHub GH</span></footer></main>;
 }

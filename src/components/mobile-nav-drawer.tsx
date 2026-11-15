@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { BrandLogo } from "@/components/brand-logo";
 import { useEffect, useRef, useState } from "react";
 
 const links = [
@@ -55,8 +56,10 @@ export function MobileNavDrawer() {
       <div className={`mr-auto flex h-full w-[min(22rem,calc(100vw-1rem))] flex-col rounded-r-3xl border-r border-stone-200 bg-stone-50 shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center justify-between border-b border-emerald-800 bg-emerald-950 px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-white rounded-tr-3xl">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-200">VotecastHub GH</p>
-            <h2 id="mobile-menu-title" className="mt-2 text-2xl font-semibold">Explore & vote</h2>
+            <div className="bg-white/95 px-2.5 py-1 rounded-xl inline-block shadow-xs">
+              <BrandLogo height={32} />
+            </div>
+            <h2 id="mobile-menu-title" className="mt-2 text-xl font-semibold">Explore & vote</h2>
           </div>
           <button type="button" aria-label="Close navigation menu" onClick={close} className="inline-flex size-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-700">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /></svg>

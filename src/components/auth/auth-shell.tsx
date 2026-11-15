@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CookieSettingsLink } from "@/components/cookie-consent";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function AuthShell({ eyebrow, title, description, children }: {
   eyebrow: string;
@@ -10,7 +11,7 @@ export function AuthShell({ eyebrow, title, description, children }: {
 }) {
   return (
     <main className="auth-page">
-      <Link className="brand auth-brand" href="/" aria-label="VotecastHub GH home"><span className="brand-mark">V</span><span>VotecastHub<span className="brand-accent"> GH</span></span></Link>
+      <Link className="inline-flex items-center min-h-11" href="/" aria-label="VoteCastHub GH home"><BrandLogo height={44} priority /></Link>
       <div className="auth-layout">
         <aside className="auth-visual" aria-label="VotecastHub organizer tools">
           <div className="auth-visual-orbit auth-visual-orbit-one"/><div className="auth-visual-orbit auth-visual-orbit-two"/>

@@ -1,5 +1,6 @@
 import { UssdPaymentHistory } from "@/components/events/ussd-payment-history";
 import { WhatsAppVotingInfo } from "@/components/events/whatsapp-voting-info";
+import { TelegramVotingInfo } from "@/components/events/telegram-voting-info";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -304,14 +305,18 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           {/* Connected Channels Summary */}
           <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">Enabled Voting Channels</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
               <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
                 <span className="font-bold text-emerald-950 block">🌐 Web Voting</span>
                 <span className="text-[11px] text-stone-600">Active · Instant mobile link</span>
               </div>
               <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
                 <span className="font-bold text-emerald-950 block">💬 WhatsApp Bot</span>
-                <span className="text-[11px] text-stone-600">Active · WhatsApp verified</span>
+                <span className="text-[11px] text-stone-600">Active · +233 59 299 2566</span>
+              </div>
+              <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
+                <span className="font-bold text-sky-950 block">✈️ Telegram Bot</span>
+                <span className="text-[11px] text-stone-600">Active · @VotecastHubGH_bot</span>
               </div>
               <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
                 <span className="font-bold text-stone-800 block">📞 USSD (*920#)</span>
@@ -366,14 +371,22 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         </section> : undefined}
         voting={<>
           <UssdPaymentHistory eventId={eventId}/>
-          <WhatsAppVotingInfo
-            eventCode={ussdRequest?.event_code}
-            eventSlug={event.slug}
-            eventName={event.name}
-            votingMode={event.voting_mode}
-            eventStatus={event.status}
-            configured={whatsappConfigured}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <WhatsAppVotingInfo
+              eventCode={ussdRequest?.event_code}
+              eventSlug={event.slug}
+              eventName={event.name}
+              votingMode={event.voting_mode}
+              eventStatus={event.status}
+              configured={whatsappConfigured}
+            />
+            <TelegramVotingInfo
+              eventSlug={event.slug}
+              eventName={event.name}
+              votingMode={event.voting_mode}
+              eventStatus={event.status}
+            />
+          </div>
           <UssdRequest eventId={eventId} quote={ussdRequest} canAccept={["owner", "admin"].includes(membership?.role ?? "") && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} requested={Boolean(ussdRequest && ussdRequest.status !== "cancelled")} unavailable={Boolean(ussdError)} canRequest={canManage && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} />
           {event.status === "draft" && event.voting_mode === "paid" && !checkoutReady && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Connect your payment account</h2><p className="mt-2 text-sm text-stone-600">A verified payment account is needed before this paid event can be submitted.</p><Link href={`/organizer/${organizationId}/payments`} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50">Set up payments</Link></section>}
           {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
