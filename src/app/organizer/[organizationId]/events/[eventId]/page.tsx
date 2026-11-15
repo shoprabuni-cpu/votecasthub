@@ -237,12 +237,132 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
         </>}
         nominees={<section className={panel}>{categoriesError || nomineeError ? <p role="alert" className="text-sm text-red-800">Categories or nominees could not load. Refresh to try again.</p> : <><CategoryNomineeStudio categories={categories ?? []} nominees={nominees ?? []} imageUrlMap={imageUrlMap} eventId={eventId} canManage={canManage} isDraft={event.status === "draft"} pagePath={pagePath} />{event.status !== "draft" && <div className="mt-5 border-t border-stone-100 pt-4"><p className="mb-3 text-sm text-stone-600">Categories and nominees are protected outside private editing.</p>{returnToDraft}</div>}</>}</section>}
-        review={event.status === "draft" ? <section className={panel}>
-          <h2 className="text-lg font-semibold text-stone-900">Review & Submit</h2>
-          <p className="mt-3 rounded-xl bg-stone-50 p-3 text-sm text-stone-600">USSD: {ussdError ? "Status unavailable" : ussdRequest?.payment_status === "refunded" ? "Access payment refunded — contact support." : ussdRequest?.enabled ? "Enabled for the configured access period." : ussdRequest?.access_paid ? "Payment confirmed — activation pending." : ussdRequest?.status === "accepted" ? "Quote accepted — payment and activation pending." : ussdRequest?.status === "quoted" ? "Quote ready — review it in Voting settings." : ussdRequest?.status === "requested" ? "Activation requested — awaiting a quote; website voting can proceed." : "Not enabled — website voting only."}</p>
-          <p className="mt-1 text-sm text-stone-600">Check the required setup below, preview what voters will see, then send your event for approval.</p>
-          <Link href={`${pagePath}/preview`} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Preview event</Link>
-          {event.status === "draft" && <div className="mt-5 space-y-4"><ul className="space-y-2">{publishChecks.map(item => <li key={item.label} className="flex items-start gap-2 text-sm"><span className={item.complete ? "text-emerald-700" : "text-amber-700"}>{item.complete ? "✓" : "○"}</span><span className="flex flex-1 flex-wrap items-center justify-between gap-2 text-stone-700">{item.label}{!item.complete && canManage && <button type="button" data-workspace-section={item.section} data-workspace-editor={item.editor ? "true" : "false"} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-emerald-800 border border-stone-300 bg-white shadow-xs py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{item.optional ? "Add image" : "Complete setup"}</button>}</span></li>)}</ul>{event.voting_mode === "paid" && !checkoutReady && <Link href={`/organizer/${organizationId}/payments`} className="text-sm font-semibold text-emerald-800  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Connect your payment account</Link>}{canManage && <EventStatusForm eventId={eventId} action="publish" backTo={pagePath} label="Submit for approval" disabled={!publishReady} disabledMessage="Complete the required setup items above." confirmMessage={`Submit “${event.name}” for approval? It stays private until approved. Voting follows your scheduled Ghana dates.`} />}</div>}
+        review={event.status === "draft" ? <section className={`${panel} space-y-6`}>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-100 pb-4">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Launch Pre-Flight</span>
+              <h2 className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-stone-900">
+                Review & Submit for Approval
+              </h2>
+              <p className="mt-1 text-xs text-stone-500">
+                Verify your competition rules and contestant roster before sending to our compliance team.
+              </p>
+            </div>
+            <Link
+              href={`${pagePath}/preview`}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs"
+            >
+              <span>Preview Voter Page</span> ↗
+            </Link>
+          </div>
+
+          {/* Pre-Flight Checklist */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">Pre-Flight Readiness Checklist</h3>
+            <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-stone-50/50">
+              {publishChecks.map((item) => (
+                <div key={item.label} className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      item.complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+                    }`}>
+                      {item.complete ? "✓" : "!"}
+                    </span>
+                    <span className={`font-semibold ${item.complete ? "text-stone-800" : "text-amber-950"}`}>
+                      {item.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {item.complete ? (
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                        Ready
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                          {item.optional ? "Optional" : "Action Needed"}
+                        </span>
+                        {canManage && (
+                          <button
+                            type="button"
+                            data-workspace-section={item.section}
+                            data-workspace-editor={item.editor ? "true" : "false"}
+                            className="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-900 hover:bg-stone-50 shadow-2xs cursor-pointer"
+                          >
+                            {item.optional ? "Add cover" : "Fix now →"}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Connected Channels Summary */}
+          <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">Enabled Voting Channels</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                <span className="font-bold text-emerald-950 block">🌐 Web Voting</span>
+                <span className="text-[11px] text-stone-600">Active · Instant mobile link</span>
+              </div>
+              <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                <span className="font-bold text-emerald-950 block">💬 WhatsApp Bot</span>
+                <span className="text-[11px] text-stone-600">Active · WhatsApp verified</span>
+              </div>
+              <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
+                <span className="font-bold text-stone-800 block">📞 USSD (*920#)</span>
+                <span className="text-[11px] text-stone-500">
+                  {ussdError ? "Unavailable" : ussdRequest?.enabled ? "Enabled" : "Optional add-on"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Account connection callout if Paid */}
+          {event.voting_mode === "paid" && !checkoutReady && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-2">
+              <p className="text-xs font-bold text-amber-950">Payment Account Required for Paid Voting</p>
+              <p className="text-[11px] text-amber-900">
+                Before submitting for approval, connect your organization's Paystack mobile money settlement account.
+              </p>
+              <Link
+                href={`/organizer/${organizationId}/payments`}
+                className="inline-flex min-h-9 items-center rounded-lg bg-amber-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-amber-800 shadow-2xs"
+              >
+                Set up Paystack Account →
+              </Link>
+            </div>
+          )}
+
+          {/* Platform Review Notice */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-1 text-xs">
+            <div className="flex items-center gap-2 text-emerald-950 font-bold">
+              <span>🛡️</span>
+              <span>Platform Compliance & Verification</span>
+            </div>
+            <p className="text-[11px] text-emerald-900/90 leading-relaxed">
+              Our team reviews contest integrity, fair voting parameters, and settlement routing. Submissions are typically reviewed and approved within <strong>1–2 hours</strong> during Ghana business hours. Once approved, voting will open on your scheduled start date.
+            </p>
+          </div>
+
+          {/* Submit Action */}
+          {canManage && (
+            <div className="pt-2">
+              <EventStatusForm
+                eventId={eventId}
+                action="publish"
+                backTo={pagePath}
+                label="Submit Event for Approval"
+                disabled={!publishReady}
+                disabledMessage="Please complete all required items in the checklist above."
+                confirmMessage={`Submit “${event.name}” for platform approval? It will remain private until approved, and voting will open automatically on your scheduled start date.`}
+              />
+            </div>
+          )}
         </section> : undefined}
         voting={<>
           <UssdPaymentHistory eventId={eventId}/>

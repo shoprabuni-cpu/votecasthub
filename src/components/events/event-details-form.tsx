@@ -82,7 +82,7 @@ export function EventDetailsForm({
   const [verificationMethod, setVerificationMethodValue] = useState<"phone" | "email" | "invite_code" | "voter_list">(
     initial?.verificationMethod ?? "phone"
   );
-  const [votingRule, setVotingRuleValue] = useState<VotingRule>(initial?.votingRule ?? "category_limit");
+  const [votingRule, setVotingRuleValue] = useState<VotingRule>(initial?.votingRule ?? "one_per_category");
   const setVotingMode = (value: "free" | "paid") => { markChanged(); setVotingModeValue(value); };
   const setVerificationMethod = (value: "phone" | "email" | "invite_code" | "voter_list") => { markChanged(); setVerificationMethodValue(value); };
   const setVotingRule = (value: VotingRule) => { markChanged(); setVotingRuleValue(value); };
@@ -102,6 +102,62 @@ export function EventDetailsForm({
     markChanged();
     setStepError(null);
     setValues((current) => ({ ...current, [field]: value }));
+  };
+
+  const allowanceMode: "one_per_category" | "single_choice" | "custom_limit" =
+    votingRule === "one_per_category"
+      ? "one_per_category"
+      : votingRule === "per_nominee_limit" && values.freeVoteLimit === "1"
+      ? "single_choice"
+      : "custom_limit";
+
+  const selectAllowanceMode = (mode: "one_per_category" | "single_choice" | "custom_limit") => {
+    markChanged();
+    setStepError(null);
+    if (mode === "one_per_category") {
+      setVotingRule("one_per_category");
+      updateValue("freeVoteLimit", "1");
+    } else if (mode === "single_choice") {
+      setVotingRule("per_nominee_limit");
+      updateValue("freeVoteLimit", "1");
+    } else {
+      setVotingRule("category_limit");
+      const current = Number.parseInt(values.freeVoteLimit, 10);
+      if (Number.isNaN(current) || current <= 1) {
+        updateValue("freeVoteLimit", "3");
+      }
+    }
+  };
+
+  const audienceContext = {
+    phone: {
+      label: "Open to Public",
+      badge: "Tracked per verified Ghana Phone / WhatsApp",
+      catDesc: "Each verified phone number can cast 1 vote in every category (1 for Best Male, 1 for Best Female, etc.).",
+      singleDesc: "Once a verified phone casts a single vote anywhere in the competition, their ballot is permanently locked.",
+      customDesc: (n: string) => `Each verified phone gets a total wallet allowance of ${n} votes to spend across any nominees.`,
+    },
+    invite_code: {
+      label: "VIP / Delegate Passcodes",
+      badge: "Unlocked by secret 1-time VIP code",
+      catDesc: "Each VIP invite code unlocks a full digital ballot (1 vote in every category).",
+      singleDesc: "Each VIP code is good for exactly 1 single vote total, then permanently expires.",
+      customDesc: (n: string) => `Each VIP code grants a balance of ${n} votes for the delegate to cast.`,
+    },
+    voter_list: {
+      label: "Restricted Voter Roll",
+      badge: "Bound to Student ID / Index Number on roster",
+      catDesc: "Every Student ID or Index Number on your roster gets 1 vote in every category.",
+      singleDesc: "Every student or delegate on your roster can vote for 1 single candidate across the entire election.",
+      customDesc: (n: string) => `Default: ${n} votes per student on the list (or specify custom votes per person in your CSV).`,
+    },
+    email: {
+      label: "Email Passcode",
+      badge: "Verified via 6-digit email OTP",
+      catDesc: "Each verified email address can cast 1 vote in every category.",
+      singleDesc: "Each verified email can vote for 1 single candidate across the entire competition.",
+      customDesc: (n: string) => `Each verified email address gets ${n} votes to distribute across candidates.`,
+    },
   };
 
   // Quick Date Presets
@@ -563,96 +619,249 @@ export function EventDetailsForm({
                     </p>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-emerald-950/10 bg-emerald-50/30 p-4 space-y-4">
-                    <div className="space-y-3">
-                      <label htmlFor="input-voter-audience" className="block text-xs font-semibold text-stone-800">Who can vote?</label>
-                      <select id="input-voter-audience" value={verificationMethod === "voter_list" ? "approved" : "open"} onChange={e => setVerificationMethod(e.target.value === "approved" ? "voter_list" : "phone")} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm">
-                        <option value="open">Anyone who completes verification</option>
-                        <option value="approved">Only people on my approved voter list</option>
-                      </select>
-                      {verificationMethod === "voter_list" ? (
-                        <p className="text-xs leading-relaxed text-stone-600">Upload your list after saving the event. Listed phones receive an SMS code; listed emails receive an email code. Index numbers and other IDs use a private code generated for each voter. Voters verify directly on the event page.</p>
-                      ) : <>
-                        <label htmlFor="input-verification-method" className="block text-xs font-semibold text-stone-800">How should voters verify?</label>
-                        <select id="input-verification-method" value={verificationMethod} onChange={e => setVerificationMethod(e.target.value as "phone" | "email" | "invite_code")} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm">
-                          <option value="phone">Phone number + SMS code</option>
-                          <option value="email">Email address + email code</option>
-                          <option value="invite_code">Private voting code from the organizer</option>
-                        </select>
-                        <p className="text-xs leading-relaxed text-stone-600">{verificationMethod === "invite_code" ? "Create a separate private code for each voter after saving your event. Distribute codes privately; voters enter their code and vote without registering an account." : "Voters enter their details and verification code on the event page. No separate sign-in page is needed."}</p>
-                      </>}
-                    </div>
-
-                    {/* Voting Rule */}
-                    <div>
-                      <label htmlFor="input-voting-rule" className="block text-xs font-semibold text-stone-800 mb-1.5">
-                        Ballot Fairness Rule
-                      </label>
-                      <select
-                        id="input-voting-rule"
-                        value={votingRule}
-                        onChange={(e) => {
-                          const next = e.target.value as VotingRule;
-                          setVotingRule(next);
-                          if (next === "one_per_category") updateValue("freeVoteLimit", "1");
-                        }}
-                        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15"
-                      >
-                        {votingRuleOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-[11px] text-stone-500">
-                        {votingRuleOptions.find((opt) => opt.value === votingRule)?.description}
-                      </p>
-                    </div>
-
-                    {/* Limit input */}
-                    {votingRule !== "one_per_category" && (
-                      <div className="flex items-center gap-3">
-                        <label htmlFor="input-free-vote-limit" className="text-xs font-medium text-stone-700 whitespace-nowrap">
-                          Maximum votes per category:
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50/40 p-5 space-y-6">
+                    {/* 1. Who is allowed to vote? */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-stone-800">
+                          1. Who is allowed to vote?
                         </label>
-                        <input
-                          id="input-free-vote-limit"
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={values.freeVoteLimit}
-                          onChange={(e) => updateValue("freeVoteLimit", e.target.value)}
-                          className="w-20 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-bold text-stone-900 focus:border-emerald-600 focus:outline-none"
-                        />
+                        <span className="text-[11px] text-stone-400">Select audience verification</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Option 1: Open to Public */}
+                        <button
+                          type="button"
+                          onClick={() => setVerificationMethod("phone")}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            verificationMethod === "phone"
+                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xl">🌍</span>
+                            {verificationMethod === "phone" && (
+                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-bold text-stone-900">Open to Public</h4>
+                          <p className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                            Verified Ghana phone or WhatsApp number. 1 ballot per person.
+                          </p>
+                        </button>
+
+                        {/* Option 2: VIP Passcodes */}
+                        <button
+                          type="button"
+                          onClick={() => setVerificationMethod("invite_code")}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            verificationMethod === "invite_code"
+                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xl">🎟️</span>
+                            {verificationMethod === "invite_code" && (
+                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-bold text-stone-900">VIP / Delegate Codes</h4>
+                          <p className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                            Secret 1-time vouchers (e.g. VIP-8492) distributed to attendees.
+                          </p>
+                        </button>
+
+                        {/* Option 3: Voter Roll */}
+                        <button
+                          type="button"
+                          onClick={() => setVerificationMethod("voter_list")}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            verificationMethod === "voter_list"
+                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xl">🎓</span>
+                            {verificationMethod === "voter_list" && (
+                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-bold text-stone-900">Restricted Voter Roll</h4>
+                          <p className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                            Approved Student IDs, Index Numbers, or Staff Emails on a roster.
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Vote Allowance per Person (Contextual to Selected Audience) */}
+                    <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-3.5 shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800">2. Vote Allowance per Person</h4>
+                          <p className="text-[11px] text-stone-500">How many times each verified voter can participate.</p>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[10px] font-bold text-emerald-950">
+                          <span>✦</span>
+                          <span>{audienceContext[verificationMethod].badge}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* Option A: 1 vote per category */}
+                        <button
+                          type="button"
+                          onClick={() => selectAllowanceMode("one_per_category")}
+                          className={`w-full text-left p-3.5 rounded-xl border transition-all ${
+                            allowanceMode === "one_per_category"
+                              ? "border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800 shadow-2xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-stone-900">
+                              1 Vote in Every Category <span className="text-emerald-800 font-semibold text-[11px]">(Recommended)</span>
+                            </span>
+                            <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded">Standard Ballot</span>
+                          </div>
+                          <p className="text-[11px] text-stone-600 mt-1 leading-relaxed">
+                            {audienceContext[verificationMethod].catDesc}
+                          </p>
+                        </button>
+
+                        {/* Option B: 1 single vote */}
+                        <button
+                          type="button"
+                          onClick={() => selectAllowanceMode("single_choice")}
+                          className={`w-full text-left p-3.5 rounded-xl border transition-all ${
+                            allowanceMode === "single_choice"
+                              ? "border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800 shadow-2xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-stone-900">1 Single Vote Across the Entire Event</span>
+                            <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded">Strict Single Choice</span>
+                          </div>
+                          <p className="text-[11px] text-stone-600 mt-1 leading-relaxed">
+                            {audienceContext[verificationMethod].singleDesc}
+                          </p>
+                        </button>
+
+                        {/* Option C: Custom limit */}
+                        <div
+                          onClick={() => selectAllowanceMode("custom_limit")}
+                          className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                            allowanceMode === "custom_limit"
+                              ? "border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800 shadow-2xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-stone-900">Custom Vote Allowance:</span>
+                            <div className="inline-flex items-center gap-1.5 bg-stone-100 px-2 py-0.5 rounded-lg border border-stone-300">
+                              <input
+                                type="number"
+                                min="2"
+                                max="100"
+                                value={allowanceMode === "custom_limit" ? values.freeVoteLimit : "3"}
+                                onChange={(e) => {
+                                  selectAllowanceMode("custom_limit");
+                                  updateValue("freeVoteLimit", e.target.value);
+                                }}
+                                className="w-12 bg-transparent text-center font-bold text-xs text-stone-900 focus:outline-none"
+                              />
+                              <span className="text-stone-500 font-semibold text-[11px]">votes per voter</span>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-stone-600 mt-1 leading-relaxed">
+                            {audienceContext[verificationMethod].customDesc(allowanceMode === "custom_limit" ? values.freeVoteLimit : "3")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timing note for VIP Codes */}
+                    {verificationMethod === "invite_code" && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs space-y-1">
+                        <div className="flex items-center gap-2 text-amber-950 font-bold">
+                          <span>🎟️</span>
+                          <span>Generate Single-Use VIP Passcodes</span>
+                        </div>
+                        <p className="text-[11px] text-amber-900 leading-relaxed">
+                          You will be able to generate 50, 100, or custom batches of secret passcodes with a 1-click Excel download in your Event Workspace right after saving.
+                        </p>
                       </div>
                     )}
 
-                    {/* SMS Credit callout */}
+                    {/* Timing note for Voter Roll */}
+                    {verificationMethod === "voter_list" && (
+                      <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 text-xs space-y-1">
+                        <div className="flex items-center gap-2 text-sky-950 font-bold">
+                          <span>🎓</span>
+                          <span>Import Student / Member Roster</span>
+                        </div>
+                        <p className="text-[11px] text-sky-900 leading-relaxed">
+                          You will be able to upload your Excel or CSV spreadsheet of Student IDs, Index Numbers, or institutional emails in your Event Workspace right after saving.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* SMS Credit & Phone Channel Transparency */}
                     {verificationMethod === "phone" && (
-                      <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-white p-3 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs">
-                            ✦
-                          </span>
-                          <div>
-                            <p className="font-semibold text-stone-900">
-                              {smsBalance === null
-                                ? "SMS verification ready"
-                                : `${smsBalance.toLocaleString()} SMS credits available`}
-                            </p>
-                            <p className="text-[10px] text-stone-500">
-                              1 credit is used per Ghanaian voter to send verification codes.
-                            </p>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                              💬
+                            </span>
+                            <div>
+                              <p className="text-xs font-bold text-stone-900">
+                                {smsBalance === null
+                                  ? "SMS Verification Ready"
+                                  : smsBalance === 0
+                                  ? "0 SMS Credits Remaining"
+                                  : `${smsBalance.toLocaleString()} SMS Credits Available`}
+                              </p>
+                              <p className="text-[11px] text-stone-500">
+                                Arkesel SMS OTP delivery for Ghanaian phone numbers
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/organizer/${organizationId}/credits`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex min-h-9 items-center rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-stone-50 shadow-2xs"
+                          >
+                            Top up SMS Credits →
+                          </a>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60 text-[11px]">
+                          <div className="rounded-lg bg-white p-2.5 border border-emerald-100">
+                            <span className="font-bold text-emerald-950 block">💬 WhatsApp Voting: Free</span>
+                            <span className="text-stone-500 leading-snug">
+                              Voters are authenticated natively by WhatsApp. Uses 0 SMS credits.
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-white p-2.5 border border-emerald-100">
+                            <span className="font-bold text-stone-900 block">🌐 Web Phone OTP: 1 Credit</span>
+                            <span className="text-stone-500 leading-snug">
+                              Sending a 6-digit SMS code to web voters consumes 1 SMS credit per ballot.
+                            </span>
                           </div>
                         </div>
-                        <a
-                          href={`/organizer/${organizationId}/credits`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm font-semibold text-emerald-800 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Top up credits →
-                        </a>
                       </div>
                     )}
                   </div>
@@ -803,15 +1012,21 @@ export function EventDetailsForm({
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] text-stone-400 font-medium">Verification</span>
+                      <span className="text-[10px] text-stone-400 font-medium">Audience</span>
                       <p className="font-semibold text-stone-800 capitalize">
-                        {votingMode === "paid" ? "Paystack MoMo/Card" : verificationMethod.replace("_", " ")}
+                        {votingMode === "paid" ? "Paystack MoMo / Card" : audienceContext[verificationMethod].label}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] text-stone-400 font-medium">Results Visibility</span>
-                      <p className="font-semibold text-stone-800 capitalize">
-                        {values.resultsVisibility.replace("_", " ")}
+                      <span className="text-[10px] text-stone-400 font-medium">Vote Allowance</span>
+                      <p className="font-semibold text-stone-800">
+                        {votingMode === "paid"
+                          ? "Pay-as-you-go"
+                          : allowanceMode === "one_per_category"
+                          ? "1 vote in every category"
+                          : allowanceMode === "single_choice"
+                          ? "1 single vote total"
+                          : `${values.freeVoteLimit} votes per voter`}
                       </p>
                     </div>
                     <div className="col-span-2 sm:col-span-3 pt-2 border-t border-stone-100">
@@ -825,14 +1040,14 @@ export function EventDetailsForm({
                 </div>
 
                 {/* What happens next note */}
-                <div className="rounded-xl border border-emerald-900/10 bg-emerald-50/40 p-4 text-xs text-stone-700 flex items-start gap-3">
+                <div className="rounded-xl border border-emerald-900/10 bg-emerald-50/50 p-4 text-xs text-stone-700 flex items-start gap-3">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-800 text-white font-bold text-xs">
-                    <Icon name="sparkle" size={15} />
+                    <Icon name="check" size={15} />
                   </div>
                   <div>
                     <strong className="text-stone-900 font-semibold">What happens next?</strong>
                     <p className="mt-0.5 text-stone-600 text-xs leading-relaxed">
-                      Saving this event opens your <strong>event workspace</strong> where you will add your award categories, upload nominee photos (or import an Excel roster), customize your cover banner, and test with voter preview.
+                      Saving this event creates your competition draft. In your workspace, you will add award categories, upload nominee photos, preview the voter experience, and submit for platform review before going live.
                     </p>
                   </div>
                 </div>
@@ -892,8 +1107,8 @@ export function EventDetailsForm({
                   </>
                 ) : (
                   <>
-                    <Icon name="sparkle" size={15} />
-                    <span>{creationFlow ? "Save & Continue" : "Create event →"}</span>
+                    <Icon name="check" size={15} />
+                    <span>{creationFlow ? "Save & Continue" : "Create event"}</span>
                   </>
                 )}
               </button>
