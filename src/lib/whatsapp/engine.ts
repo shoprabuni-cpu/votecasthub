@@ -1336,10 +1336,11 @@ async function handlePaidVoteCheckout(params: {
       amount: totalAmountMinor,
       currency: "GHS",
       email: `${phone}@votecasthub.com`,
-      subaccount,
-      bearer: "account",
-      transaction_charge: Math.floor(totalAmountMinor / 10),
-      channels: ["mobile_money", "card"],
+      ...(subaccount ? {
+        subaccount,
+        bearer: "account" as const,
+        transaction_charge: Math.floor(totalAmountMinor / 10),
+      } : {}),
       metadata: {
         channel: "whatsapp",
         phone,
@@ -1355,12 +1356,44 @@ async function handlePaidVoteCheckout(params: {
     }
     authUrl = parsedUrl.href;
   } catch (err) {
-    console.error("[WhatsApp] Paystack initialize failed", err);
-    await sendWhatsAppMessage(
-      phone,
-      "❌ Payment gateway is temporarily unavailable. Please try again in a few moments.",
-    );
-    return;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn("[WhatsApp] Paystack initialize attempt failed, checking fallback", { error: errMsg, subaccount });
+
+    // If initial checkout failed due to subaccount (e.g. invalid, unverified or mismatched subaccount code), fallback to direct checkout so the voter is not stranded
+    if (subaccount && errMsg.toLowerCase().includes("subaccount")) {
+      try {
+        console.warn("[WhatsApp] Retrying checkout directly without subaccount fallback", { subaccount, ref: attempt.provider_reference });
+        const fallbackRes = await paystack<{ authorization_url: string }>("/transaction/initialize", {
+          reference: attempt.provider_reference,
+          amount: totalAmountMinor,
+          currency: "GHS",
+          email: `${phone}@votecasthub.com`,
+          metadata: {
+            channel: "whatsapp",
+            phone,
+            event_id: eventId,
+            nominee_id: nomineeId,
+            quantity,
+            intended_subaccount: subaccount,
+          },
+        });
+        const parsedUrl = new URL(fallbackRes.authorization_url);
+        if (parsedUrl.protocol === "https:" && parsedUrl.hostname === "checkout.paystack.com") {
+          authUrl = parsedUrl.href;
+        }
+      } catch (fallbackErr) {
+        console.error("[WhatsApp] Fallback checkout also failed", fallbackErr);
+      }
+    }
+
+    if (!authUrl) {
+      console.error("[WhatsApp] All Paystack initialize paths failed", { error: errMsg });
+      await sendWhatsAppMessage(
+        phone,
+        `❌ Payment checkout error: ${errMsg.replace(/^Paystack request failed:\s*/, "") || "Please try again in a few moments."}`,
+      );
+      return;
+    }
   }
 
   // 3. Update session

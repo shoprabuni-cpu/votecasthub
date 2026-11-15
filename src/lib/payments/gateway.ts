@@ -5,8 +5,12 @@ import { paystackSecret } from "./paystack";
 
 export async function paystack<T>(path:string, body?:object):Promise<T> {
   const response=await fetch(`https://api.paystack.co${path}`,{method:body?"POST":"GET",headers:{Authorization:`Bearer ${paystackSecret()}`,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined,cache:"no-store",signal:AbortSignal.timeout(12000)});
-  const data=await response.json();
-  if(!response.ok||data.status!==true)throw new Error("Paystack request failed");
+  const data=await response.json().catch(() => null);
+  if(!response.ok||data?.status!==true) {
+    const errorMsg = data?.message || response.statusText || "Paystack request failed";
+    console.error("[Paystack Error]", { path, status: response.status, data, body });
+    throw new Error(`Paystack request failed: ${errorMsg}`);
+  }
   return data.data as T;
 }
 export function opaque(value:string){return createHmac("sha256",paystackSecret()).update(value).digest("hex");}
