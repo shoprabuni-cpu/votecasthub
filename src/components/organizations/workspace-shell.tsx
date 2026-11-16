@@ -44,7 +44,7 @@ export function WorkspaceShell({ children, notifications, ...workspace }: Props)
   }, []);
 
   return <WorkspaceShellContext.Provider value={true}>
-    <div className="flex min-h-dvh bg-stone-50 text-stone-900 transition-colors dark:bg-black dark:text-stone-100">
+    <div className="organizer-workspace flex min-h-dvh bg-stone-50 text-stone-900 transition-colors dark:bg-black dark:text-stone-100">
       <WorkspaceSidebar {...workspace} />
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur-md transition-colors sm:px-6 lg:px-8 dark:border-[#1c2721] dark:bg-black/90">

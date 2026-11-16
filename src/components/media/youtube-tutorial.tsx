@@ -85,7 +85,7 @@ export function YouTubeEmbed({
           href={directLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 border border-red-200 px-3 py-1 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-full bg-red-50 border border-red-200 px-3 py-1 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800 transition-colors dark:bg-red-950/60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-900/60"
           title="Open in YouTube App to like, save, or subscribe"
         >
           <svg className="size-3.5 fill-red-600" viewBox="0 0 24 24" aria-hidden="true">
@@ -93,8 +93,8 @@ export function YouTubeEmbed({
           </svg>
           <span>Watch on YouTube ↗</span>
         </a>
-        <span className="text-stone-400">·</span>
-        <span className="text-[11px] text-stone-500">Official Tutorial Video</span>
+        <span className="text-stone-400 dark:text-stone-600">·</span>
+        <span className="text-[11px] text-stone-500 dark:text-stone-400">Official Tutorial Video</span>
       </div>
     </div>
   );
@@ -211,16 +211,16 @@ export function YouTubeTutorialButton({
   const variantStyles = {
     primary:
       platform === "whatsapp"
-        ? "bg-emerald-700 hover:bg-emerald-800 text-white border-transparent shadow-xs"
-        : "bg-sky-700 hover:bg-sky-800 text-white border-transparent shadow-xs",
+        ? "bg-emerald-700 hover:bg-emerald-800 text-white border-transparent shadow-xs dark:bg-emerald-600 dark:hover:bg-emerald-500"
+        : "bg-sky-700 hover:bg-sky-800 text-white border-transparent shadow-xs dark:bg-sky-600 dark:hover:bg-sky-500",
     secondary:
       platform === "whatsapp"
-        ? "bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200 shadow-2xs"
-        : "bg-sky-50 hover:bg-sky-100/80 text-sky-950 border border-sky-200 shadow-2xs",
+        ? "bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200 shadow-2xs dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/80 dark:hover:bg-emerald-900/80"
+        : "bg-sky-50 hover:bg-sky-100/80 text-sky-950 border border-sky-200 shadow-2xs dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800/80 dark:hover:bg-sky-900/80",
     subtle:
-      "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 shadow-2xs",
+      "bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 shadow-2xs dark:bg-[#101412] dark:text-stone-300 dark:border-[#1c2721] dark:hover:bg-[#18201b]",
     ghost:
-      "bg-transparent hover:bg-stone-100 text-stone-700 border-transparent",
+      "bg-transparent hover:bg-stone-100 text-stone-700 border-transparent dark:text-stone-300 dark:hover:bg-[#121814] dark:hover:text-white",
   };
 
   const sizeStyles = {

@@ -52,37 +52,71 @@ export function MobileNavDrawer() {
       aria-labelledby="mobile-menu-title"
       onCancel={event => { event.preventDefault(); close(); }}
       onClick={event => { if (event.target === dialogRef.current) close(); }}
-      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-stone-900 backdrop:bg-stone-950/45 dark:backdrop:bg-black/80"
+      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-stone-900 dark:text-stone-100 backdrop:bg-stone-950/45 dark:backdrop:bg-black/85"
     >
       <div className={`mr-auto flex h-full w-[min(22rem,calc(100vw-1rem))] flex-col rounded-r-3xl border-r border-stone-200 bg-stone-50 shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none dark:border-[#1c2721] dark:bg-[#000000] ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center justify-between border-b border-emerald-800 bg-emerald-950 px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-white rounded-tr-3xl">
+        <div className="flex items-center justify-between border-b border-emerald-800 bg-emerald-950 px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-white rounded-tr-3xl dark:border-[#173b27] dark:bg-[#06140d]">
           <div>
-            <div className="bg-white/95 px-2.5 py-1 rounded-xl inline-block shadow-xs">
+            <div className="bg-white px-2.5 py-1 rounded-xl inline-block shadow-xs">
               <BrandLogo height={32} />
             </div>
-            <h2 id="mobile-menu-title" className="mt-2 text-xl font-semibold">Explore & vote</h2>
+            <h2 id="mobile-menu-title" className="mt-2 text-xl font-semibold text-white">Explore &amp; vote</h2>
           </div>
-          <button type="button" aria-label="Close navigation menu" onClick={close} className="inline-flex size-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-700 cursor-pointer">
+          <button type="button" aria-label="Close navigation menu" onClick={close} className="inline-flex size-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-500 cursor-pointer">
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /></svg>
           </button>
         </div>
         <nav aria-label="Mobile navigation" className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           <div className="mb-3 px-1">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-stone-500 dark:text-stone-400">Display Theme</p>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500 dark:text-emerald-400">Display Theme</p>
             <SegmentedThemeSwitch className="w-full justify-between" />
           </div>
 
-          <p className="px-3 pb-2 pt-2 text-xs font-semibold uppercase tracking-widest text-stone-500 dark:text-stone-400">Discover VotecastHub</p>
+          <p className="px-3 pb-2 pt-2 text-xs font-bold uppercase tracking-widest text-stone-500 dark:text-emerald-400">Discover VotecastHub</p>
           {links.map(([href, label, icon]) => {
             const active = pathname === href || pathname.startsWith(href + "/");
-            return <Link key={href} href={href} onClick={close} aria-current={active ? "page" : undefined} className={`flex min-h-14 items-center gap-3 rounded-2xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${active ? "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-700/60 dark:bg-emerald-950/80 dark:text-emerald-200" : "border-stone-200 bg-white text-stone-700 hover:border-emerald-200 hover:bg-emerald-50 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200 dark:hover:border-emerald-800 dark:hover:bg-[#101712]"}`}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"><Icon name={icon} /></span>{label}<Icon name="arrowRight" size={16} className="ml-auto text-stone-400 dark:text-stone-500" />
-            </Link>;
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={close}
+                aria-current={active ? "page" : undefined}
+                className={`group flex min-h-14 items-center gap-3 rounded-2xl border px-3.5 text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${
+                  active
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-950 shadow-2xs dark:border-emerald-700/70 dark:bg-[#0d281a] dark:text-emerald-200"
+                    : "border-stone-200 bg-white text-stone-800 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-950 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200 dark:hover:border-emerald-800/80 dark:hover:bg-[#121c15] dark:hover:text-emerald-300"
+                }`}
+              >
+                <span
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    active
+                      ? "bg-emerald-200/80 text-emerald-950 dark:bg-emerald-500/25 dark:text-emerald-300 dark:border dark:border-emerald-500/30"
+                      : "bg-emerald-100/70 text-emerald-800 dark:bg-[#141e18] dark:text-emerald-400 dark:border dark:border-[#213025]"
+                  }`}
+                >
+                  <Icon name={icon} />
+                </span>
+                <span className="flex-1">{label}</span>
+                <Icon
+                  name="arrowRight"
+                  size={16}
+                  className={`transition-transform group-hover:translate-x-0.5 ${
+                    active ? "text-emerald-700 dark:text-emerald-400" : "text-stone-400 dark:text-stone-500"
+                  }`}
+                />
+              </Link>
+            );
           })}
         </nav>
         <div className="border-t border-stone-200 bg-white p-5 rounded-br-3xl pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#1c2721] dark:bg-[#050706]">
-          <p className="mb-3 text-sm text-stone-600 dark:text-stone-400">Ready to create your own event?</p>
-          <Link href="/sign-up" onClick={close} className="flex min-h-12 items-center justify-center rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white! shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Get started</Link>
+          <p className="mb-3 text-sm text-stone-600 dark:text-stone-300">Ready to create your own event?</p>
+          <Link
+            href="/sign-up"
+            onClick={close}
+            className="flex min-h-12 items-center justify-center rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+          >
+            Get started
+          </Link>
         </div>
       </div>
     </dialog>

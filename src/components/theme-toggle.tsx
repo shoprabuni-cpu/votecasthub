@@ -135,8 +135,10 @@ export function ThemeToggle({
  */
 export function SegmentedThemeSwitch({ className = "" }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const active = document.documentElement.classList.contains("dark") ? "dark" : "light";
     setTheme(active);
 
@@ -156,6 +158,8 @@ export function SegmentedThemeSwitch({ className = "" }: { className?: string })
     applyTheme(next);
   };
 
+  const isDark = mounted ? theme === "dark" : false;
+
   return (
     <div
       role="radiogroup"
@@ -165,12 +169,12 @@ export function SegmentedThemeSwitch({ className = "" }: { className?: string })
       <button
         type="button"
         role="radio"
-        aria-checked={theme === "light"}
+        aria-checked={!isDark}
         onClick={() => select("light")}
-        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-          theme === "light"
-            ? "bg-white text-stone-900 shadow-2xs font-bold"
-            : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition-all cursor-pointer ${
+          !isDark
+            ? "bg-white text-stone-900 shadow-2xs border border-stone-200/80 font-bold"
+            : "text-stone-400 hover:text-stone-200 hover:bg-[#121914]"
         }`}
       >
         <svg className="size-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -182,12 +186,12 @@ export function SegmentedThemeSwitch({ className = "" }: { className?: string })
       <button
         type="button"
         role="radio"
-        aria-checked={theme === "dark"}
+        aria-checked={isDark}
         onClick={() => select("dark")}
-        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all cursor-pointer ${
-          theme === "dark"
-            ? "bg-[#101712] text-white shadow-2xs border border-[#233529] font-bold"
-            : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition-all cursor-pointer ${
+          isDark
+            ? "bg-[#14261b] text-emerald-200 shadow-2xs border border-emerald-600/50 font-bold"
+            : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
         }`}
       >
         <svg className="size-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
