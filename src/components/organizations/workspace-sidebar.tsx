@@ -40,7 +40,7 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
   const navLinks = [
     { label: "Your events", href: events, icon: "grid" as const, isActive: overviewActive },
     ...(canCreate ? [{ label: "Create event", href: `${events}/new`, icon: "plus" as const, isActive: active(`${events}/new`, true) }] : []),
-    { label: "Analytics", href: `${root}/analytics`, icon: "chart" as const, isActive: active(`${root}/analytics`) },
+    { label: "Reports & Standings", href: `${root}/analytics`, icon: "chart" as const, isActive: active(`${root}/analytics`) },
     { label: "Payments & Payouts", href: `${root}/payments`, icon: "wallet" as const, isActive: active(`${root}/payments`) || active(`${root}/earnings`) },
     { label: "SMS Credits", href: `${root}/credits`, icon: "sms" as const, isActive: active(`${root}/credits`) },
     ...(canManageTeam ? [{ label: "Team access", href: `${root}/team`, icon: "users" as const, isActive: active(`${root}/team`, true) }] : []),

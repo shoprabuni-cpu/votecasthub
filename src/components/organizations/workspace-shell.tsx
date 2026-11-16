@@ -23,7 +23,7 @@ export function WorkspaceShell({ children, notifications, ...workspace }: Props)
   const account = useRef<HTMLDetailsElement>(null);
   const root = `/organizer/${workspace.organizationId}`;
   const section = pathname.slice(root.length).split("/").filter(Boolean);
-  const titles: Record<string, string> = { events: "Your events", analytics: "Analytics", payments: "Payments", earnings: "Earnings", credits: "SMS credits", team: "Team" };
+  const titles: Record<string, string> = { events: "Your events", analytics: "Reports & Standings", payments: "Payments", earnings: "Earnings", credits: "SMS credits", team: "Team" };
   const title = section[0] === "events" && section[1]
     ? section[1] === "new" ? "Create event" : section[2] === "preview" ? "Event preview" : "Manage event"
     : titles[section[0]] ?? "Your workspace";

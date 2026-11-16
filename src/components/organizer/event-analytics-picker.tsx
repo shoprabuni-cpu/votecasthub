@@ -21,11 +21,11 @@ export function EventAnalyticsPicker({
   return (
     <section className="mx-auto max-w-4xl px-4 py-12 sm:py-20 text-center">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-900 shadow-xs">
-        <Icon name="sparkle" size={28} />
+        <span className="text-3xl leading-none">🏆</span>
       </div>
 
       <div className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-emerald-100/70 px-3 py-1 text-[11px] font-semibold text-emerald-900 uppercase tracking-wider">
-        <span>Analytics Command Center</span>
+        <span>Reports &amp; Standings Hub</span>
       </div>
 
       <h1 className="mt-3 font-serif text-3xl sm:text-5xl font-bold tracking-tight text-stone-900">
