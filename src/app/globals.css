@@ -447,6 +447,324 @@ html.dark .cookie-banner,
   color: #e2e8e4;
 }
 
+/* Auth Pages Deep Black Theme */
+html.dark .auth-page,
+[data-theme="dark"] .auth-page {
+  background: radial-gradient(ellipse at 4% 10%, #06150d 0, transparent 40%), #000000 !important;
+  color: #f0f4f1 !important;
+}
+
+html.dark .auth-card,
+[data-theme="dark"] .auth-card {
+  background: #080b09 !important;
+  border-color: #1c2721 !important;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.8) !important;
+}
+
+html.dark .auth-card h1,
+[data-theme="dark"] .auth-card h1 {
+  color: #ffffff !important;
+}
+
+html.dark .auth-description,
+[data-theme="dark"] .auth-description {
+  color: #9ba9a1 !important;
+}
+
+html.dark .auth-form label,
+[data-theme="dark"] .auth-form label,
+html.dark .organization-form label,
+[data-theme="dark"] .organization-form label {
+  color: #cbd5cf !important;
+}
+
+html.dark .auth-form input,
+[data-theme="dark"] .auth-form input,
+html.dark .organization-form input,
+[data-theme="dark"] .organization-form input {
+  background: #030504 !important;
+  border-color: #1e2c24 !important;
+  color: #ffffff !important;
+}
+
+html.dark .auth-form input:focus,
+[data-theme="dark"] .auth-form input:focus,
+html.dark .organization-form input:focus,
+[data-theme="dark"] .organization-form input:focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18) !important;
+}
+
+html.dark .auth-visual,
+[data-theme="dark"] .auth-visual {
+  border-color: #173b27 !important;
+  background: radial-gradient(ellipse at 83% 18%, #164627 0, transparent 45%), linear-gradient(145deg, #07170e, #020704 78%) !important;
+}
+
+html.dark .auth-footer,
+[data-theme="dark"] .auth-footer {
+  color: #73847a !important;
+}
+
+html.dark .auth-footer nav a,
+[data-theme="dark"] .auth-footer nav a {
+  color: #8fa096 !important;
+}
+
+html.dark .auth-footer nav a:hover,
+[data-theme="dark"] .auth-footer nav a:hover {
+  color: #22c55e !important;
+}
+
+html.dark .auth-switch,
+[data-theme="dark"] .auth-switch {
+  color: #9ba9a1 !important;
+}
+
+html.dark .auth-switch a,
+[data-theme="dark"] .auth-switch a,
+html.dark .auth-recovery-link a,
+[data-theme="dark"] .auth-recovery-link a {
+  color: #4ade80 !important;
+}
+
+html.dark .input-hint,
+[data-theme="dark"] .input-hint {
+  color: #73847a !important;
+}
+
+html.dark .form-message,
+[data-theme="dark"] .form-message {
+  background: #220806 !important;
+  border-color: #5c1b17 !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .form-success,
+[data-theme="dark"] .form-success {
+  background: #052112 !important;
+  border-color: #124d2d !important;
+  color: #86efac !important;
+}
+
+/* Organizer Workspace & Dashboard Deep Black Theme */
+html.dark .dashboard-page,
+[data-theme="dark"] .dashboard-page {
+  background: #000000 !important;
+  color: #f0f4f1 !important;
+}
+
+html.dark .dashboard-header,
+[data-theme="dark"] .dashboard-header {
+  border-bottom-color: #1c2721 !important;
+  background: #000000 !important;
+  color: #f0f4f1 !important;
+}
+
+html.dark .dashboard-header a,
+[data-theme="dark"] .dashboard-header a {
+  color: #cbd5cf !important;
+}
+
+html.dark .dashboard-content h1,
+[data-theme="dark"] .dashboard-content h1 {
+  color: #ffffff !important;
+}
+
+html.dark .payment-account-page .event-editor-panel,
+[data-theme="dark"] .payment-account-page .event-editor-panel {
+  background: #080b09 !important;
+  border-color: #1c2721 !important;
+  color: #f0f4f1 !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark .payment-panel-heading,
+[data-theme="dark"] .payment-panel-heading {
+  border-bottom-color: #1c2721 !important;
+}
+
+html.dark .payment-panel-heading h2,
+[data-theme="dark"] .payment-panel-heading h2 {
+  color: #ffffff !important;
+}
+
+html.dark .payment-panel-heading p,
+[data-theme="dark"] .payment-panel-heading p {
+  color: #9ba9a1 !important;
+}
+
+html.dark .payment-panel-icon,
+[data-theme="dark"] .payment-panel-icon {
+  background: #072115 !important;
+  color: #4ade80 !important;
+}
+
+html.dark .payment-account-form .field,
+[data-theme="dark"] .payment-account-form .field {
+  color: #cbd5cf !important;
+}
+
+html.dark .payment-account-form .field input,
+[data-theme="dark"] .payment-account-form .field input {
+  background: #030504 !important;
+  border-color: #1e2c24 !important;
+  color: #ffffff !important;
+}
+
+html.dark .payment-fee-card,
+[data-theme="dark"] .payment-fee-card {
+  background: #07170e !important;
+  border: 1px solid #143521 !important;
+}
+
+html.dark .payment-account-status,
+[data-theme="dark"] .payment-account-status {
+  background: #07170e !important;
+  border-color: #143521 !important;
+  color: #e2e8e4 !important;
+}
+
+html.dark .payment-account-note,
+[data-theme="dark"] .payment-account-note {
+  background: #0a140e !important;
+  border-left-color: #22c55e !important;
+  color: #9ba9a1 !important;
+}
+
+html.dark .sms-credit-banner,
+[data-theme="dark"] .sms-credit-banner {
+  background: linear-gradient(110deg, #081a11, #06140f) !important;
+  border-color: #173b27 !important;
+  color: #e2e8e4 !important;
+}
+
+html.dark .sms-credit-banner-icon,
+[data-theme="dark"] .sms-credit-banner-icon {
+  background: #0f3322 !important;
+  color: #4ade80 !important;
+}
+
+html.dark .sms-credit-callout,
+[data-theme="dark"] .sms-credit-callout {
+  background: #081a11 !important;
+  color: #e2e8e4 !important;
+}
+
+html.dark .credits-balance-card,
+[data-theme="dark"] .credits-balance-card {
+  background: #07170e !important;
+  border: 1px solid #143521 !important;
+}
+
+html.dark .credit-package,
+[data-theme="dark"] .credit-package {
+  background: #080b09 !important;
+  border-color: #1c2721 !important;
+}
+
+html.dark .credit-package h3,
+[data-theme="dark"] .credit-package h3 {
+  color: #ffffff !important;
+}
+
+html.dark .no-sms-card,
+[data-theme="dark"] .no-sms-card {
+  background: #080b09 !important;
+  border-color: #1c2721 !important;
+}
+
+/* Universal Organizer Theme Adaptations */
+html.dark .bg-stone-50,
+[data-theme="dark"] .bg-stone-50,
+html.dark .bg-stone-50\/50,
+[data-theme="dark"] .bg-stone-50\/50,
+html.dark .bg-stone-50\/60,
+[data-theme="dark"] .bg-stone-50\/60,
+html.dark .bg-stone-50\/70,
+[data-theme="dark"] .bg-stone-50\/70,
+html.dark .bg-stone-50\/80,
+[data-theme="dark"] .bg-stone-50\/80,
+html.dark .bg-stone-50\/90,
+[data-theme="dark"] .bg-stone-50\/90 {
+  background-color: #000000 !important;
+}
+
+html.dark .legal-acceptance,
+[data-theme="dark"] .legal-acceptance {
+  color: #9ba9a1 !important;
+}
+
+html.dark .legal-acceptance a,
+[data-theme="dark"] .legal-acceptance a {
+  color: #4ade80 !important;
+}
+
+html.dark .bg-white,
+[data-theme="dark"] .bg-white {
+  background-color: #080b09 !important;
+}
+
+html.dark .bg-stone-100,
+[data-theme="dark"] .bg-stone-100 {
+  background-color: #0f1411 !important;
+}
+
+html.dark .border-stone-200,
+[data-theme="dark"] .border-stone-200,
+html.dark .border-stone-200\/80,
+[data-theme="dark"] .border-stone-200\/80,
+html.dark .border-stone-200\/90,
+[data-theme="dark"] .border-stone-200\/90,
+html.dark .border-stone-300,
+[data-theme="dark"] .border-stone-300 {
+  border-color: #1c2721 !important;
+}
+
+html.dark .text-stone-900,
+[data-theme="dark"] .text-stone-900,
+html.dark .text-stone-950,
+[data-theme="dark"] .text-stone-950 {
+  color: #ffffff !important;
+}
+
+html.dark .text-stone-800,
+[data-theme="dark"] .text-stone-800,
+html.dark .text-stone-700,
+[data-theme="dark"] .text-stone-700 {
+  color: #cbd5cf !important;
+}
+
+html.dark .text-stone-600,
+[data-theme="dark"] .text-stone-600,
+html.dark .text-stone-500,
+[data-theme="dark"] .text-stone-500 {
+  color: #9ba9a1 !important;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark select,
+[data-theme="dark"] select,
+html.dark textarea,
+[data-theme="dark"] textarea {
+  background-color: #030504 !important;
+  border-color: #1e2c24 !important;
+  color: #ffffff !important;
+}
+
+html.dark input::placeholder,
+[data-theme="dark"] input::placeholder,
+html.dark textarea::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #5d6e64 !important;
+}
+
+html.dark dialog,
+[data-theme="dark"] dialog {
+  color: #f0f4f1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     @apply [scroll-behavior:auto]; }

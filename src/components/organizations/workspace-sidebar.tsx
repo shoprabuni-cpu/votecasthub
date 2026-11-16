@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
+import { SegmentedThemeSwitch } from "@/components/theme-toggle";
 
 type Props = { organizationId: string; organizationName: string; role: string; mobile?: boolean; onNavigate?: () => void };
 
@@ -48,8 +48,15 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
 
   return (
     <>
-      <aside aria-label="Organizer sidebar" className={mobile ? "flex min-h-0 w-full flex-1 flex-col justify-between gap-6 overflow-y-auto bg-white p-4" : "sticky top-0 hidden h-dvh w-64 shrink-0 flex-col justify-between gap-6 self-start overflow-y-auto border-r border-stone-200 bg-white p-4 lg:flex"}>
-        <div className="space-y-6">
+      <aside
+        aria-label="Organizer sidebar"
+        className={
+          mobile
+            ? "flex min-h-0 w-full flex-1 flex-col justify-between gap-6 overflow-y-auto bg-white dark:bg-black p-4"
+            : "sticky top-0 hidden h-dvh w-64 shrink-0 flex-col justify-between gap-6 self-start overflow-y-auto border-r border-stone-200 bg-white p-4 lg:flex dark:border-[#1c2721] dark:bg-black transition-colors"
+        }
+      >
+        <div className="space-y-5">
           {/* Brand Header */}
           <div className="flex items-center justify-between px-2 pt-2">
             <Link href="/organizer" onClick={onNavigate} className="flex items-center gap-3 group">
@@ -57,40 +64,44 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
                 V
               </div>
               <div>
-                <div className="text-sm font-bold text-stone-900 tracking-tight">VotecastHub</div>
-                <div className="text-[10px] font-bold text-emerald-800 font-mono tracking-wider">
+                <div className="text-sm font-bold text-stone-900 dark:text-white tracking-tight">VotecastHub</div>
+                <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 font-mono tracking-wider">
                   ORGANIZER STUDIO
                 </div>
               </div>
             </Link>
-
           </div>
 
           {/* Organization Switcher Pill */}
           <Link
             href="/organizer"
             onClick={onNavigate}
-            className="group flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/70 p-3 transition-all hover:border-emerald-600/30 hover:bg-emerald-50/20"
+            className="group flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/70 p-3 transition-all hover:border-emerald-600/30 hover:bg-emerald-50/20 dark:border-[#1c2721] dark:bg-[#070a08] dark:hover:bg-[#0e1410]"
           >
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-200/80 text-stone-700">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-200/80 dark:bg-[#121915] text-stone-700 dark:text-stone-300">
                 <NavIcon name="building" />
               </div>
               <div className="truncate">
-                <div className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
+                <div className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                   WORKING IN
                 </div>
-                <div className="text-xs font-bold text-stone-900 truncate group-hover:text-emerald-800 transition-colors">
+                <div className="text-xs font-bold text-stone-900 dark:text-white truncate group-hover:text-emerald-800 dark:group-hover:text-emerald-400 transition-colors">
                   {organizationName}
                 </div>
               </div>
             </div>
-            <span className="text-xs text-stone-400 group-hover:text-stone-600 transition-colors">⌄</span>
+            <span className="text-xs text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors">⌄</span>
           </Link>
+
+          {/* Theme Selector inside Sidebar */}
+          <div className="px-1">
+            <SegmentedThemeSwitch className="w-full justify-between" />
+          </div>
 
           {/* Navigation Links */}
           <nav className="space-y-1" aria-label="Workspace navigation">
-            <div className="px-3 pb-2 text-[10px] font-semibold tracking-wider text-stone-400 uppercase">
+            <div className="px-3 pb-2 text-[10px] font-semibold tracking-wider text-stone-400 dark:text-stone-500 uppercase">
               WORKSPACE
             </div>
 
@@ -102,14 +113,14 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
                 aria-current={link.isActive ? "page" : undefined}
                 className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-700 ${
                   link.isActive
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs"
-                    : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
+                    : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-[#0a0e0c] dark:hover:text-stone-100"
                 }`}
               >
                 <NavIcon name={link.icon} />
                 <span>{link.label}</span>
                 {link.badge ? (
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-950 uppercase tracking-wider">
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-950 uppercase tracking-wider dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-300">
                     <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
                     <span>{link.badge}</span>
                   </span>
@@ -124,12 +135,12 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
         {/* Bottom Actions & User Profile */}
         <div className="space-y-3">
           {/* Mobile Money Status Pill */}
-          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/60 p-2.5 flex items-center justify-between text-xs">
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/60 p-2.5 flex items-center justify-between text-xs dark:border-emerald-900/60 dark:bg-emerald-950/40">
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
-              <span className="font-semibold text-emerald-950 text-[11px]">Paystack MoMo Active</span>
+              <span className="font-semibold text-emerald-950 dark:text-emerald-300 text-[11px]">Paystack MoMo Active</span>
             </div>
-            <span className="text-[10px] text-emerald-800 font-mono font-bold">🇬🇭 GHS</span>
+            <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-mono font-bold">🇬🇭 GHS</span>
           </div>
 
           {/* Quick Shortcuts */}
@@ -137,7 +148,7 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
             <Link
               href="/events"
               target="_blank"
-              className="rounded-lg border border-stone-200 bg-stone-50/80 p-2 text-stone-700 hover:bg-stone-100 hover:text-stone-900 text-center transition-colors"
+              className="rounded-lg border border-stone-200 bg-stone-50/80 p-2 text-stone-700 hover:bg-stone-100 hover:text-stone-900 text-center transition-colors dark:border-[#1c2721] dark:bg-[#070a08] dark:text-stone-300 dark:hover:bg-[#0e1410] dark:hover:text-white"
             >
               Public Site ↗
             </Link>
@@ -145,20 +156,20 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
               href="https://wa.me/233592992566?text=VOTE"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2 text-emerald-900 hover:bg-emerald-100 text-center transition-colors"
+              className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2 text-emerald-900 hover:bg-emerald-100 text-center transition-colors dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/80"
             >
               Test Bot ↗
             </a>
           </div>
 
           {/* User/Org Profile Badge */}
-          <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200">
+          <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 flex items-center gap-3 dark:border-[#1c2721] dark:bg-[#070a08]">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
               {organizationName.trim().slice(0, 1).toUpperCase()}
             </div>
             <div className="truncate flex-1">
-              <div className="text-xs font-semibold text-stone-900 truncate">{organizationName}</div>
-              <div className="text-[10px] text-stone-500 capitalize font-medium">{role} access</div>
+              <div className="text-xs font-semibold text-stone-900 dark:text-white truncate">{organizationName}</div>
+              <div className="text-[10px] text-stone-500 dark:text-stone-400 capitalize font-medium">{role} access</div>
             </div>
             <span className="h-2 w-2 rounded-full bg-emerald-600" title="Protected workspace" />
           </div>

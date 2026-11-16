@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CookieSettingsLink } from "@/components/cookie-consent";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle, SegmentedThemeSwitch } from "@/components/theme-toggle";
 
 export function AuthShell({ eyebrow, title, description, children }: {
   eyebrow: string;
@@ -11,7 +12,13 @@ export function AuthShell({ eyebrow, title, description, children }: {
 }) {
   return (
     <main className="auth-page">
-      <Link className="inline-flex items-center min-h-11" href="/" aria-label="VoteCastHub GH home"><BrandLogo height={44} priority /></Link>
+      <div className="flex items-center justify-between w-full max-w-[1100px] mx-auto mb-3 px-2">
+        <Link className="inline-flex items-center min-h-11" href="/" aria-label="VoteCastHub GH home">
+          <BrandLogo height={42} priority />
+        </Link>
+        <ThemeToggle />
+      </div>
+
       <div className="auth-layout">
         <aside className="auth-visual" aria-label="VotecastHub organizer tools">
           <div className="auth-visual-orbit auth-visual-orbit-one"/><div className="auth-visual-orbit auth-visual-orbit-two"/>
@@ -28,7 +35,16 @@ export function AuthShell({ eyebrow, title, description, children }: {
           {children}
         </section>
       </div>
-      <div className="auth-footer"><span>VotecastHub GH · Voting for events and awards</span><nav aria-label="Legal links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><CookieSettingsLink/></nav></div>
+
+      <div className="auth-footer flex flex-wrap items-center justify-between gap-3 w-full max-w-[1100px] mx-auto">
+        <span>VotecastHub GH · Voting for events and awards</span>
+        <SegmentedThemeSwitch />
+        <nav aria-label="Legal links" className="flex items-center gap-3">
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+          <CookieSettingsLink/>
+        </nav>
+      </div>
     </main>
   );
 }

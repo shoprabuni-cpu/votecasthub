@@ -25,10 +25,10 @@ export default async function AnalyticsPage({
   const choices = (events ?? []) as AnalyticsEventChoice[];
 
   const unavailable = (message: string) => (
-    <main className="min-h-screen bg-stone-50/70 pb-16">
+    <main className="min-h-screen bg-stone-50/70 pb-16 text-stone-900 dark:bg-black dark:text-stone-100 transition-colors">
       <DashboardHeader organizationId={organizationId} />
       <section className="mx-auto max-w-xl px-4 py-20 text-center">
-        <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-xs">
+        <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-xs dark:border-[#1c2721] dark:bg-[#080b09]">
           <h1 className="text-xl font-serif font-bold text-stone-900">Let’s try that again.</h1>
           <p className="mt-2 text-xs text-stone-500">{message}</p>
           <Link
@@ -47,10 +47,10 @@ export default async function AnalyticsPage({
   // Empty state if organizer has no events yet
   if (choices.length === 0) {
     return (
-      <main className="min-h-screen bg-stone-50/70 pb-16">
+      <main className="min-h-screen bg-stone-50/70 pb-16 text-stone-900 dark:bg-black dark:text-stone-100 transition-colors">
         <DashboardHeader organizationId={organizationId} />
         <section className="mx-auto max-w-lg px-4 py-20 text-center">
-          <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-xs">
+          <div className="rounded-3xl border border-stone-200 bg-white p-8 shadow-xs dark:border-[#1c2721] dark:bg-[#080b09]">
             <span className="text-4xl">🏆</span>
             <h1 className="mt-4 text-2xl font-serif font-bold text-stone-900">
               No events found yet
@@ -143,7 +143,7 @@ export default async function AnalyticsPage({
   const conversionRate = visitorsCount > 0 ? ((totalVotesCount / visitorsCount) * 100).toFixed(1) : "0.0";
 
   return (
-    <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900">
+    <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900 dark:bg-black dark:text-stone-100 transition-colors">
       <DashboardHeader organizationId={organizationId} />
 
       <section className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
