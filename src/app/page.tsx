@@ -8,6 +8,7 @@ import { EventBrowser } from "@/components/events/event-browser";
 import { MessagingBotsOverview } from "@/components/events/messaging-bots-overview";
 import { UssdOverview } from "@/components/events/ussd-overview";
 import { BrandLogo } from "@/components/brand-logo";
+import { SegmentedThemeSwitch } from "@/components/theme-toggle";
 import { loadEventDirectory } from "@/lib/events/load-directory";
 import { directoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
 import { ResourceLinks } from "@/components/seo/resource-links";
@@ -31,9 +32,9 @@ export default async function HomePage() {
           <h1 id="hero-title">Good events deserve a <em>fair vote.</em></h1>
           <p className="hero-description">Online voting for awards, competitions, and community events in Ghana. Set up nominees, choose voter verification, and share clear voting rules with your community.</p>
           <div className="hero-actions"><Link className="primary-link" href="/events">Browse events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
-          <p className="hero-note">Vote via Web, WhatsApp (+233 59 299 2566), Telegram (@VotecastHubGH_bot), or USSD (*920#). <Link href="#chat-voting" className="font-semibold text-emerald-800 underline underline-offset-4">Explore Chat Voting</Link></p>
+          <p className="hero-note">Vote via Web, WhatsApp (+233 59 299 2566), Telegram (@VotecastHubGH_bot), or USSD (*920#). <Link href="#chat-voting" className="font-semibold text-emerald-800 underline underline-offset-4 dark:text-emerald-400">Explore Chat Voting</Link></p>
         </div>
-        <div className="relative min-w-0 rounded-3xl bg-gradient-to-br from-emerald-50 to-stone-100 p-2 sm:p-4"><DevicePreview /></div>
+        <div className="relative min-w-0 rounded-3xl bg-gradient-to-br from-emerald-50 to-stone-100 p-2 sm:p-4 dark:from-emerald-950/20 dark:to-stone-900/40 dark:border dark:border-[#1c2721]"><DevicePreview /></div>
       </section>
 
       <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Voter verification options</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
@@ -45,7 +46,7 @@ export default async function HomePage() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><UssdOverview /></div>
 
       <section className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[.9fr_1.1fr] lg:gap-12" id="how-it-works" aria-labelledby="features-title">
-        <div className="flex flex-wrap items-center justify-between gap-6"><div><p className="eyebrow">THE PLATFORM</p><h2 id="features-title" className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl">Manage categories, nominees<br />and voting in one place.</h2></div><Image src="/images/Classic Gold Trophy on Emerald Base.png" alt="" width={1254} height={1254} sizes="160px" className="h-40 w-40 object-contain" /></div>
+        <div className="flex flex-wrap items-center justify-between gap-6"><div><p className="eyebrow">THE PLATFORM</p><h2 id="features-title" className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl dark:text-white">Manage categories, nominees<br />and voting in one place.</h2></div><Image src="/images/Classic Gold Trophy on Emerald Base.png" alt="" width={1254} height={1254} sizes="160px" className="h-40 w-40 object-contain" /></div>
         <div className="feature-list">
           <article className="feature grid-cols-[36px_1fr]!"><span className="feature-number">01</span><div className="feature-copy"><Icon className="feature-icon" name="calendar" size={20} /><span><h3>Create categories and add nominees</h3><p>Create an event, organize categories and nominees, and choose how voting will work.</p></span></div></article>
           <article className="feature grid-cols-[36px_1fr]!"><span className="feature-number">02</span><div className="feature-copy"><Icon className="feature-icon" name="shield" size={20} /><span><h3>Set the voting rules</h3><p>Show the vote limit before people participate and enforce it as each vote is recorded.</p></span></div></article>
@@ -58,7 +59,27 @@ export default async function HomePage() {
         { "@type": "Organization", "@id": absoluteUrl("/#organization"), name: SITE_NAME, url: absoluteUrl("/"), logo: absoluteUrl("/images/votecasthub-logo.png"), email: "info@votecasthub.com", description: SITE_DESCRIPTION },
         { "@type": "WebSite", "@id": absoluteUrl("/#website"), name: SITE_NAME, url: absoluteUrl("/"), inLanguage: "en-GH", publisher: { "@id": absoluteUrl("/#organization") } },
       ] }} />
-      <footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={38} /></Link><span>Voting for events and awards in Ghana.</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/guides">Guides</Link><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@votecasthub.com">Support</a><CookieSettingsLink /></nav><span>© {new Date().getFullYear()} VoteCastHub GH</span></footer>
+      <footer className="site-footer">
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-3">
+            <Link className="inline-flex items-center" href="/"><BrandLogo height={38} /></Link>
+            <span className="text-xs text-stone-500 dark:text-stone-400">Voting for events and awards in Ghana.</span>
+          </div>
+          <SegmentedThemeSwitch />
+          <nav aria-label="Legal and company links" className="flex flex-wrap items-center gap-3">
+            <Link href="/about">About</Link>
+            <Link href="/guides">Guides</Link>
+            <Link href="/pricing">Pricing</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <a href="mailto:support@votecasthub.com">Support</a>
+            <CookieSettingsLink />
+          </nav>
+        </div>
+        <div className="mt-3 pt-3 border-t border-stone-200 dark:border-[#1a251f] w-full text-center sm:text-left text-[11px] text-stone-400 dark:text-stone-500">
+          © {new Date().getFullYear()} VoteCastHub GH. All rights reserved.
+        </div>
+      </footer>
     </main>
   );
 }

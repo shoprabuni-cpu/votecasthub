@@ -12,6 +12,6 @@ export function DevicePreview({ phone = false }: { phone?: boolean }) {
         className="object-contain"
       />
     </div>
-    <figcaption className="mt-3 text-center text-xs text-stone-500">{phone ? "Example voting menu" : "An illustration of event setup and website voting"}</figcaption>
+    <figcaption className="mt-3 text-center text-xs text-stone-500 dark:text-stone-400">{phone ? "Example voting menu" : "An illustration of event setup and website voting"}</figcaption>
   </figure>;
 }
