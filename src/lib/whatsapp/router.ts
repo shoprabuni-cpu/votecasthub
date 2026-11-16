@@ -5,12 +5,36 @@ import type { NormalizedInboundMessage } from "./types";
 const rabuniWhatsappUrl = process.env.RABUNI_WHATSAPP_WEBHOOK_URL || "https://rabuni.shop/api/webhooks/whatsapp";
 
 export function isVotingKeyword(text: string): boolean {
-  const normalized = text.trim().toUpperCase();
-  return (
+  const clean = text.trim();
+  const normalized = clean.toUpperCase();
+
+  // 1. Direct voting command prefixes
+  if (
     normalized.startsWith("VOTE") ||
     normalized.startsWith("VCH") ||
-    normalized.startsWith("BALLOT")
-  );
+    normalized.startsWith("BALLOT") ||
+    normalized.startsWith("CAT") ||
+    normalized.startsWith("CATEGORY")
+  ) {
+    return true;
+  }
+
+  // 2. Contains voting or competition keywords or emojis
+  if (
+    /\b(VOTE|VOTING|VOTES|BALLOT|NOMINEE|CANDIDATE|CONTESTANT|CONTEST|COMPETITION|ELECTION|POLL|AWARDS|AWARD|PAGEANT)\b/i.test(
+      clean,
+    ) ||
+    /[🗳🏆🥇🥈🥉]/.test(clean)
+  ) {
+    return true;
+  }
+
+  // 3. Numeric USSD-style event codes (e.g. "1000", "1000 01")
+  if (/^\d{3,6}(\s+\w+)?$/.test(clean)) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function hasActiveVotingSession(phone: string): Promise<boolean> {
@@ -72,16 +96,33 @@ export async function routeInboundMessage(
   rawBody: string,
   headers: Headers,
 ): Promise<"votecasthub" | "rabuni"> {
+  const normalized = inbound.text.trim().toUpperCase();
+
+  // 1. Explicit e-commerce shopping terms for Rabuni Shops
+  const isShopping = /\b(ORDER|BUY|PURCHASE|PRODUCT|PRODUCTS|STORE|SHOP|SHOPS|CART|RABUNI|DELIVERY|SHIPPING|INVENTORY|CATALOG|BAG|DRESS|SHOE|PRICE|HOW\s+MUCH|LOCATED|LOCATION)\b/i.test(
+    normalized,
+  );
+  if (isShopping) {
+    return "rabuni";
+  }
+
+  // 2. Voting keywords or event codes -> VoteCastHub
   if (isVotingKeyword(inbound.text)) {
     return "votecasthub";
   }
 
+  // 3. Ongoing voting session -> VoteCastHub
   const activeSession = await hasActiveVotingSession(inbound.phone);
   if (activeSession) {
     return "votecasthub";
   }
 
-  // Not a voting keyword and no active session -> Route to Rabuni Shops
+  // 4. General greetings (e.g. "Hi", "Hello", "Start", "Menu") -> VoteCastHub
+  if (/^(HI|HELLO|HEY|YO|WASSUP|START|MENU|EVENTS|HELP|GREETINGS|GOOD\s+(MORNING|AFTERNOON|EVENING))\b/i.test(normalized)) {
+    return "votecasthub";
+  }
+
+  // Fallback for everything else -> Rabuni
   return "rabuni";
 }
 

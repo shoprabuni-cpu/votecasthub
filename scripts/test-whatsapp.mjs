@@ -337,6 +337,10 @@ assert.equal(rabuniRoute, 'rabuni');
 const voteRoute = await routeInboundMessage(sendaziMsg, JSON.stringify(sendaziMsg), new Headers());
 assert.equal(voteRoute, 'votecasthub');
 
+const greetingMsg = { phone: '233201112244', text: 'Hi', rawPayload: {} };
+const greetingRoute = await routeInboundMessage(greetingMsg, JSON.stringify(greetingMsg), new Headers());
+assert.equal(greetingRoute, 'votecasthub');
+
 // 3. Test Free Vote Execution
 const { processWhatsAppVote } = load('src/lib/whatsapp/engine.ts');
 

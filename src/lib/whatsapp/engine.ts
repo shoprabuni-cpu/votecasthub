@@ -290,7 +290,12 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   }
 
   // Help / Menu prompt: Present all live competitions
-  if (["VOTE", "HELP", "MENU", "VOTEHUB", "VOTECASTHUB", "START", "HI", "HELLO", "EVENTS"].includes(upperText)) {
+  const isGreetingOrMenu =
+    ["VOTE", "HELP", "MENU", "VOTEHUB", "VOTECASTHUB", "START", "HI", "HELLO", "HEY", "EVENTS", "COMPETITION", "COMPETITIONS", "CONTEST"].includes(upperText) ||
+    /^(HI|HELLO|HEY|YO|WASSUP|START|MENU|EVENTS|HELP|GREETINGS|GOOD\s+(MORNING|AFTERNOON|EVENING))\b/i.test(text.trim()) ||
+    /^(I\s+WANT\s+TO\s+VOTE|HOW\s+TO\s+VOTE|CAN\s+I\s+VOTE)/i.test(text.trim());
+
+  if (isGreetingOrMenu) {
     const { data: events } = await db
       .from("events")
       .select("id, name, slug, voting_mode, unit_price_minor, image_path, ends_at")
