@@ -27,7 +27,6 @@ export function ReportsTabbedHub({
   days,
   ended,
   paid,
-  moneyHelper,
 }: {
   analytics: OrganizerAnalytics;
   activityAnalytics?: OrganizerAnalytics | null;
@@ -37,9 +36,9 @@ export function ReportsTabbedHub({
   days: number;
   ended: boolean;
   paid: boolean;
-  moneyHelper: (amount: number) => string;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>("standings");
+  const money = (amount: number) => `GH₵ ${(Number(amount) / 100).toFixed(2)}`;
 
   const row = analytics.rows[0] ?? {
     total_votes: 0,
@@ -66,7 +65,7 @@ export function ReportsTabbedHub({
 
   const tabs: Array<{ key: TabKey; label: string; badge?: string; icon: string }> = [
     { key: "standings", label: "Live Standings & Podium", icon: "🏆", badge: `${analytics.categories.length} Categories` },
-    ...(paid ? [{ key: "money" as TabKey, label: "Revenue & MoMo", icon: "💰", badge: moneyHelper(row.net_minor) }] : []),
+    ...(paid ? [{ key: "money" as TabKey, label: "Revenue & MoMo", icon: "💰", badge: money(row.net_minor) }] : []),
     { key: "channels", label: "Bot Channels & Turnout", icon: "📱", badge: `${totalVotes.toLocaleString()} Votes` },
     { key: "exports", label: "Official Exports & Audit", icon: "📄" },
   ];
@@ -201,7 +200,7 @@ export function ReportsTabbedHub({
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xs">
                 <span className="text-xs text-emerald-900 font-bold block">Your Net Payout Earnings</span>
-                <p className="mt-2 text-3xl font-bold font-mono text-emerald-900">{moneyHelper(row.net_minor)}</p>
+                <p className="mt-2 text-3xl font-bold font-mono text-emerald-900">{money(row.net_minor)}</p>
                 <span className="text-[11px] text-stone-500 mt-1 block">
                   Available for automatic or manual bank/MoMo withdrawal
                 </span>
@@ -209,7 +208,7 @@ export function ReportsTabbedHub({
 
               <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-2xs">
                 <span className="text-xs text-stone-500 font-bold block">Gross Collected</span>
-                <p className="mt-2 text-3xl font-bold font-mono text-stone-900">{moneyHelper(row.gross_minor)}</p>
+                <p className="mt-2 text-3xl font-bold font-mono text-stone-900">{money(row.gross_minor)}</p>
                 <span className="text-[11px] text-stone-400 mt-1 block">
                   From {safeNum(row.paid_votes).toLocaleString()} paid vote units
                 </span>
@@ -217,7 +216,7 @@ export function ReportsTabbedHub({
 
               <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-2xs">
                 <span className="text-xs text-stone-500 font-bold block">Refunded Volume</span>
-                <p className="mt-2 text-3xl font-bold font-mono text-stone-600">{moneyHelper(row.refunded_minor)}</p>
+                <p className="mt-2 text-3xl font-bold font-mono text-stone-600">{money(row.refunded_minor)}</p>
                 <span className="text-[11px] text-stone-400 mt-1 block">
                   Transactions refunded or disputed
                 </span>

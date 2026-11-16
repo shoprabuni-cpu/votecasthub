@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/dashboard-header";
 import type { AnalyticsEventChoice } from "@/components/organizer/event-analytics-picker";
 import { AnalyticsLiveStatus, ShareEventButton } from "@/components/organizer/analytics-live-status";
 import { ReportsTabbedHub } from "@/components/organizer/reports-tabbed-hub";
+import { EventSwitcher } from "@/components/organizer/event-switcher";
 import { Icon } from "@/components/icon";
 
 export default async function AnalyticsPage({
@@ -166,25 +167,7 @@ export default async function AnalyticsPage({
 
             {/* Event Switcher & Settings */}
             <div className="flex flex-wrap items-center gap-2">
-              {choices.length > 1 && (
-                <div className="relative">
-                  <select
-                    defaultValue={event.id}
-                    onChange={(e) => {
-                      const newId = e.target.value;
-                      window.location.href = `?event=${encodeURIComponent(newId)}&range=${scope.days === 0 ? "all" : scope.days}`;
-                    }}
-                    aria-label="Switch active event"
-                    className="rounded-xl border border-white/20 bg-emerald-900/90 text-white pl-3 pr-8 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-xs"
-                  >
-                    {choices.map((c) => (
-                      <option key={c.id} value={c.id} className="bg-stone-900 text-white">
-                        {c.name} ({c.status.replace("_", " ")})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <EventSwitcher choices={choices} activeId={event.id} days={scope.days} />
 
               <Link
                 href={`/organizer/${organizationId}/events/${event.id}`}
@@ -340,7 +323,6 @@ export default async function AnalyticsPage({
           days={scope.days}
           ended={ended}
           paid={paid}
-          moneyHelper={money}
         />
       </section>
     </main>
