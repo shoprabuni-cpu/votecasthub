@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { updateEventCategoryAction } from "@/lib/auth/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { updateEventCategoryAction, deleteEventCategoryAction } from "@/lib/auth/actions";
 import type { AuthFormState } from "@/lib/auth/form-state";
 import { EventDialog } from "./event-dialog";
+import { AppModal } from "@/components/ui/app-modal";
 import { Icon } from "@/components/icon";
 
 type Props = {
@@ -19,16 +20,39 @@ type Props = {
 
 export function EditCategoryForm({ category, backTo }: Props) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<AuthFormState, FormData>(updateEventCategoryAction, null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [, startTransition] = useTransition();
+
+  const [state, formAction, pending] = useActionState<AuthFormState, FormData>(
+    updateEventCategoryAction,
+    null
+  );
+
+  const [deleteState, deleteAction, deleting] = useActionState<AuthFormState, FormData>(
+    deleteEventCategoryAction,
+    null
+  );
 
   useEffect(() => {
-    if (state?.success) {
+    if (state?.success || deleteState?.success) {
       const timer = setTimeout(() => {
         setOpen(false);
-      }, 600);
+        setConfirmDelete(false);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [state?.success]);
+  }, [state?.success, deleteState?.success]);
+
+  function handleDelete() {
+    const fd = new FormData();
+    fd.append("categoryId", category.id);
+    fd.append("backTo", backTo);
+    startTransition(() => {
+      deleteAction(fd);
+    });
+  }
+
+  const isBusy = pending || deleting;
 
   return (
     <>
@@ -45,7 +69,7 @@ export function EditCategoryForm({ category, backTo }: Props) {
           open={open}
           title={`Edit Category: ${category.name}`}
           onClose={() => setOpen(false)}
-          busy={pending}
+          busy={isBusy}
         >
           <form action={formAction} className="space-y-4">
             <input type="hidden" name="categoryId" value={category.id} />
@@ -124,40 +148,66 @@ export function EditCategoryForm({ category, backTo }: Props) {
               </div>
             </div>
 
-            {state?.message && (
+            {/* Error or Success feedback */}
+            {(state?.message || deleteState?.message) && (
               <div
                 className={`rounded-xl p-2.5 text-xs font-semibold flex items-center gap-1.5 ${
-                  state.success
+                  state?.success || deleteState?.success
                     ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                     : "bg-red-50 text-red-800 border border-red-200"
                 }`}
-                role={state.success ? "status" : "alert"}
+                role="status"
               >
-                <Icon name={state.success ? "check" : "alert"} size={14} />
-                <span>{state.message}</span>
+                <Icon name={state?.success || deleteState?.success ? "check" : "alert"} size={14} />
+                <span>{state?.message || deleteState?.message}</span>
               </div>
             )}
 
-            <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+            {/* Action Bar with Delete on the left */}
+            <div className="pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
-                disabled={pending}
-                onClick={() => setOpen(false)}
-                className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer"
+                disabled={isBusy}
+                onClick={() => setConfirmDelete(true)}
+                className="min-h-11 rounded-xl border border-red-200 bg-red-50/60 px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
               >
-                Cancel
+                Delete Category
               </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="min-h-11 inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer"
-              >
-                {pending ? "Saving..." : "Save Category"}
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => setOpen(false)}
+                  className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBusy}
+                  className="min-h-11 inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer"
+                >
+                  {pending ? "Saving..." : "Save Category"}
+                </button>
+              </div>
             </div>
           </form>
         </EventDialog>
       )}
+
+      {/* Confirmation Modal for Deleting Category */}
+      <AppModal
+        open={confirmDelete}
+        busy={deleting}
+        tone="danger"
+        title="Delete this category?"
+        message={`Are you sure you want to delete "${category.name}"? All nominees in this category will also be permanently removed. If this was a mistake, you can safely remove it now.`}
+        confirmLabel={deleting ? "Deleting..." : "Yes, Delete Category"}
+        cancelLabel="Cancel"
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

@@ -694,6 +694,24 @@ export async function updateEventCategoryAction(_previousState: AuthFormState, f
   }
 }
 
+export async function deleteEventCategoryAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const categoryId = z.string().uuid().safeParse(formString(formData, "categoryId"));
+  const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
+  if (!categoryId.success) return { message: "Invalid category reference." };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_event_category", { p_category_id: categoryId.data });
+    if (error) {
+      return { message: error.message || eventError(error.code) };
+    }
+    revalidatePath(backTo);
+    revalidatePath("/events", "layout");
+    return { message: "Category deleted.", success: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Could not delete category." };
+  }
+}
+
 export async function addCategoryNomineeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const categoryId = z.string().uuid().safeParse(formString(formData, "categoryId"));
   const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
@@ -769,6 +787,24 @@ export async function updateCategoryNomineeAction(_previousState: AuthFormState,
     return { message: "Nominee updated.", success: true };
   } catch {
     return { message: "We could not update that nominee right now. Please try again." };
+  }
+}
+
+export async function deleteCategoryNomineeAction(_previousState: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const nomineeId = z.string().uuid().safeParse(formString(formData, "nomineeId"));
+  const backTo = safeNextPath(formString(formData, "backTo"), "/organizer");
+  if (!nomineeId.success) return { message: "Invalid nominee reference." };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_category_nominee", { p_nominee_id: nomineeId.data });
+    if (error) {
+      return { message: error.message || eventError(error.code) };
+    }
+    revalidatePath(backTo);
+    revalidatePath("/events", "layout");
+    return { message: "Nominee deleted.", success: true };
+  } catch (err) {
+    return { message: err instanceof Error ? err.message : "Could not delete nominee." };
   }
 }
 
