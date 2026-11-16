@@ -10,6 +10,8 @@ import { AnalyticsVisuals } from "@/components/organizer/analytics-visuals";
 import { AnalyticsRange } from "@/components/organizer/analytics-range";
 import { ResultsExportActions } from "@/components/organizer/results-export-actions";
 import { WhatsAppLeaderboardShare } from "@/components/organizer/whatsapp-leaderboard-share";
+import { StageProjectorMode } from "@/components/organizer/stage-projector-mode";
+import { LiveActivityTicker } from "@/components/organizer/live-activity-ticker";
 import { Icon } from "@/components/icon";
 
 type RankedNominee = NomineeAnalytics & { rank: number };
@@ -71,6 +73,15 @@ export function ReportsTabbedHub({
 
   return (
     <div className="space-y-6">
+      {/* Real-Time Live Activity Ticker */}
+      <LiveActivityTicker
+        eventName={event.name}
+        categories={analytics.categories}
+        standings={standings}
+        votesToday={safeNum(analytics.votes_today)}
+        totalVotes={totalVotes}
+      />
+
       {/* Tab Navigation Pill Bar */}
       <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white p-1.5 shadow-2xs">
         {tabs.map((tab) => {
@@ -127,7 +138,14 @@ export function ReportsTabbedHub({
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <StageProjectorMode
+                eventName={event.name}
+                eventSlug={event.slug}
+                categories={analytics.categories}
+                standings={standings}
+                ended={ended}
+              />
               <WhatsAppLeaderboardShare
                 eventName={event.name}
                 eventSlug={event.slug}
@@ -142,6 +160,8 @@ export function ReportsTabbedHub({
             categories={analytics.categories}
             standings={standings}
             ended={ended}
+            eventSlug={event.slug}
+            eventName={event.name}
           />
         </motion.div>
       )}

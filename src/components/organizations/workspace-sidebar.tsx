@@ -40,7 +40,7 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
   const navLinks = [
     { label: "Your events", href: events, icon: "grid" as const, isActive: overviewActive },
     ...(canCreate ? [{ label: "Create event", href: `${events}/new`, icon: "plus" as const, isActive: active(`${events}/new`, true) }] : []),
-    { label: "Reports & Standings", href: `${root}/analytics`, icon: "chart" as const, isActive: active(`${root}/analytics`) },
+    { label: "Reports & Standings", href: `${root}/analytics`, icon: "chart" as const, isActive: active(`${root}/analytics`), badge: "LIVE" },
     { label: "Payments & Payouts", href: `${root}/payments`, icon: "wallet" as const, isActive: active(`${root}/payments`) || active(`${root}/earnings`) },
     { label: "SMS Credits", href: `${root}/credits`, icon: "sms" as const, isActive: active(`${root}/credits`) },
     ...(canManageTeam ? [{ label: "Team access", href: `${root}/team`, icon: "users" as const, isActive: active(`${root}/team`, true) }] : []),
@@ -108,24 +108,60 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
               >
                 <NavIcon name={link.icon} />
                 <span>{link.label}</span>
-                {link.isActive && (
+                {link.badge ? (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-950 uppercase tracking-wider">
+                    <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    <span>{link.badge}</span>
+                  </span>
+                ) : link.isActive ? (
                   <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                )}
+                ) : null}
               </Link>
             ))}
           </nav>
         </div>
 
-        {/* Bottom User/Org Profile Badge */}
-        <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200">
-            {organizationName.trim().slice(0, 1).toUpperCase()}
+        {/* Bottom Actions & User Profile */}
+        <div className="space-y-3">
+          {/* Mobile Money Status Pill */}
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/60 p-2.5 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
+              <span className="font-semibold text-emerald-950 text-[11px]">Paystack MoMo Active</span>
+            </div>
+            <span className="text-[10px] text-emerald-800 font-mono font-bold">🇬🇭 GHS</span>
           </div>
-          <div className="truncate flex-1">
-            <div className="text-xs font-semibold text-stone-900 truncate">{organizationName}</div>
-            <div className="text-[10px] text-stone-500 capitalize font-medium">{role} access</div>
+
+          {/* Quick Shortcuts */}
+          <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold">
+            <Link
+              href="/events"
+              target="_blank"
+              className="rounded-lg border border-stone-200 bg-stone-50/80 p-2 text-stone-700 hover:bg-stone-100 hover:text-stone-900 text-center transition-colors"
+            >
+              Public Site ↗
+            </Link>
+            <a
+              href="https://wa.me/233592992566?text=VOTE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2 text-emerald-900 hover:bg-emerald-100 text-center transition-colors"
+            >
+              Test Bot ↗
+            </a>
           </div>
-          <span className="h-2 w-2 rounded-full bg-emerald-600" title="Protected workspace" />
+
+          {/* User/Org Profile Badge */}
+          <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200">
+              {organizationName.trim().slice(0, 1).toUpperCase()}
+            </div>
+            <div className="truncate flex-1">
+              <div className="text-xs font-semibold text-stone-900 truncate">{organizationName}</div>
+              <div className="text-[10px] text-stone-500 capitalize font-medium">{role} access</div>
+            </div>
+            <span className="h-2 w-2 rounded-full bg-emerald-600" title="Protected workspace" />
+          </div>
         </div>
       </aside>
     </>

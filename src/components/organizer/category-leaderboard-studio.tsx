@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CategoryAnalytics, NomineeAnalytics } from "@/lib/analytics";
 import { contestSummary } from "@/lib/analytics";
+import { NomineeFlyerModal } from "@/components/organizer/nominee-flyer-modal";
 
 const MEDAL: Record<number, { emoji: string; bg: string; text: string }> = {
   1: { emoji: "🥇", bg: "bg-amber-400/20 border border-amber-300", text: "text-amber-700" },
@@ -17,16 +18,21 @@ export function CategoryLeaderboardStudio({
   categories,
   standings,
   ended,
+  eventSlug = "event",
+  eventName = "Event",
 }: {
   categories: CategoryAnalytics[];
   standings: RankedNominee[];
   ended: boolean;
+  eventSlug?: string;
+  eventName?: string;
 }) {
   const [selectedCatId, setSelectedCatId] = useState<string | "all">(
     categories[0]?.category_id ?? "all"
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"visual" | "table">("visual");
+  const [flyerNominee, setFlyerNominee] = useState<NomineeAnalytics | null>(null);
 
   // Find the closest races across the event
   const closeContests = useMemo(() => {
@@ -311,6 +317,14 @@ export function CategoryLeaderboardStudio({
                             <span className="rounded-lg bg-stone-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-stone-600">
                               {sharePercent.toFixed(1)}%
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => setFlyerNominee(nominee)}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                              title={`Generate campaign flyer for ${nominee.nominee_name}`}
+                            >
+                              <span>🎨 Flyer</span>
+                            </button>
                           </div>
                         </div>
 
@@ -425,6 +439,17 @@ export function CategoryLeaderboardStudio({
             </button>
           </div>
         )}
+
+      {flyerNominee && (
+        <NomineeFlyerModal
+          open={!!flyerNominee}
+          onClose={() => setFlyerNominee(null)}
+          nomineeName={flyerNominee.nominee_name}
+          categoryName={flyerNominee.category_name}
+          eventName={eventName || flyerNominee.event_name}
+          eventSlug={eventSlug}
+        />
+      )}
     </div>
   );
 }
