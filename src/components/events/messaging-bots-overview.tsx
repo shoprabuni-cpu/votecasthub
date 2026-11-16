@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { YouTubeTutorialButton } from "@/components/media/youtube-tutorial";
 
 const WA_NUMBER = "233592992566";
 const WA_DISPLAY = "+233 59 299 2566";
@@ -85,14 +86,22 @@ export function MessagingBotsOverview() {
             <span className="text-[11px] font-mono font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">
               Command: VOTE
             </span>
-            <a
-              href={`https://wa.me/${WA_NUMBER}?text=VOTE`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs transition-all active:scale-95"
-            >
-              <span>Message on WhatsApp</span> ↗
-            </a>
+            <div className="flex flex-wrap items-center gap-2">
+              <YouTubeTutorialButton
+                platform="whatsapp"
+                label="Watch Video"
+                variant="secondary"
+                size="md"
+              />
+              <a
+                href={`https://wa.me/${WA_NUMBER}?text=VOTE`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs transition-all active:scale-95"
+              >
+                <span>Message on WhatsApp</span> ↗
+              </a>
+            </div>
           </div>
         </div>
 
@@ -144,15 +153,54 @@ export function MessagingBotsOverview() {
             <span className="text-[11px] font-mono font-bold text-stone-500 bg-stone-100 px-2 py-1 rounded">
               Bot: @{TG_BOT_USERNAME}
             </span>
-            <a
-              href={`https://t.me/${TG_BOT_USERNAME}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 shadow-xs transition-all active:scale-95"
-            >
-              <span>Launch Telegram Bot</span> ↗
-            </a>
+            <div className="flex flex-wrap items-center gap-2">
+              <YouTubeTutorialButton
+                platform="telegram"
+                label="Watch Video"
+                variant="secondary"
+                size="md"
+              />
+              <a
+                href={`https://t.me/${TG_BOT_USERNAME}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 shadow-xs transition-all active:scale-95"
+              >
+                <span>Launch Telegram Bot</span> ↗
+              </a>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Video Guides Callout */}
+      <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 font-bold text-xs border border-red-200">
+            ▶
+          </span>
+          <div>
+            <p className="text-xs font-bold text-stone-900">
+              New to Bot Voting? Watch our 1-Minute Video Guides
+            </p>
+            <p className="text-[11px] text-stone-500">
+              See how voters cast ballots and pay with MoMo directly inside WhatsApp &amp; Telegram.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <YouTubeTutorialButton
+            platform="whatsapp"
+            label="WhatsApp Video"
+            variant="secondary"
+            size="sm"
+          />
+          <YouTubeTutorialButton
+            platform="telegram"
+            label="Telegram Video"
+            variant="secondary"
+            size="sm"
+          />
         </div>
       </div>
 

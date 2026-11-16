@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 import { generateQrDataUrl } from "@/lib/qr";
+import { YouTubeTutorialButton } from "@/components/media/youtube-tutorial";
 
 const WA_NUMBER = "233592992566";
 const WA_DISPLAY = "+233 59 299 2566";
@@ -72,6 +73,13 @@ export async function WhatsAppInstructions({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <YouTubeTutorialButton
+            platform="whatsapp"
+            label="Watch Video Guide"
+            variant="secondary"
+            size="md"
+          />
+
           <a
             href={waUrl}
             target="_blank"

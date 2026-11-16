@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { YouTubeTutorialButton } from "@/components/media/youtube-tutorial";
 
 const TG_BOT_USERNAME = "VotecastHubGH_bot";
 const TG_BOT_DISPLAY = "@VotecastHubGH_bot";
@@ -92,7 +93,13 @@ export function TelegramVotingInfo({
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-sky-100 flex items-center justify-between">
+          <div className="mt-4 pt-3 border-t border-sky-100 flex flex-wrap items-center justify-between gap-2">
+            <YouTubeTutorialButton
+              platform="telegram"
+              label="Watch Video Guide (1 min)"
+              variant="secondary"
+              size="sm"
+            />
             <a
               href={botLink}
               target="_blank"

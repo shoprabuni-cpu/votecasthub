@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Icon } from "@/components/icon";
+import { YouTubeTutorialButton } from "@/components/media/youtube-tutorial";
 
 const WA_NUMBER = "233592992566";
 const WA_DISPLAY = "+233 59 299 2566";
@@ -65,17 +66,25 @@ export function WhatsAppVotingInfo({
         </div>
       </div>
 
-      {/* Status badge */}
-      <p className="mt-4 inline-flex rounded-full px-3 py-1 text-xs font-semibold
-        bg-stone-100 text-stone-700">
-        {!configured
-          ? "Not configured — add env vars to enable"
-          : isActive
-          ? "Active — accepting votes"
-          : eventStatus === "draft"
-          ? "Will activate when event publishes"
-          : "Voting closed"}
-      </p>
+      {/* Status badge & Video Tutorial */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="inline-flex rounded-full px-3 py-1 text-xs font-semibold
+          bg-stone-100 text-stone-700">
+          {!configured
+            ? "Not configured — add env vars to enable"
+            : isActive
+            ? "Active — accepting votes"
+            : eventStatus === "draft"
+            ? "Will activate when event publishes"
+            : "Voting closed"}
+        </p>
+        <YouTubeTutorialButton
+          platform="whatsapp"
+          label="Watch Video Guide (1 min)"
+          variant="secondary"
+          size="sm"
+        />
+      </div>
 
       {/* Command format */}
       <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">

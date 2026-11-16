@@ -1,6 +1,145 @@
-export type Guide = { slug: string; title: string; description: string; flow: { title: string; start: string; steps?: string[]; branches?: Array<{ label: string; steps: string[] }>; end: string }; sections: Array<{ title: string; paragraphs: string[] }> };
+export type Guide = {
+  slug: string;
+  title: string;
+  description: string;
+  video?: {
+    id: string;
+    title: string;
+    platform: "whatsapp" | "telegram";
+    directUrl: string;
+  };
+  flow: {
+    title: string;
+    start: string;
+    steps?: string[];
+    branches?: Array<{ label: string; steps: string[] }>;
+    end: string;
+  };
+  sections: Array<{ title: string; paragraphs: string[] }>;
+};
 
 export const GUIDES: Guide[] = [
+  {
+    slug: "how-to-vote-on-whatsapp",
+    title: "How to Vote on VoteCastHub GH Using WhatsApp",
+    description: "Step-by-step video tutorial and complete guide for voting on VoteCastHub GH through our official WhatsApp bot (+233 59 299 2566) with Mobile Money.",
+    video: {
+      id: "52Npc0ak8hg",
+      title: "How to Vote on Votecasthub GH Using WhatsApp",
+      platform: "whatsapp",
+      directUrl: "https://www.youtube.com/watch?v=52Npc0ak8hg",
+    },
+    flow: {
+      title: "Voting on WhatsApp",
+      start: "Open WhatsApp",
+      steps: [
+        "Send 'VOTE' or event code to +233 59 299 2566",
+        "Select your active event and choose your nominee",
+        "Choose vote quantity (or cast free ballot)",
+        "Tap the secure Paystack MoMo link",
+        "Approve Mobile Money prompt on your phone",
+      ],
+      end: "Instant automated confirmation received",
+    },
+    sections: [
+      {
+        title: "1. Start a Chat with VoteCastHub GH",
+        paragraphs: [
+          "Open WhatsApp on your phone or computer and send a message to our official verified number: +233 59 299 2566. You can type 'Hi', 'Hello', or 'VOTE' to get started.",
+          "You can also tap the 1-tap WhatsApp button found on any active VoteCastHub event page, which pre-fills the exact event code so you can vote without typing.",
+        ],
+      },
+      {
+        title: "2. Select the Event and Nominee",
+        paragraphs: [
+          "The bot will display the list of active voting events. Type or select the event number and the code of the contestant you want to support (for example, VOTE 01).",
+          "You will receive an instant reply showing the contestant's full name, category, and current voting status.",
+        ],
+      },
+      {
+        title: "3. Choose Vote Quantity",
+        paragraphs: [
+          "For free voting events, your ballot is confirmed immediately at zero cost.",
+          "For paid voting events, you can specify how many votes you would like to cast (e.g., 1, 5, 10, 50, or a custom number). The bot calculates the total amount in Ghana Cedis (GHS).",
+        ],
+      },
+      {
+        title: "4. Secure 1-Tap Mobile Money Payment",
+        paragraphs: [
+          "The bot will send you a secure Paystack checkout link. Tap the link to open the payment screen.",
+          "Select your Mobile Money network (MTN MoMo, Telecel Cash, or AT Money), enter your phone number, and tap Pay. You will receive an instant USSD prompt on your phone to enter your PIN and approve.",
+          "Important: Never type your Mobile Money PIN into WhatsApp chat. Only approve the official USSD popup sent by your network.",
+        ],
+      },
+      {
+        title: "5. Instant Automated Confirmation",
+        paragraphs: [
+          "As soon as payment succeeds, VoteCastHub's reconciliation engine registers your votes on the official leaderboard and the WhatsApp bot sends an immediate confirmation message.",
+          "Your transaction is permanently logged, and the votes are reflected in real time.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "how-to-vote-on-telegram",
+    title: "How to Vote on VoteCastHub GH Using Telegram",
+    description: "Watch the official video tutorial and learn how to vote with @VotecastHubGH_bot on Telegram using interactive nominee photos and instant Mobile Money.",
+    video: {
+      id: "axxW5lEAWmE",
+      title: "How to Vote on Vitecasthub GH Using Votecasthub_Bot on Telegram",
+      platform: "telegram",
+      directUrl: "https://www.youtube.com/watch?v=axxW5lEAWmE",
+    },
+    flow: {
+      title: "Voting on Telegram",
+      start: "Launch @VotecastHubGH_bot",
+      steps: [
+        "Tap Start or open direct event link",
+        "Tap 'Share Contact' for 1-tap phone verification",
+        "Browse contestants with interactive photo cards",
+        "Select vote package or enter custom votes",
+        "Complete Mobile Money payment via Paystack",
+      ],
+      end: "Official digital receipt delivered in Telegram",
+    },
+    sections: [
+      {
+        title: "1. Launch the Official Telegram Bot",
+        paragraphs: [
+          "Open Telegram and search for @VotecastHubGH_bot, or tap the Telegram link on any event page (e.g. t.me/VotecastHubGH_bot?start=event_slug).",
+          "Tap the 'Start' button at the bottom of the screen to open the main menu.",
+        ],
+      },
+      {
+        title: "2. One-Tap Phone Verification",
+        paragraphs: [
+          "To ensure fair elections and prevent automated duplicate voting, tap the 'Share Contact' button when prompted.",
+          "Telegram securely shares your phone number with VoteCastHub at zero SMS cost to you.",
+        ],
+      },
+      {
+        title: "3. Interactive Nominee Cards & Photos",
+        paragraphs: [
+          "The bot sends rich photo cards displaying contestant pictures, biography, category, and a direct 'Vote for [Name]' button right under each picture.",
+          "You can navigate through categories and nominees with a single tap.",
+        ],
+      },
+      {
+        title: "4. Select Vote Packages & Instant Checkout",
+        paragraphs: [
+          "Choose a convenient voting bundle (such as 1 Vote, 5 Votes, 10 Votes, or enter a custom amount).",
+          "The bot generates a secure Paystack checkout button. Tap it to pay safely with MTN MoMo, Telecel Cash, AT Money, or bank card.",
+        ],
+      },
+      {
+        title: "5. Instant Digital Receipt",
+        paragraphs: [
+          "Once payment completes, the bot immediately delivers an official digital receipt into your Telegram chat.",
+          "The receipt contains your transaction reference, nominee name, number of votes added, and live standings.",
+        ],
+      },
+    ],
+  },
   {
     slug: "vote-without-internet-ussd", title: "Voting without internet: USSD",
     description: "Learn how phone dialing works, how organizers request access, and what voters pay.",
