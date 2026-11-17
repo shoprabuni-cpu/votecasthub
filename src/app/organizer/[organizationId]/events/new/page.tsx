@@ -54,23 +54,12 @@ export default async function NewEventPage({ params, searchParams }: Props) {
 
         {/* Page Title & Intro */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/70 dark:bg-emerald-950/70 px-3 py-1 text-[11px] font-bold text-emerald-900 dark:text-emerald-300 tracking-wide uppercase">
-            <Icon name="sparkle" size={12} />
-            <span>
-              {eventType === "ticketing"
-                ? "🎟️ Dedicated Ticket Studio"
-                : eventType === "voting"
-                ? "🗳️ Awards & Voting Studio"
-                : "New Event Studio"}
-            </span>
-          </div>
-
-          <h1 className="mt-2 text-3xl sm:text-4xl font-serif font-medium text-stone-900 dark:text-white tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-serif font-medium text-stone-900 dark:text-white tracking-tight">
             {eventType === "ticketing"
               ? "Create a Ticketed Event"
               : eventType === "voting"
               ? "Create a Voting Contest"
-              : "What type of event are you hosting?"}
+              : "Create an Event"}
           </h1>
 
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400 max-w-2xl">
@@ -78,7 +67,7 @@ export default async function NewEventPage({ params, searchParams }: Props) {
               ? "Set up your venue, schedule, and ticket tiers. Attendees can buy tickets via Mobile Money or Card and receive instant PAX pass codes."
               : eventType === "voting"
               ? "Configure your competition schedule, voting model, and categories for public or paid voting."
-              : "Choose whether you are selling tickets for a live event or running an awards contest with nominees."}
+              : "Select whether you are selling tickets for a live event or running an awards contest with nominees."}
           </p>
         </div>
 

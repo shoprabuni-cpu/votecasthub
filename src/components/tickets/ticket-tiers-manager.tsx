@@ -265,8 +265,8 @@ export function TicketTiersManager({
             onClick={() => setShowAddModal(true)}
             className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-all dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
           >
-            <Icon name="sparkle" size={13} />
-            <span>+ Add Ticket Tier</span>
+            <span className="text-sm leading-none">＋</span>
+            <span>Add Ticket Tier</span>
           </button>
         </div>
 
