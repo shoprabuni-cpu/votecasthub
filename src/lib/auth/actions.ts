@@ -79,18 +79,30 @@ function eventError(code?: string) {
 }
 
 function parseEventForm(formData: FormData) {
+  const eventType = formString(formData, "event_type") || formString(formData, "eventType") || "voting";
+  const isTicketing = eventType === "ticketing";
+
+  const rawVotingMode = isTicketing ? "free" : formString(formData, "votingMode");
+  const rawVotingRule = isTicketing ? "one_per_category" : formString(formData, "votingRule");
+  const rawFreeVoteLimit = isTicketing
+    ? "1"
+    : formString(formData, "freeVoteLimit") || (rawVotingRule === "one_per_category" ? "1" : "");
+  const rawPriceGhs = isTicketing ? "" : formString(formData, "priceGhs");
+  const rawVerificationMethod = isTicketing ? "phone" : formString(formData, "verificationMethod") || "phone";
+  const rawResultsVisibility = isTicketing ? "hidden" : formString(formData, "resultsVisibility") || "hidden";
+
   const parsed = z.object(eventFields).safeParse({
     name: formString(formData, "name"),
     description: formString(formData, "description"),
-    votingMode: formString(formData, "votingMode"),
-    verificationMethod: formString(formData, "verificationMethod") || "phone",
-    votingRule: formString(formData, "votingRule"),
-    priceGhs: formString(formData, "priceGhs"),
-    freeVoteLimit: formString(formData, "freeVoteLimit"),
-    votingRules: formString(formData, "votingRules"),
+    votingMode: rawVotingMode,
+    verificationMethod: rawVerificationMethod,
+    votingRule: rawVotingRule,
+    priceGhs: rawPriceGhs,
+    freeVoteLimit: rawFreeVoteLimit,
+    votingRules: isTicketing ? "" : formString(formData, "votingRules"),
     startsAt: formString(formData, "startsAt"),
     endsAt: formString(formData, "endsAt"),
-    resultsVisibility: formString(formData, "resultsVisibility"),
+    resultsVisibility: rawResultsVisibility,
   });
   if (!parsed.success) {
     const fieldLabels: Record<string, string> = {
@@ -101,8 +113,8 @@ function parseEventForm(formData: FormData) {
       priceGhs: "price per vote",
       freeVoteLimit: "free vote limit",
       votingRules: "voting rules",
-      startsAt: "voting start time",
-      endsAt: "voting end time",
+      startsAt: "start time",
+      endsAt: "end time",
       resultsVisibility: "results visibility",
     };
     const invalidFields = [...new Set(parsed.error.issues.map((issue) => fieldLabels[String(issue.path[0])] ?? "event details"))];
@@ -111,11 +123,11 @@ function parseEventForm(formData: FormData) {
   const startsAt = ghanaLocalDateToIso(parsed.data.startsAt);
   const endsAt = ghanaLocalDateToIso(parsed.data.endsAt);
   const unitPriceMinor = parsed.data.votingMode === "free" ? 0 : /^\d{1,10}(\.\d{1,2})?$/.test(parsed.data.priceGhs ?? "") ? priceToMinor(parsed.data.priceGhs ?? "") : Number.NaN;
-  const freeVoteLimit = parsed.data.votingMode === "free" ? Number(parsed.data.freeVoteLimit) : null;
-  if (!startsAt || !endsAt || new Date(startsAt) >= new Date(endsAt)) return { error: "Choose a valid voting start and end time." } as const;
-  if (parsed.data.votingMode === "paid" && (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 1 || unitPriceMinor > 1_000_000_000_000)) return { error: "Enter a paid vote price with up to two decimal places." } as const;
-  if (parsed.data.votingMode === "free" && (!Number.isInteger(freeVoteLimit) || (freeVoteLimit ?? 0) < 1 || (freeVoteLimit ?? 0) > 100)) return { error: "Set a free vote limit from 1 to 100." } as const;
-  if (parsed.data.votingMode === "free" && parsed.data.votingRule === "one_per_category" && freeVoteLimit !== 1) return { error: "One vote per category must use a limit of one." } as const;
+  const freeVoteLimit = isTicketing ? 1 : parsed.data.votingMode === "free" ? Number(parsed.data.freeVoteLimit || (parsed.data.votingRule === "one_per_category" ? 1 : null)) : null;
+  if (!startsAt || !endsAt || new Date(startsAt) >= new Date(endsAt)) return { error: "Choose a valid start and end time." } as const;
+  if (!isTicketing && parsed.data.votingMode === "paid" && (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 1 || unitPriceMinor > 1_000_000_000_000)) return { error: "Enter a paid vote price with up to two decimal places." } as const;
+  if (!isTicketing && parsed.data.votingMode === "free" && (!Number.isInteger(freeVoteLimit) || (freeVoteLimit ?? 0) < 1 || (freeVoteLimit ?? 0) > 100)) return { error: "Set a free vote limit from 1 to 100." } as const;
+  if (!isTicketing && parsed.data.votingMode === "free" && parsed.data.votingRule === "one_per_category" && freeVoteLimit !== 1) return { error: "One vote per category must use a limit of one." } as const;
   return { data: { ...parsed.data, startsAt, endsAt, unitPriceMinor, freeVoteLimit } } as const;
 }
 
