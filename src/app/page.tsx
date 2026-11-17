@@ -28,16 +28,16 @@ export default async function HomePage() {
 
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="status-dot" /> FOR GHANAIAN AWARDS & COMPETITIONS</p>
-          <h1 id="hero-title">Good events deserve a <em>fair vote.</em></h1>
-          <p className="hero-description">Online voting for awards, competitions, and community events in Ghana. Set up nominees, choose voter verification, and share clear voting rules with your community.</p>
-          <div className="hero-actions"><Link className="primary-link" href="/events">Browse events <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Create an event</Link></div>
-          <p className="hero-note">Vote via Web, WhatsApp (+233 59 299 2566), Telegram (@VotecastHubGH_bot), or USSD (*920#). <Link href="#chat-voting" className="font-semibold text-emerald-800 underline underline-offset-4 dark:text-emerald-400">Explore Chat Voting</Link></p>
+          <p className="eyebrow"><span className="status-dot" /> FOR GHANAIAN AWARDS, SUMMITS & LIVE EVENTS</p>
+          <h1 id="hero-title">Fair voting & seamless <em>event ticketing.</em></h1>
+          <p className="hero-description">The all-in-one platform for Ghanaian awards, contests, conferences, and parties. Sell event tickets with auto-generated PAX codes or run credible nominee voting with instant Mobile Money.</p>
+          <div className="hero-actions"><Link className="primary-link" href="/events">Explore events & tickets <span aria-hidden="true">↗</span></Link><Link className="secondary-button" href="/sign-up">Host an event</Link></div>
+          <p className="hero-note">Vote or buy tickets via Web, WhatsApp (+233 59 299 2566), Telegram (@VotecastHubGH_bot), or USSD (*920#). <Link href="#chat-voting" className="font-semibold text-emerald-800 underline underline-offset-4 dark:text-emerald-400">Explore Chat Voting</Link></p>
         </div>
         <div className="relative min-w-0 rounded-3xl bg-gradient-to-br from-emerald-50 to-stone-100 p-2 sm:p-4 dark:from-emerald-950/20 dark:to-stone-900/40 dark:border dark:border-[#1c2721]"><DevicePreview /></div>
       </section>
 
-      <section className="trust-strip" aria-label="Platform principles"><span>DESIGNED FOR CLARITY</span><span className="trust-divider" /><span>Voter verification options</span><span className="trust-divider" /><span>Rules enforced</span><span className="trust-divider" /><span>Organizer control</span></section>
+      <section className="trust-strip" aria-label="Platform principles"><span>VOTING & EVENT TICKETING</span><span className="trust-divider" /><span>Instant PAX Gate Codes</span><span className="trust-divider" /><span>Mobile Money & Cards</span><span className="trust-divider" /><span>Organizer Control</span></section>
 
       <div className="mx-auto max-w-6xl"><EventBrowser initialPage={page} unavailable={unavailable} compact /></div>
       

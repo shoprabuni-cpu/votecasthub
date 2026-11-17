@@ -567,10 +567,27 @@ export async function createEventAction(_previousState: AuthFormState, formData:
         return { message: "We could not save the verification method." };
       }
     }
+    const eventType = formString(formData, "event_type") || "voting";
+    const venueName = formString(formData, "venue_name") || null;
+    const doorsOpenTime = formString(formData, "doors_open_time") || null;
+    if (eventType !== "voting" || venueName || doorsOpenTime) {
+      await supabase
+        .from("events")
+        .update({
+          event_type: eventType,
+          venue_name: venueName,
+          doors_open_time: doorsOpenTime,
+        })
+        .eq("id", data);
+    }
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
   }
+  const eventType = formString(formData, "event_type");
   revalidatePath(`/organizer/${organizationId.data}/events`);
+  if (eventType === "ticketing") {
+    redirect(`/organizer/${organizationId.data}/events/${newEventId}?tab=tickets`);
+  }
   redirect(`/organizer/${organizationId.data}/events/${newEventId}${formString(formData, "setupFlow") === "guided" ? "?step=nominees" : ""}`);
 }
 
@@ -603,6 +620,16 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
         console.error("set_event_verification_method failed on update:", methodResult.error);
         return { message: "We could not save the verification method." };
       }
+    }
+    const eventType = formString(formData, "event_type");
+    const venueName = formString(formData, "venue_name");
+    const doorsOpenTime = formString(formData, "doors_open_time");
+    if (eventType || venueName || doorsOpenTime) {
+      const updates: Record<string, unknown> = {};
+      if (eventType) updates.event_type = eventType;
+      if (venueName) updates.venue_name = venueName;
+      if (doorsOpenTime) updates.doors_open_time = doorsOpenTime;
+      await supabase.from("events").update(updates).eq("id", eventId.data);
     }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);

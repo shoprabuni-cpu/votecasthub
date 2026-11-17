@@ -43,10 +43,10 @@ export default async function NewEventPage({ params }: Props) {
             <span>New Event Studio</span>
           </div>
           <h1 className="mt-2 text-3xl sm:text-4xl font-serif font-medium text-stone-900 tracking-tight">
-            Create your voting event
+            Create an event
           </h1>
           <p className="mt-1 text-sm text-stone-600 max-w-2xl">
-            Start with the event name and voting dates. Save and continue to add nominees, choose voting settings, and submit for approval.
+            Start with the event name and schedule. Choose whether you are hosting an awards voting competition, selling tickets for a live event, or running both together.
           </p>
         </div>
 

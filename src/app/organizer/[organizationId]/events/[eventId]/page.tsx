@@ -1,3 +1,4 @@
+import { TicketTiersManager } from "@/components/tickets/ticket-tiers-manager";
 import { UssdPaymentHistory } from "@/components/events/ussd-payment-history";
 import { WhatsAppVotingInfo } from "@/components/events/whatsapp-voting-info";
 import { TelegramVotingInfo } from "@/components/events/telegram-voting-info";
@@ -49,6 +50,9 @@ type OrganizationEvent = {
   voting_rules: string | null;
   voter_help_email?: string | null;
   image_path: string | null;
+  event_type?: string | null;
+  venue_name?: string | null;
+  doors_open_time?: string | null;
 };
 
 export default async function EventSetupPage({ params, searchParams }: Props) {
@@ -66,6 +70,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
     { data: organization },
     { data: smsBalance },
     { data: eventMeta },
+    { data: ticketTiers },
   ] = await Promise.all([
     supabase.rpc("get_organization_events", { p_organization_id: organizationId }),
     supabase
@@ -81,7 +86,8 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       .order("display_order", { ascending: true }),
     supabase.from("organizations").select("name, moderation_status, archived_at").eq("id", organizationId).maybeSingle(),
     supabase.rpc("get_organization_sms_balance", { p_org: organizationId }),
-    supabase.from("events").select("verification_method, voter_help_email").eq("id", eventId).maybeSingle(),
+    supabase.from("events").select("verification_method, voter_help_email, venue_name, venue_address, doors_open_time, event_type").eq("id", eventId).maybeSingle(),
+    supabase.from("event_ticket_tiers").select("*").eq("event_id", eventId).order("sort_order", { ascending: true }),
   ]);
 
   const verificationMethod = (eventMeta?.verification_method ?? "phone") as "phone" | "email" | "invite_code" | "voter_list";
@@ -218,14 +224,26 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
       {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Read feedback</a></div>}
       <EventWorkspace
+        tickets={
+          <TicketTiersManager
+            eventId={eventId}
+            initialTiers={(ticketTiers as any) ?? []}
+            venueName={eventMeta?.venue_name}
+            venueAddress={eventMeta?.venue_address}
+            doorsOpenTime={eventMeta?.doors_open_time}
+          />
+        }
         guided={canManage && event.status === "draft" ? { initialSection: requestedStep === "nominees" ? "nominees" : "details", nomineesReady: allCategoriesHaveNominees && !categoriesError && !nomineeError, votingReady: checkoutReady && verificationReady } : undefined}
         nextStep={canManage ? nextStep : undefined}
         progress={canManage && event.status === "draft" ? { completed: requiredChecks.filter(check => check.complete).length, total: requiredChecks.length } : undefined}
         canEdit={permissions.editDraft || permissions.editPublic || (canManage && event.status === "pending_review")}
         canManageVoting={canManage && event.status !== "archived"}
-        viewLink={event.status === "draft" ? <Link href={`${pagePath}/preview`} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Preview event</Link> : ["published", "paused", "closed"].includes(event.status) ? <Link href={publicUrl} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">View voter page ↗</Link> : null}
+        viewLink={<div className="flex flex-wrap items-center gap-2">
+          {event.status === "draft" ? <Link href={`${pagePath}/preview`} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Preview event</Link> : ["published", "paused", "closed"].includes(event.status) ? <Link href={publicUrl} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">View event page ↗</Link> : null}
+          <Link href="/gate" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"><span>📱 Gate Scanner</span> ↗</Link>
+        </div>}
         editor={<>
-          {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
+          {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules, eventType: (event.event_type as any) ?? "voting", venueName: event.venue_name, doorsOpenTime: event.doors_open_time }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
           {returnToDraft}
           {!permissions.returnToDraft && permissions.editPublic && event.status !== "closed" && <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-600">Competition settings stay fixed while published. Full editing requires no voting or payment history and owner/admin access.</p>}
         </>}

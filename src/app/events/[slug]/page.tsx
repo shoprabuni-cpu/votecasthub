@@ -1,3 +1,4 @@
+import { PublicTicketWidget } from "@/components/tickets/public-ticket-widget";
 import type { Metadata } from "next";
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
@@ -60,7 +61,25 @@ export default async function PublicEventPage({ params }: Props) {
     verification_method?: "phone" | "email" | "invite_code" | "voter_list";
     results_visibility: string;
     results_released: boolean;
+    event_type?: "voting" | "ticketing" | "hybrid";
+    venue_name?: string | null;
+    venue_address?: string | null;
+    doors_open_time?: string | null;
   } | null = null;
+
+  let ticketTiers: Array<{
+    id: string;
+    event_id: string;
+    name: string;
+    price_minor: number;
+    capacity: number;
+    sold_count: number;
+    description?: string | null;
+    is_active: boolean;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  }> = [];
 
   let categories: Array<{ id: string; name: string; description: string | null }> = [];
   let nominees: Array<{
@@ -108,7 +127,7 @@ export default async function PublicEventPage({ params }: Props) {
     const eventResult = await supabase
       .from("events")
       .select(
-        "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released"
+        "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released, event_type, venue_name, venue_address, doors_open_time"
       )
       .eq("slug", slug)
       .in("status", ["published", "paused", "closed"])
@@ -122,6 +141,15 @@ export default async function PublicEventPage({ params }: Props) {
         const signedEventImage = await supabase.storage.from("nominee-images").createSignedUrl(event.image_path, 3600);
         eventImageUrl = signedEventImage.data?.signedUrl ?? null;
       }
+
+      // Fetch active ticket tiers for this event
+      const { data: tiersData } = await supabase
+        .from("event_ticket_tiers")
+        .select("*")
+        .eq("event_id", event.id)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      ticketTiers = (tiersData as any) ?? [];
       if (event.voting_mode === "free") {
         const openResult = await supabase.rpc("is_free_voting_open", { p_event_id: event.id });
         votingOpen = openResult.data === true;
@@ -321,7 +349,9 @@ export default async function PublicEventPage({ params }: Props) {
                 {isOpen && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
                 <span>{status}</span>
               </span>
-              <span className="text-xs text-stone-400 font-medium">· Official Voting Ballot</span>
+              <span className="text-xs text-stone-400 font-medium">
+                · {event.event_type === "ticketing" ? "Official Event Tickets" : "Official Voting Ballot"}
+              </span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight">
@@ -329,33 +359,43 @@ export default async function PublicEventPage({ params }: Props) {
             </h1>
 
             <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed">
-              {event.description || "Cast your vote for the nominees below."}
+              {event.description || (event.event_type === "ticketing" ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
             </p>
 
-            {/* Voting Schedule & Mode Info Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100">
-              <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
-                <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
-                <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.starts_at)}</p>
+            {/* Venue & Date Details for Ticketed Events */}
+            {event.venue_name && (
+              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-stone-700 bg-stone-50 p-3 rounded-2xl border border-stone-200/80">
+                <span>📍 <strong>Venue:</strong> {event.venue_name} {event.venue_address ? `(${event.venue_address})` : ""}</span>
+                {event.doors_open_time && <span>⏰ <strong>Doors open:</strong> {event.doors_open_time}</span>}
               </div>
+            )}
 
-              <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
-                <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Closes</span>
-                <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.ends_at)}</p>
-              </div>
+            {/* Voting Schedule & Mode Info Cards (Only if voting event) */}
+            {event.event_type !== "ticketing" && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100">
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.starts_at)}</p>
+                </div>
 
-              <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
-                <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Ballot Type</span>
-                <p className="mt-0.5 text-xs font-semibold text-stone-900">
-                  {event.voting_mode === "free"
-                    ? "Free voting"
-                    : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} per vote`}
-                </p>
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Closes</span>
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.ends_at)}</p>
+                </div>
+
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Ballot Type</span>
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900">
+                    {event.voting_mode === "free"
+                      ? "Free voting"
+                      : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} per vote`}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Rules and Disclaimers */}
-            {event.voting_mode === "free" && (
+            {event.voting_mode === "free" && event.event_type !== "ticketing" && (
               <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1">
                 <p className="font-semibold text-emerald-950">
                   Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
@@ -368,7 +408,7 @@ export default async function PublicEventPage({ params }: Props) {
               </div>
             )}
 
-            {event.voting_mode === "paid" && event.voting_rules && (
+            {event.voting_mode === "paid" && event.voting_rules && event.event_type !== "ticketing" && (
               <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700">
                 <p className="font-semibold text-stone-900">Event Notice</p>
                 <p className="mt-1 text-stone-600 leading-relaxed">{event.voting_rules}</p>
@@ -383,61 +423,81 @@ export default async function PublicEventPage({ params }: Props) {
               resultsReleased={event.results_released}
             />
 
-            <UssdInstructions eventId={event.id} />
-            <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
-            {/* Voter Verification Section */}
-            <div id="voter-verification" className="space-y-3">
-              <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
-                    <Icon name="shield" size={15} />
-                  </div>
-                  <div>
-                    <strong className="text-stone-900 font-semibold block">
-                      {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
-                    </strong>
-                    <span className="text-stone-500 text-[11px]">
-                      {event.voting_mode === "free"
-                        ? event.verification_method === "email"
-                          ? "Verify your email once, then cast your votes."
-                          : event.verification_method === "invite_code"
-                          ? "Enter your event access code once, then vote."
-                          : event.verification_method === "voter_list"
-                          ? "Verify the details provided by your organizer, then vote."
-                          : "Verify your Ghana phone number once with SMS, then vote."
-                        : "Payments processed securely via Mobile Money & Cards with Paystack."}
-                    </span>
-                  </div>
-                </div>
-
-                {voterVerified && event.voting_mode === "free" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
-                    <Icon name="check" size={12} />
-                    <span>Verified</span>
-                  </span>
-                )}
+            {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
+            {(event.event_type === "ticketing" || ticketTiers.length > 0) && (
+              <div className="pt-2">
+                <PublicTicketWidget
+                  eventId={event.id}
+                  eventName={event.name}
+                  eventImageUrl={eventImageUrl}
+                  venueName={event.venue_name}
+                  venueAddress={event.venue_address}
+                  doorsOpenTime={event.doors_open_time}
+                  tiers={ticketTiers}
+                />
               </div>
-              {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
-              {event.voting_mode === "free" && (
-                <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
-              )}
+            )}
 
-              <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
-              {/* Open instructions note */}
-              {isOpen && (
-                <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
-                  {event.voting_mode === "free"
-                    ? voterVerified
-                      ? "Select a nominee below. Your remaining votes are shown on each candidate card."
-                      : "Voting is free. Complete verification above, then select your nominees below."
-                    : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
+            {/* Voter Verification Section (Only shown if voting is enabled) */}
+            {event.event_type !== "ticketing" && (
+              <>
+                <UssdInstructions eventId={event.id} />
+                <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
+                <div id="voter-verification" className="space-y-3">
+                  <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
+                        <Icon name="shield" size={15} />
+                      </div>
+                      <div>
+                        <strong className="text-stone-900 font-semibold block">
+                          {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
+                        </strong>
+                        <span className="text-stone-500 text-[11px]">
+                          {event.voting_mode === "free"
+                            ? event.verification_method === "email"
+                              ? "Verify your email once, then cast your votes."
+                              : event.verification_method === "invite_code"
+                              ? "Enter your event access code once, then vote."
+                              : event.verification_method === "voter_list"
+                              ? "Verify the details provided by your organizer, then vote."
+                              : "Verify your Ghana phone number once with SMS, then vote."
+                            : "Payments processed securely via Mobile Money & Cards with Paystack."}
+                        </span>
+                      </div>
+                    </div>
+
+                    {voterVerified && event.voting_mode === "free" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                        <Icon name="check" size={12} />
+                        <span>Verified</span>
+                      </span>
+                    )}
+                  </div>
+                  {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
+                  {event.voting_mode === "free" && (
+                    <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
+                  )}
+
+                  <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
+                  {/* Open instructions note */}
+                  {isOpen && (
+                    <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
+                      {event.voting_mode === "free"
+                        ? voterVerified
+                          ? "Select a nominee below. Your remaining votes are shown on each candidate card."
+                          : "Voting is free. Complete verification above, then select your nominees below."
+                        : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </section>
 
-        {/* Categories & Nominees Section */}
+        {/* Categories & Nominees Section (Voting / Hybrid events only) */}
+        {event.event_type !== "ticketing" && (
         <section className="space-y-8">
           <div className="flex items-center justify-between border-b border-stone-200/80 pb-4">
             <div>
@@ -625,6 +685,7 @@ export default async function PublicEventPage({ params }: Props) {
             </div>
           )}
         </section>
+        )}
       </div>
 
       {/* Footer */}

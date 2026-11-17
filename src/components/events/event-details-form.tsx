@@ -20,6 +20,9 @@ type EventValues = {
   votingRule?: VotingRule;
   freeVoteLimit?: number | null;
   votingRules?: string | null;
+  eventType?: "voting" | "ticketing" | "hybrid";
+  venueName?: string | null;
+  doorsOpenTime?: string | null;
 };
 
 function asLocalInput(value?: string) {
@@ -86,6 +89,14 @@ export function EventDetailsForm({
   const setVotingMode = (value: "free" | "paid") => { markChanged(); setVotingModeValue(value); };
   const setVerificationMethod = (value: "phone" | "email" | "invite_code" | "voter_list") => { markChanged(); setVerificationMethodValue(value); };
   const setVotingRule = (value: VotingRule) => { markChanged(); setVotingRuleValue(value); };
+
+  const [eventType, setEventTypeValue] = useState<"voting" | "ticketing" | "hybrid">(initial?.eventType ?? "voting");
+  const [venueName, setVenueName] = useState(initial?.venueName ?? "");
+  const [doorsOpenTime, setDoorsOpenTime] = useState(initial?.doorsOpenTime ?? "");
+  const setEventType = (value: "voting" | "ticketing" | "hybrid") => {
+    markChanged();
+    setEventTypeValue(value);
+  };
 
   const [values, setValues] = useState({
     name: initial?.name ?? "",
@@ -376,6 +387,9 @@ export function EventDetailsForm({
         <input type="hidden" name="resultsVisibility" value={values.resultsVisibility} />
         <input type="hidden" name="startsAt" value={values.startsAt} />
         <input type="hidden" name="endsAt" value={values.endsAt} />
+        <input type="hidden" name="event_type" value={eventType} />
+        <input type="hidden" name="venue_name" value={venueName} />
+        <input type="hidden" name="doors_open_time" value={doorsOpenTime} />
 
         {/* Step Views */}
         <div className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-8 shadow-xs">
@@ -404,6 +418,54 @@ export function EventDetailsForm({
                 </div>
 
                 <div className="space-y-4">
+                  {/* Event Format Selector */}
+                  <div>
+                    <label className="text-xs font-semibold text-stone-800 block mb-2">
+                      Event Format <span className="text-emerald-700">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setEventType("voting")}
+                        className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                          eventType === "voting"
+                            ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20"
+                            : "border-stone-200 bg-white hover:border-stone-300"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">🗳️</div>
+                        <div className="text-xs font-bold text-stone-900">Voting Contest</div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">Awards, elections, nominee polls</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEventType("ticketing")}
+                        className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                          eventType === "ticketing"
+                            ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20"
+                            : "border-stone-200 bg-white hover:border-stone-300"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">🎟️</div>
+                        <div className="text-xs font-bold text-stone-900">Ticket Sales Only</div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">Concerts, parties, summits, gate passes</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEventType("hybrid")}
+                        className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                          eventType === "hybrid"
+                            ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-600/20"
+                            : "border-stone-200 bg-white hover:border-stone-300"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">🎟️ + 🗳️</div>
+                        <div className="text-xs font-bold text-stone-900">Voting + Tickets</div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">Contest with ticketed awards gala</div>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Event Name */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -426,6 +488,38 @@ export function EventDetailsForm({
                       This will appear prominently on voter certificates, ballot headers, and sharing links.
                     </p>
                   </div>
+
+                  {/* Venue & Time for Tickets */}
+                  {(eventType === "ticketing" || eventType === "hybrid") && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/70">
+                      <div>
+                        <label htmlFor="input-venue-name" className="text-xs font-semibold text-stone-800 block mb-1">
+                          Venue / Location Name
+                        </label>
+                        <input
+                          id="input-venue-name"
+                          type="text"
+                          value={venueName}
+                          onChange={(e) => { markChanged(); setVenueName(e.target.value); }}
+                          placeholder="e.g. Accra International Conference Centre"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="input-doors-open" className="text-xs font-semibold text-stone-800 block mb-1">
+                          Doors Open / Red Carpet Time
+                        </label>
+                        <input
+                          id="input-doors-open"
+                          type="text"
+                          value={doorsOpenTime}
+                          onChange={(e) => { markChanged(); setDoorsOpenTime(e.target.value); }}
+                          placeholder="e.g. 7:00 PM GMT"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Description */}
                   <div>
@@ -526,15 +620,28 @@ export function EventDetailsForm({
                 <div>
                   <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Voting settings
+                    {eventType === "ticketing" ? "Ticket configuration" : "Voting settings"}
                   </div>
                   <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
-                    How should voters participate?
+                    {eventType === "ticketing" ? "Ticketed Event Setup" : "How should voters participate?"}
                   </h2>
                   <p className="mt-1 text-xs text-stone-500">
-                    Choose whether this is a free public poll or a paid ballot using Mobile Money & Cards.
+                    {eventType === "ticketing"
+                      ? "Configure ticketing rules and access for your attendees."
+                      : "Choose whether this is a free public poll or a paid ballot using Mobile Money & Cards."}
                   </p>
                 </div>
+
+                {eventType === "ticketing" && (
+                  <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1.5">
+                    <div className="font-bold flex items-center gap-1.5 text-sm text-amber-950">
+                      <span>🎟️</span> Standalone Event Ticketing
+                    </div>
+                    <p className="leading-relaxed">
+                      This event is set up purely for selling tickets and issuing memorable <strong>CODE PAX</strong> gate passes. You will configure ticket tiers (e.g. Early Bird, Regular, VIP, Table of 4), prices, and gate check-in right in the <strong>🎟️ Tickets</strong> tab of your Event Studio!
+                    </p>
+                  </div>
+                )}
 
                 {/* Handcrafted Mode Selector Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
