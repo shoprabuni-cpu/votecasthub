@@ -110,30 +110,10 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
       const target = steps.find(step => step.id === trigger?.dataset.workspaceSection);
       if (target) { continueAfterSave.current = false; void go(target.id); }
     }}>
-      <section className="relative overflow-hidden rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] sm:p-6">
-        {/* Subtle geometric corner glow */}
-        <div className="pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-500/5 blur-2xl" />
-        <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
-                [ STAGE {steps[index].num} // 04 ]
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600 dark:bg-emerald-400" />
-                Active Stage
-              </span>
-            </div>
-            <h2 ref={heading} tabIndex={-1} className="mt-1 font-serif text-xl font-bold tracking-tight text-stone-900 focus:outline-none dark:text-stone-100 sm:text-2xl">
-              {steps[index].label}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1 font-mono text-xs font-semibold text-stone-600 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
-              {steps[index].sub}
-            </span>
-          </div>
-        </div>
+      <section className="relative overflow-hidden rounded-2xl border border-stone-200/90 bg-white p-3 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] sm:p-3.5">
+        <h2 ref={heading} tabIndex={-1} className="sr-only focus:outline-none">
+          {steps[index].label}
+        </h2>
         <ol aria-label="Event setup progress" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {steps.map((step, stepIndex) => {
             const isCurrent = step.id === section;

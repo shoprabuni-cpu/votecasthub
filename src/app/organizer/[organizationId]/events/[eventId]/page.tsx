@@ -216,21 +216,24 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
 
   const requiredChecks = publishChecks.filter(check => !check.optional);
   const nextStep = eventNextStep({ status: event.status, expired: permissions.expired, scheduled: Date.parse(event.starts_at) > requestTime, datesReady, categoryCount: activeCategories.length, nomineesReady: allCategoriesHaveNominees, checkoutReady, verificationReady, votingMode: event.voting_mode, canReopen: permissions.reopen, organizationId });
-  const panel = "rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6";
+  const panel = "rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-100 sm:p-6";
   const whatsappConfigured = Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_BUSINESS_TOKEN);
-  const returnToDraft = permissions.returnToDraft ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-    <h3 className="text-sm font-semibold text-amber-950">{event.status === "pending_review" ? "Change your event before approval" : "Need to change competition settings?"}</h3>
-    <p className="text-sm text-amber-900">{event.status === "pending_review" ? "Withdraw your event from review, edit it, then submit it again." : "Full editing removes your event from the public listing and clears approval. After editing, submit it for approval again."}</p>
+  const returnToDraft = permissions.returnToDraft ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+    <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-200">{event.status === "pending_review" ? "Change your event before approval" : "Need to change competition settings?"}</h3>
+    <p className="text-sm text-amber-900 dark:text-amber-300">{event.status === "pending_review" ? "Withdraw your event from review, edit it, then submit it again." : "Full editing removes your event from the public listing and clears approval. After editing, submit it for approval again."}</p>
     <EventStatusForm eventId={eventId} action="unpublish" backTo={pagePath} label={event.status === "pending_review" ? "Withdraw and edit" : "Continue to full editing"} confirmMessage={event.status === "pending_review" ? "Withdraw this event from review? Your saved details stay intact. Submit it again after editing." : "Remove this event from the public listing and make it private for editing? Approval will be cleared. Submit it again after editing."} />
   </div> : null;
 
-  return <main className="min-h-screen bg-stone-50/60 pb-20">
+  return <main className="min-h-screen bg-stone-50/60 pb-20 transition-colors dark:bg-[#080b09]">
     <DashboardHeader organizationId={organizationId} />
     <div className="mx-auto max-w-5xl space-y-6 px-4 pt-6 sm:px-6">
       <header className="space-y-3">
-        <Link href={`/organizer/${organizationId}/events`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-stone-600 hover:text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><Icon name="arrowLeft" size={15} />Back to {organization?.name ?? "events"}</Link>
-        <div className="flex flex-wrap items-center gap-3"><h1 className="break-words font-serif text-2xl font-medium text-stone-900 sm:text-3xl">{event.name}</h1><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900">{presentation.label}</span></div>
-        <p className="text-sm text-stone-600">{ghanaDate(event.starts_at)} → {ghanaDate(event.ends_at)} · Ghana time</p>
+        <Link href={`/organizer/${organizationId}/events`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-stone-600 hover:text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:text-emerald-400"><Icon name="arrowLeft" size={15} />Back to {organization?.name ?? "events"}</Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="break-words font-serif text-2xl font-bold text-stone-900 dark:text-stone-100 sm:text-3xl">{event.name}</h1>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 font-mono text-xs font-semibold text-emerald-900 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border dark:border-emerald-850">{presentation.label}</span>
+        </div>
+        <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 font-mono">{ghanaDate(event.starts_at)} → {ghanaDate(event.ends_at)} · Ghana GMT</p>
       </header>
       {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{presentation.warning}</p>}
       {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
@@ -442,41 +445,125 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         </section> : undefined}
         voting={<>
           <UssdPaymentHistory eventId={eventId}/>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <WhatsAppVotingInfo
-              eventCode={ussdRequest?.event_code}
-              eventSlug={event.slug}
-              eventName={event.name}
-              votingMode={event.voting_mode}
-              eventStatus={event.status}
-              configured={whatsappConfigured}
-            />
-            <TelegramVotingInfo
-              eventSlug={event.slug}
-              eventName={event.name}
-              votingMode={event.voting_mode}
-              eventStatus={event.status}
-            />
-          </div>
-          <UssdRequest eventId={eventId} quote={ussdRequest} canAccept={["owner", "admin"].includes(membership?.role ?? "") && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} requested={Boolean(ussdRequest && ussdRequest.status !== "cancelled")} unavailable={Boolean(ussdError)} canRequest={canManage && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} />
-          {event.status === "draft" && event.voting_mode === "paid" && !checkoutReady && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Connect your payment account</h2><p className="mt-2 text-sm text-stone-600">A verified payment account is needed before this paid event can be submitted.</p><Link href={`/organizer/${organizationId}/payments`} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50">Set up payments</Link></section>}
-          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Manage voting</h2><p className="mt-1 text-sm text-stone-600">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
+          {event.status === "draft" ? (
+            <details className="group rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <summary className="flex cursor-pointer items-center justify-between text-xs font-mono font-bold tracking-wider uppercase text-stone-700 dark:text-stone-300">
+                <span className="flex items-center gap-2">
+                  <span>[ CHANNELS & TELCO PREVIEW // WHATSAPP · TELEGRAM · USSD ]</span>
+                </span>
+                <span className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] text-stone-600 transition-transform group-open:rotate-180 dark:border-[#223028] dark:bg-[#141b16] dark:text-stone-300">
+                  ▼
+                </span>
+              </summary>
+              <div className="mt-5 space-y-5 border-t border-stone-100 pt-5 dark:border-[#1c2721]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <WhatsAppVotingInfo
+                    eventCode={ussdRequest?.event_code}
+                    eventSlug={event.slug}
+                    eventName={event.name}
+                    votingMode={event.voting_mode}
+                    eventStatus={event.status}
+                    configured={whatsappConfigured}
+                  />
+                  <TelegramVotingInfo
+                    eventSlug={event.slug}
+                    eventName={event.name}
+                    votingMode={event.voting_mode}
+                    eventStatus={event.status}
+                  />
+                </div>
+                <UssdRequest eventId={eventId} quote={ussdRequest} canAccept={["owner", "admin"].includes(membership?.role ?? "") && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} requested={Boolean(ussdRequest && ussdRequest.status !== "cancelled")} unavailable={Boolean(ussdError)} canRequest={canManage && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} />
+              </div>
+            </details>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <WhatsAppVotingInfo
+                  eventCode={ussdRequest?.event_code}
+                  eventSlug={event.slug}
+                  eventName={event.name}
+                  votingMode={event.voting_mode}
+                  eventStatus={event.status}
+                  configured={whatsappConfigured}
+                />
+                <TelegramVotingInfo
+                  eventSlug={event.slug}
+                  eventName={event.name}
+                  votingMode={event.voting_mode}
+                  eventStatus={event.status}
+                />
+              </div>
+              <UssdRequest eventId={eventId} quote={ussdRequest} canAccept={["owner", "admin"].includes(membership?.role ?? "") && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} requested={Boolean(ussdRequest && ussdRequest.status !== "cancelled")} unavailable={Boolean(ussdError)} canRequest={canManage && !["closed", "archived"].includes(event.status) && Date.parse(event.ends_at) > requestTime} />
+            </>
+          )}
+          {event.status === "draft" && event.voting_mode === "paid" && !checkoutReady && (
+            <section className={`${panel} mt-5`}>
+              <h2 className="text-base sm:text-lg font-serif font-bold text-stone-900 dark:text-stone-100">Connect your payment account</h2>
+              <p className="mt-2 text-xs sm:text-sm text-stone-600 dark:text-stone-400">A verified payment account is needed before this paid event can be submitted.</p>
+              <Link href={`/organizer/${organizationId}/payments`} className="mt-4 inline-flex min-h-10 items-center rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-50 dark:border-[#223028] dark:bg-[#141b16] dark:text-emerald-300">Set up payments</Link>
+            </section>
+          )}
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Manage voting</h2><p className="mt-1 text-sm text-stone-600 dark:text-stone-400">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
             <div className="mt-4 flex flex-wrap gap-3">{permissions.pause && <EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause voting" />}{permissions.resume && <EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume voting" />}</div>
             {permissions.extend && <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Extend deadline / edit schedule</summary><PublicEventEditor key={event.id} event={event} permissions={permissions} scheduleOnly /></details>}
             {permissions.reopen && <div className="mt-5 border-t border-stone-100 pt-5"><ReopenEventForm eventId={eventId} /></div>}
 
           </section>}
-          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>}
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-400">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>}
           {canManage && event.voting_mode === "free" && event.status !== "archived" && (verificationMethod === "invite_code" ? <AccessCodeManager eventId={eventId} /> : verificationMethod === "voter_list" ? <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} /> : null)}
 
         </>}
       />
-{canManage && <section className={panel} aria-labelledby="event-ending-actions"><h2 id="event-ending-actions" className="text-lg font-semibold text-stone-900">Close or delete your event</h2><div className="mt-4 space-y-4">
-            {["published", "paused"].includes(event.status) && <><p className="text-sm leading-6 text-stone-600">Close the event when you’re finished. Voting stops and cannot reopen. You can then keep the results or delete the event.</p><EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? Voting will stop and cannot reopen. Results and payments remain available until you choose to delete the event." /></>}
-            {canRemove && ["draft", "pending_review", "closed", "archived"].includes(event.status) && <><p className="text-sm leading-6 text-stone-600">Delete this event to remove it immediately. Unfinished checkouts won’t block deletion. Payment records remain in Payments.</p><DeleteEventForm eventId={eventId} name={event.name} /></>}
-            {!canRemove && ["draft", "pending_review", "closed", "archived"].includes(event.status) && <p className="text-sm text-stone-600">An organization owner or admin can delete this event.</p>}
-          </div></section>}
-      <EventReviewConversation eventId={eventId} canReply={canManage && event.status !== "archived"} />
+      {canManage && (
+        event.status === "draft" ? (
+          <details className="group rounded-2xl border border-stone-200/60 bg-stone-50/40 p-4 transition-colors dark:border-[#1c2721]/60 dark:bg-[#0c120e]/40">
+            <summary className="flex cursor-pointer items-center justify-between text-xs font-mono font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">
+              <span>[ ADVANCED // DISCARD DRAFT EVENT ]</span>
+              <span className="text-[10px] text-stone-400 transition-transform group-open:rotate-180">▼</span>
+            </summary>
+            <div className="mt-4 border-t border-stone-200/50 pt-4 dark:border-[#1c2721]/60">
+              <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">
+                Delete this event draft to remove it completely. Payment records remain in Payments.
+              </p>
+              {canRemove ? (
+                <DeleteEventForm eventId={eventId} name={event.name} />
+              ) : (
+                <p className="text-xs text-stone-500">An organization owner or admin can delete this event.</p>
+              )}
+            </div>
+          </details>
+        ) : (
+          <section className={panel} aria-labelledby="event-ending-actions">
+            <h2 id="event-ending-actions" className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">
+              Close or delete your event
+            </h2>
+            <div className="mt-4 space-y-4">
+              {["published", "paused"].includes(event.status) && (
+                <>
+                  <p className="text-sm leading-6 text-stone-600 dark:text-stone-400">
+                    Close the event when you’re finished. Voting stops and cannot reopen. You can then keep the results or delete the event.
+                  </p>
+                  <EventStatusForm eventId={eventId} action="close" backTo={pagePath} label="Close event" confirmMessage="Close this event? Voting will stop and cannot reopen. Results and payments remain available until you choose to delete the event." />
+                </>
+              )}
+              {canRemove && ["draft", "pending_review", "closed", "archived"].includes(event.status) && (
+                <>
+                  <p className="text-sm leading-6 text-stone-600 dark:text-stone-400">
+                    Delete this event to remove it immediately. Unfinished checkouts won’t block deletion. Payment records remain in Payments.
+                  </p>
+                  <DeleteEventForm eventId={eventId} name={event.name} />
+                </>
+              )}
+              {!canRemove && ["draft", "pending_review", "closed", "archived"].includes(event.status) && (
+                <p className="text-sm text-stone-600 dark:text-stone-400">An organization owner or admin can delete this event.</p>
+              )}
+            </div>
+          </section>
+        )
+      )}
+      {(event.status !== "draft" || workspace?.last_review_kind || workspace?.review_feedback) && (
+        <EventReviewConversation eventId={eventId} canReply={canManage && event.status !== "archived"} />
+      )}
     </div>
   </main>;
 }

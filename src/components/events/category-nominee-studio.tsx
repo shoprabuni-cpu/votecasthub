@@ -215,14 +215,14 @@ export function CategoryNomineeStudio({
 
       {/* Main Categories Navigation or Empty State */}
       {categories.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-emerald-200 bg-linear-to-br from-emerald-50/80 to-white px-5 py-8 text-center sm:p-10">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
+        <div className="rounded-2xl border border-dashed border-emerald-200/80 bg-linear-to-br from-emerald-50/40 via-white to-stone-50/50 px-5 py-8 text-center transition-colors dark:border-emerald-800/40 dark:from-emerald-950/20 dark:via-[#0c120e] dark:to-[#141b16] sm:p-10">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-2xs dark:bg-emerald-950 dark:text-emerald-300">
             <Icon name="award" size={24} />
           </div>
-          <h3 className="mt-4 text-base font-serif font-semibold text-stone-900">
+          <h3 className="mt-4 text-base font-serif font-bold text-stone-900 dark:text-stone-100">
             {canManage && isDraft ? "Let’s add your first category" : "No categories added yet"}
           </h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-600">
+          <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm leading-6 text-stone-600 dark:text-stone-400">
             {canManage && isDraft ? "A category groups the people voters can choose. Try “Best New Artist” or “Student Leader”, then add your nominees." : "Categories and nominees will appear here once they have been added."}
           </p>
           {canManage && isDraft && (
@@ -230,7 +230,7 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowAddCategory(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-all active:scale-95 cursor-pointer dark:bg-emerald-800 dark:hover:bg-emerald-700"
               >
                 <Icon name="sparkle" size={13} />
                 <span>Add my first category</span>
@@ -238,7 +238,7 @@ export function CategoryNomineeStudio({
               <button
                 type="button"
                 onClick={() => setShowBulkImport(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all active:scale-95 cursor-pointer dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:border-stone-700"
               >
                 <span>Import from Excel</span>
               </button>
