@@ -69,7 +69,7 @@ export function TicketLookupClient({ initialQuery = "" }: { initialQuery?: strin
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter phone number or CODE PAX (e.g. PAX-1024)..."
-            className="min-h-12 flex-1 rounded-xl border border-transparent bg-stone-50 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:bg-[#030504] dark:text-white"
+            className="min-h-12 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#030504] dark:text-white dark:placeholder:text-stone-500"
           />
           <button
             type="submit"

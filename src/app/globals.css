@@ -674,6 +674,57 @@ html.dark .no-sms-card,
   border-color: #1c2721 !important;
 }
 
+/* Tickets Self-Service & Visual Pass Deep Black Theme */
+html.dark .tickets-page,
+[data-theme="dark"] .tickets-page {
+  background-color: #000000 !important;
+  color: #f0f4f1 !important;
+}
+
+html.dark .tickets-page .bg-white,
+[data-theme="dark"] .tickets-page .bg-white {
+  background-color: #080b09 !important;
+  border-color: #1c2721 !important;
+}
+
+html.dark .tickets-page .bg-stone-50,
+[data-theme="dark"] .tickets-page .bg-stone-50 {
+  background-color: #050806 !important;
+  border-color: #1c2721 !important;
+}
+
+html.dark .tickets-page .bg-stone-100,
+[data-theme="dark"] .tickets-page .bg-stone-100 {
+  background-color: #0c120e !important;
+  border-color: #1c2721 !important;
+}
+
+html.dark .tickets-page .text-stone-900,
+[data-theme="dark"] .tickets-page .text-stone-900 {
+  color: #ffffff !important;
+}
+
+html.dark .tickets-page .text-stone-800,
+[data-theme="dark"] .tickets-page .text-stone-800,
+html.dark .tickets-page .text-stone-700,
+[data-theme="dark"] .tickets-page .text-stone-700 {
+  color: #cbd5cf !important;
+}
+
+html.dark .tickets-page .text-stone-600,
+[data-theme="dark"] .tickets-page .text-stone-600,
+html.dark .tickets-page .text-stone-500,
+[data-theme="dark"] .tickets-page .text-stone-500 {
+  color: #9ba9a1 !important;
+}
+
+html.dark .tickets-page .border-stone-200,
+[data-theme="dark"] .tickets-page .border-stone-200,
+html.dark .tickets-page .border-stone-300,
+[data-theme="dark"] .tickets-page .border-stone-300 {
+  border-color: #1c2721 !important;
+}
+
 /* Organizer & Admin Workspace Theme Adaptations */
 html.dark .organizer-workspace,
 [data-theme="dark"] .organizer-workspace,
