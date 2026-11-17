@@ -3,6 +3,7 @@ import { reconcileUssd } from "@/lib/ussd/reconcile";
 import { ussdConfiguration } from "@/lib/ussd/provider";
 import { sendWhatsAppMessage } from "@/lib/whatsapp/sendazi";
 import { sendTelegramMessage } from "@/lib/telegram/api";
+import { sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { z } from "zod";
 import { paymentAdmin } from "./admin";
 import { paystack } from "./gateway";
@@ -69,6 +70,24 @@ async function applyTransaction(t:Transaction,allowReversed=false){
     const {data:p,error}=await db.from("sms_credit_purchases").select("amount_minor").eq("reference",t.reference).maybeSingle();if(error)throw error;if(!p)return;
     if(Number(p.amount_minor)!==t.amount||t.currency!=="GHS")throw new Error("SMS payment mismatch");
     const {error:e}=await db.rpc("fulfill_sms_credit_purchase",{p_reference:t.reference,p_transaction_id:t.id});if(e)throw e;
+  }else if(t.reference.startsWith("VCH-TIK-")){
+    const { data: confirmed, error: confirmErr } = await db.rpc("confirm_paid_ticket", {
+      p_order_reference: t.reference,
+      p_provider_transaction_id: String(t.id),
+    });
+    if (confirmErr) throw confirmErr;
+
+    const res = confirmed as Record<string, unknown> | null;
+    if (res?.success && !res?.already_confirmed && res?.customer_phone && res?.pax_code) {
+      sendTicketConfirmationSms({
+        phone: String(res.customer_phone),
+        customerName: String(res.customer_name || "Guest"),
+        eventName: String(res.event_name || "Event"),
+        tierName: String(res.tier_name || "Ticket"),
+        paxCode: String(res.pax_code),
+        venueName: res.venue_name ? String(res.venue_name) : null,
+      }).catch((err) => console.error("[Ticket Reconcile SMS] Error:", err));
+    }
   }
 }
 export async function reconcileReference(reference:string,completedJob=false){

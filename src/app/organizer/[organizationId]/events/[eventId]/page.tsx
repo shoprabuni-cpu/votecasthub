@@ -227,6 +227,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         tickets={
           <TicketTiersManager
             eventId={eventId}
+            organizationId={organizationId}
             initialTiers={(ticketTiers as any) ?? []}
             venueName={eventMeta?.venue_name}
             venueAddress={eventMeta?.venue_address}

@@ -3,7 +3,14 @@ import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const links = [["/events", "Browse events"], ["/guides", "Guides"], ["/pricing", "Pricing"], ["/about", "About"], ["/sign-in", "Organizer sign in"]];
+const links = [
+  ["/events", "Browse events"],
+  ["/tickets", "Find tickets"],
+  ["/guides", "Guides"],
+  ["/pricing", "Pricing"],
+  ["/about", "About"],
+  ["/sign-in", "Organizer sign in"],
+];
 function NavigationLinks() {
   return (
     <>

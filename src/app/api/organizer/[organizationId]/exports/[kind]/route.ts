@@ -4,7 +4,7 @@ import { analyticsScope, csvValue, type OrganizerAnalytics } from "@/lib/analyti
 
 export async function GET(request: Request, { params }: { params: Promise<{ organizationId: string; kind: string }> }) {
   const { organizationId, kind } = await params;
-  if (!["votes", "nominees", "refunds", "settlements", "sms", "moderation"].includes(kind)) return NextResponse.json({ error: "Unsupported export" }, { status: 400 });
+  if (!["votes", "nominees", "refunds", "settlements", "sms", "moderation", "tickets"].includes(kind)) return NextResponse.json({ error: "Unsupported export" }, { status: 400 });
   if (kind === "moderation") return NextResponse.json({ error: "Moderation records are restricted to platform administrators" }, { status: 403 });
   const query = new URL(request.url).searchParams;
   let scope: ReturnType<typeof analyticsScope>;
@@ -25,6 +25,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ orga
   } else if (kind === "nominees") {
     rows = (overview as OrganizerAnalytics).nominees;
     headers = ["event_id", "event_name", "category_id", "category_name", "nominee_id", "nominee_name", "total_votes", "paid_votes"];
+  } else if (kind === "tickets") {
+    const targetEventId = query.get("event");
+    if (!targetEventId) return NextResponse.json({ error: "Event parameter is required for ticket exports" }, { status: 400 });
+    const { data: attendees, error: attErr } = await supabase.rpc("get_event_attendees", { p_event_id: targetEventId });
+    if (attErr) return NextResponse.json({ error: "Ticket export unavailable" }, { status: 503 });
+    rows = (attendees ?? []) as Record<string, unknown>[];
+    headers = ["pax_code", "customer_name", "customer_phone", "tier_name", "quantity", "price_minor", "status", "checked_in_at", "checked_in_by", "order_reference", "created_at"];
   } else {
     if (kind === "sms" && scope.event) return NextResponse.json({ error: "SMS credits are organization-wide; select organization overview" }, { status: 400 });
     headers = ["entry_type", "reference", "credits", "amount_minor", "refunded_minor", "status", "created_at"];

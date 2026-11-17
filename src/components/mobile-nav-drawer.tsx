@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 const links = [
   ["/events", "Browse events", "vote"],
+  ["/tickets", "Find tickets", "ticket"],
   ["/guides", "Guides", "mail"],
   ["/pricing", "Pricing", "coin"],
   ["/about", "About", "building"],

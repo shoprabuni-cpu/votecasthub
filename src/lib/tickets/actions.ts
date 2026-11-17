@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import type { GateCheckInResponse } from "./types";
+import { sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 
 export type ActionState = {
   success?: boolean;
@@ -171,12 +172,26 @@ export async function purchaseTicketAction(
       return { error: error.message };
     }
 
+    const ticketData = data as Record<string, unknown>;
+
+    // Send instant SMS with CODE PAX to customer phone
+    if (customerPhone && ticketData?.pax_code) {
+      sendTicketConfirmationSms({
+        phone: customerPhone,
+        customerName,
+        eventName: (ticketData.event_name as string) || "Event",
+        tierName: (ticketData.tier_name as string) || "Standard",
+        paxCode: ticketData.pax_code as string,
+        venueName: (ticketData.venue_name as string) || null,
+      }).catch((smsErr) => console.error("Ticket SMS async error:", smsErr));
+    }
+
     revalidatePath(`/events`, "layout");
 
     return {
       success: true,
       message: "Ticket purchase successful!",
-      ticket: data as Record<string, unknown>,
+      ticket: ticketData,
     };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to complete ticket order." };
@@ -214,5 +229,86 @@ export async function gateCheckInAction(
       status: "invalid",
       message: err instanceof Error ? err.message : "Network error validating ticket.",
     };
+  }
+}
+
+export type AttendeeRecord = {
+  id: string;
+  pax_code: string;
+  order_reference: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string | null;
+  quantity: number;
+  price_minor: number;
+  channel: string;
+  status: string;
+  tier_name: string;
+  checked_in_at?: string | null;
+  checked_in_by?: string | null;
+  created_at: string;
+};
+
+/**
+ * Organizer: Fetch full attendee roster for an event
+ */
+export async function getEventAttendeesAction(eventId: string): Promise<AttendeeRecord[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_event_attendees", { p_event_id: eventId });
+    if (error) return [];
+    return (data ?? []) as AttendeeRecord[];
+  } catch {
+    return [];
+  }
+}
+
+export type FoundTicket = {
+  id: string;
+  pax_code: string;
+  order_reference: string;
+  customer_name: string;
+  customer_phone: string;
+  quantity: number;
+  tier_name: string;
+  status: string;
+  created_at: string;
+  event_name: string;
+  event_slug: string;
+  image_path?: string | null;
+  imageUrl?: string | null;
+  venue_name?: string | null;
+  venue_address?: string | null;
+  doors_open_time?: string | null;
+  starts_at: string;
+  ends_at: string;
+};
+
+/**
+ * Public: Search and retrieve tickets by phone number or PAX Code
+ */
+export async function findPublicTicketsAction(query: string): Promise<FoundTicket[]> {
+  const clean = query?.trim();
+  if (!clean || clean.length < 3) return [];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("find_public_tickets", { p_query: clean });
+    if (error || !data) return [];
+    const tickets = data as (FoundTicket & { image_path: string | null })[];
+
+    const paths = [...new Set(tickets.flatMap((t) => (t.image_path ? [t.image_path] : [])))];
+    const { data: images } = paths.length
+      ? await supabase.storage.from("nominee-images").createSignedUrls(paths, 3600)
+      : { data: [] };
+    const urls = new Map(
+      (images ?? []).flatMap((img) => (img.path && img.signedUrl ? [[img.path, img.signedUrl] as const] : []))
+    );
+
+    return tickets.map((t) => ({
+      ...t,
+      imageUrl: t.image_path ? urls.get(t.image_path) ?? null : null,
+    }));
+  } catch {
+    return [];
   }
 }

@@ -59,7 +59,7 @@ create table if not exists public.event_tickets (
   price_minor bigint not null default 0,
   quantity integer not null default 1 check (quantity >= 1),
   channel text not null default 'web' check (channel in ('web', 'whatsapp', 'ussd', 'telegram', 'manual')),
-  status text not null default 'valid' check (status in ('valid', 'checked_in', 'cancelled')),
+  status text not null default 'valid' check (status in ('pending', 'valid', 'checked_in', 'cancelled')),
   checked_in_at timestamptz,
   checked_in_by text,
   created_at timestamptz not null default now()
@@ -134,7 +134,8 @@ create or replace function public.purchase_event_ticket(
   p_customer_phone text,
   p_customer_email text default null,
   p_order_reference text default null,
-  p_channel text default 'web'
+  p_channel text default 'web',
+  p_initial_status text default 'valid'
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -203,7 +204,7 @@ begin
     v_tier.price_minor,
     p_quantity,
     p_channel,
-    'valid'
+    coalesce(p_initial_status, 'valid')
   )
   returning id into v_ticket_id;
 
@@ -216,12 +217,13 @@ begin
     'event_name', v_event.name,
     'venue_name', v_event.venue_name,
     'quantity', p_quantity,
+    'status', coalesce(p_initial_status, 'valid'),
     'price_minor', v_tier.price_minor * p_quantity
   );
 end;
 $$;
 
-grant execute on function public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text) to anon, authenticated;
+grant execute on function public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text, text) to anon, authenticated;
 
 -- 7. Gate Check-in Verification RPC
 create or replace function public.check_in_ticket(
@@ -256,6 +258,15 @@ begin
       'checked_in_by', v_ticket.checked_in_by,
       'customer_name', v_ticket.customer_name,
       'tier_name', v_tier.name,
+      'pax_code', v_ticket.pax_code
+    );
+  end if;
+
+  if v_ticket.status = 'pending' then
+    return jsonb_build_object(
+      'status', 'invalid',
+      'message', 'This ticket payment is still pending confirmation.',
+      'customer_name', v_ticket.customer_name,
       'pax_code', v_ticket.pax_code
     );
   end if;
@@ -344,4 +355,137 @@ $$;
 
 revoke all on function public.get_public_event_directory(text,text,text,text,integer,integer,text) from public;
 grant execute on function public.get_public_event_directory(text,text,text,text,integer,integer,text) to anon,authenticated;
+
+-- 8. Confirm Paid Ticket (Invoked upon verified Paystack payment)
+create or replace function public.confirm_paid_ticket(
+  p_order_reference text,
+  p_provider_transaction_id text default null
+) returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_ticket record;
+  v_event record;
+  v_tier record;
+begin
+  select * into v_ticket from public.event_tickets
+  where order_reference = p_order_reference for update;
+
+  if not found then
+    return jsonb_build_object('success', false, 'error', 'Ticket not found');
+  end if;
+
+  select * into v_event from public.events where id = v_ticket.event_id;
+  select * into v_tier from public.event_ticket_tiers where id = v_ticket.tier_id;
+
+  if v_ticket.status = 'valid' then
+    return jsonb_build_object(
+      'success', true,
+      'pax_code', v_ticket.pax_code,
+      'already_confirmed', true,
+      'customer_name', v_ticket.customer_name,
+      'customer_phone', v_ticket.customer_phone,
+      'event_name', v_event.name,
+      'tier_name', v_tier.name,
+      'venue_name', v_event.venue_name
+    );
+  end if;
+
+  update public.event_tickets
+  set status = 'valid'
+  where id = v_ticket.id;
+
+  return jsonb_build_object(
+    'success', true,
+    'pax_code', v_ticket.pax_code,
+    'order_reference', v_ticket.order_reference,
+    'customer_name', v_ticket.customer_name,
+    'customer_phone', v_ticket.customer_phone,
+    'event_name', v_event.name,
+    'tier_name', v_tier.name,
+    'venue_name', v_event.venue_name,
+    'quantity', v_ticket.quantity,
+    'price_minor', v_ticket.price_minor
+  );
+end;
+$$;
+
+grant execute on function public.confirm_paid_ticket(text, text) to anon, authenticated;
+
+-- 9. Organizer Attendee Guest List
+create or replace function public.get_event_attendees(p_event_id uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  result jsonb;
+begin
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', t.id,
+    'pax_code', t.pax_code,
+    'order_reference', t.order_reference,
+    'customer_name', t.customer_name,
+    'customer_phone', t.customer_phone,
+    'customer_email', t.customer_email,
+    'quantity', t.quantity,
+    'price_minor', t.price_minor,
+    'channel', t.channel,
+    'status', t.status,
+    'tier_name', r.name,
+    'checked_in_at', t.checked_in_at,
+    'checked_in_by', t.checked_in_by,
+    'created_at', t.created_at
+  ) order by t.created_at desc), '[]'::jsonb) into result
+  from public.event_tickets t
+  join public.event_ticket_tiers r on r.id = t.tier_id
+  where t.event_id = p_event_id and t.status in ('valid', 'checked_in');
+
+  return result;
+end;
+$$;
+
+grant execute on function public.get_event_attendees(uuid) to authenticated;
+
+-- 10. Public "Find My Ticket" Lookup
+create or replace function public.find_public_tickets(p_query text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  result jsonb;
+  clean_q text := upper(trim(p_query));
+begin
+  if length(clean_q) < 3 then
+    return '[]'::jsonb;
+  end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', t.id,
+    'pax_code', t.pax_code,
+    'order_reference', t.order_reference,
+    'customer_name', t.customer_name,
+    'customer_phone', t.customer_phone,
+    'quantity', t.quantity,
+    'tier_name', r.name,
+    'status', t.status,
+    'created_at', t.created_at,
+    'event_name', e.name,
+    'event_slug', e.slug,
+    'image_path', e.image_path,
+    'venue_name', e.venue_name,
+    'venue_address', e.venue_address,
+    'doors_open_time', e.doors_open_time,
+    'starts_at', e.starts_at,
+    'ends_at', e.ends_at
+  ) order by t.created_at desc limit 10), '[]'::jsonb) into result
+  from public.event_tickets t
+  join public.event_ticket_tiers r on r.id = t.tier_id
+  join public.events e on e.id = t.event_id
+  where t.status in ('valid', 'checked_in')
+    and (
+      t.pax_code = clean_q
+      or replace(t.customer_phone, '+', '') like '%' || replace(clean_q, '+', '')
+      or t.order_reference = clean_q
+    );
+
+  return result;
+end;
+$$;
+
+grant execute on function public.find_public_tickets(text) to anon, authenticated;
+
 

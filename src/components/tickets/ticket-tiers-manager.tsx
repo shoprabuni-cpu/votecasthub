@@ -1,23 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   createTicketTierAction,
   deleteTicketTierAction,
   updateTicketVenueAction,
+  getEventAttendeesAction,
   type ActionState,
+  type AttendeeRecord,
 } from "@/lib/tickets/actions";
 import type { TicketTier } from "@/lib/tickets/types";
 import { Icon } from "@/components/icon";
 
 export function TicketTiersManager({
   eventId,
+  organizationId,
   initialTiers = [],
   venueName = "",
   venueAddress = "",
   doorsOpenTime = "",
 }: {
   eventId: string;
+  organizationId?: string;
   initialTiers: TicketTier[];
   venueName?: string | null;
   venueAddress?: string | null;
@@ -25,6 +30,38 @@ export function TicketTiersManager({
 }) {
   const [tiers, setTiers] = useState<TicketTier[]>(initialTiers);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Attendee Guest List state
+  const [attendees, setAttendees] = useState<AttendeeRecord[]>([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
+  const [attendeeSearch, setAttendeeSearch] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoadingAttendees(true);
+    getEventAttendeesAction(eventId)
+      .then((data) => {
+        if (active) setAttendees(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingAttendees(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [eventId]);
+
+  const filteredAttendees = attendees.filter((att) => {
+    if (!attendeeSearch.trim()) return true;
+    const q = attendeeSearch.toLowerCase();
+    return (
+      att.customer_name.toLowerCase().includes(q) ||
+      att.customer_phone.includes(q) ||
+      att.pax_code.toLowerCase().includes(q) ||
+      att.tier_name.toLowerCase().includes(q)
+    );
+  });
 
   // New tier form state
   const [name, setName] = useState("");
@@ -276,7 +313,109 @@ export function TicketTiersManager({
         </div>
       </section>
 
-      {/* 3. Add Tier Modal */}
+      {/* 3. Attendee Guest List & Door Check-In Management */}
+      <section className="rounded-3xl border border-stone-200/90 bg-white p-6 shadow-xs dark:border-[#1c2721] dark:bg-[#070a08] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
+          <div>
+            <h3 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
+              <span>📋</span> Attendee Guest List ({attendees.length})
+            </h3>
+            <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+              Live door list of all issued tickets and gate check-in status.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {organizationId && (
+              <a
+                href={`/api/organizer/${organizationId}/exports/tickets?event=${eventId}`}
+                download
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#111713] dark:text-stone-200 shadow-xs cursor-pointer"
+              >
+                <span>📥 Export CSV</span>
+              </a>
+            )}
+            <Link
+              href="/gate"
+              target="_blank"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-xs cursor-pointer"
+            >
+              <span>📱 Open Scanner ↗</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            placeholder="Search by attendee name, phone, or CODE PAX..."
+            value={attendeeSearch}
+            onChange={(e) => setAttendeeSearch(e.target.value)}
+            className="min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white"
+          />
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-2xl border border-stone-200/80 dark:border-[#1c2721]">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-stone-50 text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:bg-[#0c120e] dark:text-stone-400">
+              <tr>
+                <th className="px-4 py-3">Attendee</th>
+                <th className="px-4 py-3">Tier</th>
+                <th className="px-4 py-3">CODE PAX</th>
+                <th className="px-4 py-3">Quantity</th>
+                <th className="px-4 py-3">Gate Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100 dark:divide-[#1c2721]">
+              {loadingAttendees ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
+                    Loading guest list...
+                  </td>
+                </tr>
+              ) : filteredAttendees.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
+                    {attendeeSearch ? "No attendees matching your search." : "No tickets issued yet. Once tickets are ordered, they appear here."}
+                  </td>
+                </tr>
+              ) : (
+                filteredAttendees.map((att) => (
+                  <tr key={att.id} className="hover:bg-stone-50/50 dark:hover:bg-stone-900/30">
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-stone-900 dark:text-white">{att.customer_name}</div>
+                      <div className="text-[11px] text-stone-500 dark:text-stone-400">{att.customer_phone}</div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-stone-700 dark:text-stone-300">
+                      {att.tier_name}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      #{att.pax_code}
+                    </td>
+                    <td className="px-4 py-3 text-stone-600 dark:text-stone-300">
+                      {att.quantity}
+                    </td>
+                    <td className="px-4 py-3">
+                      {att.status === "checked_in" ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          ✓ Checked In
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                          Pending Entry
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 4. Add Tier Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl dark:border-[#1c2721] dark:bg-[#070a08]">

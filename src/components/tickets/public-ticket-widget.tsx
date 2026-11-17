@@ -69,34 +69,77 @@ export function PublicTicketWidget({
 
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("eventId", eventId);
-    formData.append("tierId", selectedTierId);
-    formData.append("quantity", String(quantity));
-    formData.append("customerName", customerName.trim());
-    formData.append("customerPhone", customerPhone.trim());
-    if (customerEmail.trim()) formData.append("customerEmail", customerEmail.trim());
-
     try {
-      const res: ActionState = await purchaseTicketAction({}, formData);
-      if (res.error) {
-        setError(res.error);
-      } else if (res.success && res.ticket) {
-        const t = res.ticket;
-        setPurchasedTicket({
-          pax_code: String(t.pax_code ?? ""),
-          customer_name: customerName,
-          tier_name: selectedTier.name,
-          event_name: eventName,
-          venue_name: venueName,
-          venue_address: venueAddress,
-          doors_open_time: doorsOpenTime,
-          event_image_url: eventImageUrl,
-          quantity,
-          price_minor: selectedTier.price_minor * quantity,
-          order_reference: String(t.order_reference ?? ""),
-          status: "valid",
+      const isFree = (selectedTier.price_minor ?? 0) === 0;
+
+      if (isFree) {
+        const formData = new FormData();
+        formData.append("eventId", eventId);
+        formData.append("tierId", selectedTierId);
+        formData.append("quantity", String(quantity));
+        formData.append("customerName", customerName.trim());
+        formData.append("customerPhone", customerPhone.trim());
+        if (customerEmail.trim()) formData.append("customerEmail", customerEmail.trim());
+
+        const res: ActionState = await purchaseTicketAction({}, formData);
+        if (res.error) {
+          setError(res.error);
+        } else if (res.success && res.ticket) {
+          const t = res.ticket;
+          setPurchasedTicket({
+            pax_code: String(t.pax_code ?? ""),
+            customer_name: customerName,
+            tier_name: selectedTier.name,
+            event_name: eventName,
+            venue_name: venueName,
+            venue_address: venueAddress,
+            doors_open_time: doorsOpenTime,
+            event_image_url: eventImageUrl,
+            quantity,
+            price_minor: 0,
+            order_reference: String(t.order_reference ?? ""),
+            status: "valid",
+          });
+        }
+      } else {
+        // Paid Ticket: Call Paystack checkout API
+        const response = await fetch("/api/payments/paystack/ticket", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            tierId: selectedTierId,
+            quantity,
+            customerName: customerName.trim(),
+            customerPhone: customerPhone.trim(),
+            customerEmail: customerEmail.trim(),
+          }),
         });
+
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          setError(data.error || "Failed to initiate ticket payment.");
+        } else if (data.authorization_url) {
+          // Redirect to Paystack Mobile Money / Card checkout
+          window.location.href = data.authorization_url;
+          return;
+        } else if (data.isFree && data.ticket) {
+          const t = data.ticket;
+          setPurchasedTicket({
+            pax_code: String(t.pax_code ?? ""),
+            customer_name: customerName,
+            tier_name: selectedTier.name,
+            event_name: eventName,
+            venue_name: venueName,
+            venue_address: venueAddress,
+            doors_open_time: doorsOpenTime,
+            event_image_url: eventImageUrl,
+            quantity,
+            price_minor: selectedTier.price_minor * quantity,
+            order_reference: String(t.order_reference ?? ""),
+            status: "valid",
+          });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to place order.");
