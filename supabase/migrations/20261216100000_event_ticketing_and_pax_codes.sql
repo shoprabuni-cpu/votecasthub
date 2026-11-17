@@ -74,6 +74,7 @@ alter table public.event_ticket_tiers enable row level security;
 alter table public.event_tickets enable row level security;
 
 -- Public can view active tiers for published events
+drop policy if exists "public_view_ticket_tiers" on public.event_ticket_tiers;
 create policy "public_view_ticket_tiers" on public.event_ticket_tiers
   for select to anon, authenticated
   using (
@@ -86,6 +87,7 @@ create policy "public_view_ticket_tiers" on public.event_ticket_tiers
   );
 
 -- Organizers can manage ticket tiers for their own events
+drop policy if exists "organizers_manage_ticket_tiers" on public.event_ticket_tiers;
 create policy "organizers_manage_ticket_tiers" on public.event_ticket_tiers
   for all to authenticated
   using (
@@ -104,6 +106,7 @@ create policy "organizers_manage_ticket_tiers" on public.event_ticket_tiers
   );
 
 -- Organizers can view tickets for their events
+drop policy if exists "organizers_view_event_tickets" on public.event_tickets;
 create policy "organizers_view_event_tickets" on public.event_tickets
   for select to authenticated
   using (
@@ -115,6 +118,7 @@ create policy "organizers_view_event_tickets" on public.event_tickets
   );
 
 -- Public can view their ticket pass by id or pax_code
+drop policy if exists "public_view_individual_ticket" on public.event_tickets;
 create policy "public_view_individual_ticket" on public.event_tickets
   for select to anon, authenticated
   using (true);
