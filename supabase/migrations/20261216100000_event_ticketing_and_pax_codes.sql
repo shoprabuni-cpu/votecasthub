@@ -457,34 +457,39 @@ begin
     return '[]'::jsonb;
   end if;
 
-  select coalesce(jsonb_agg(jsonb_build_object(
-    'id', t.id,
-    'pax_code', t.pax_code,
-    'order_reference', t.order_reference,
-    'customer_name', t.customer_name,
-    'customer_phone', t.customer_phone,
-    'quantity', t.quantity,
-    'tier_name', r.name,
-    'status', t.status,
-    'created_at', t.created_at,
-    'event_name', e.name,
-    'event_slug', e.slug,
-    'image_path', e.image_path,
-    'venue_name', e.venue_name,
-    'venue_address', e.venue_address,
-    'doors_open_time', e.doors_open_time,
-    'starts_at', e.starts_at,
-    'ends_at', e.ends_at
-  ) order by t.created_at desc limit 10), '[]'::jsonb) into result
-  from public.event_tickets t
-  join public.event_ticket_tiers r on r.id = t.tier_id
-  join public.events e on e.id = t.event_id
-  where t.status in ('valid', 'checked_in')
-    and (
-      t.pax_code = clean_q
-      or replace(t.customer_phone, '+', '') like '%' || replace(clean_q, '+', '')
-      or t.order_reference = clean_q
-    );
+  select coalesce(jsonb_agg(sub.item), '[]'::jsonb) into result
+  from (
+    select jsonb_build_object(
+      'id', t.id,
+      'pax_code', t.pax_code,
+      'order_reference', t.order_reference,
+      'customer_name', t.customer_name,
+      'customer_phone', t.customer_phone,
+      'quantity', t.quantity,
+      'tier_name', r.name,
+      'status', t.status,
+      'created_at', t.created_at,
+      'event_name', e.name,
+      'event_slug', e.slug,
+      'image_path', e.image_path,
+      'venue_name', e.venue_name,
+      'venue_address', e.venue_address,
+      'doors_open_time', e.doors_open_time,
+      'starts_at', e.starts_at,
+      'ends_at', e.ends_at
+    ) as item
+    from public.event_tickets t
+    join public.event_ticket_tiers r on r.id = t.tier_id
+    join public.events e on e.id = t.event_id
+    where t.status in ('valid', 'checked_in')
+      and (
+        t.pax_code = clean_q
+        or replace(t.customer_phone, '+', '') like '%' || replace(clean_q, '+', '')
+        or t.order_reference = clean_q
+      )
+    order by t.created_at desc
+    limit 10
+  ) sub;
 
   return result;
 end;
