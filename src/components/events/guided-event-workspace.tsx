@@ -143,21 +143,19 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
                 <button
                   type="button"
                   onClick={() => { continueAfterSave.current = false; void go(step.id); }}
-                  className={`group relative flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-all duration-200 cursor-pointer ${
-                    isCurrent
-                      ? "bg-emerald-900 text-white shadow-xs ring-1 ring-emerald-800 dark:bg-emerald-800 dark:ring-emerald-700"
-                      : isCompleted
+                  className={`group relative flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-all duration-200 cursor-pointer ${isCurrent
+                    ? "bg-emerald-900 text-white shadow-xs ring-1 ring-emerald-800 dark:bg-emerald-800 dark:ring-emerald-700"
+                    : isCompleted
                       ? "border border-emerald-200/80 bg-emerald-50/60 text-emerald-950 hover:bg-emerald-100/70 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
                       : "border border-stone-200/80 bg-stone-50/40 text-stone-500 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 dark:border-[#1c2721] dark:bg-[#141b16]/60 dark:text-stone-400 dark:hover:border-stone-700"
-                  }`}
+                    }`}
                 >
-                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold transition-all ${
-                    isCurrent
-                      ? "bg-emerald-700 text-white dark:bg-emerald-600"
-                      : isCompleted
+                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold transition-all ${isCurrent
+                    ? "bg-emerald-700 text-white dark:bg-emerald-600"
+                    : isCompleted
                       ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200"
                       : "bg-stone-200/80 text-stone-600 group-hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-400"
-                  }`}>
+                    }`}>
                     {isCompleted ? "✓" : step.num}
                   </span>
                   <div className="min-w-0 flex-1">
