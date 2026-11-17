@@ -391,13 +391,13 @@ export function EventDetailsForm({
         {eventId && <input type="hidden" name="eventId" value={eventId} />}
         <input type="hidden" name="name" value={values.name} />
         <input type="hidden" name="description" value={values.description} />
-        <input type="hidden" name="votingMode" value={votingMode} />
-        <input type="hidden" name="verificationMethod" value={verificationMethod} />
-        <input type="hidden" id="input-voting-rule" name="votingRule" value={votingRule} />
+        <input type="hidden" name="votingMode" value={eventType === "ticketing" ? "free" : votingMode} />
+        <input type="hidden" name="verificationMethod" value={eventType === "ticketing" ? "phone" : verificationMethod} />
+        <input type="hidden" id="input-voting-rule" name="votingRule" value={eventType === "ticketing" ? "one_per_category" : votingRule} />
         <input type="hidden" name="priceGhs" value={values.priceGhs} />
-        <input type="hidden" name="freeVoteLimit" value={values.freeVoteLimit} />
+        <input type="hidden" name="freeVoteLimit" value={eventType === "ticketing" || votingRule === "one_per_category" ? "1" : values.freeVoteLimit} />
         <input type="hidden" name="votingRules" value={values.votingRules} />
-        <input type="hidden" name="resultsVisibility" value={values.resultsVisibility} />
+        <input type="hidden" name="resultsVisibility" value={eventType === "ticketing" ? "hidden" : values.resultsVisibility} />
         <input type="hidden" name="startsAt" value={values.startsAt} />
         <input type="hidden" name="endsAt" value={values.endsAt} />
         <input type="hidden" name="event_type" value={eventType} />

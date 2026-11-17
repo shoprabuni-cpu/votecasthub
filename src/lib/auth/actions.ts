@@ -123,7 +123,12 @@ function parseEventForm(formData: FormData) {
   const startsAt = ghanaLocalDateToIso(parsed.data.startsAt);
   const endsAt = ghanaLocalDateToIso(parsed.data.endsAt);
   const unitPriceMinor = parsed.data.votingMode === "free" ? 0 : /^\d{1,10}(\.\d{1,2})?$/.test(parsed.data.priceGhs ?? "") ? priceToMinor(parsed.data.priceGhs ?? "") : Number.NaN;
-  const freeVoteLimit = isTicketing ? 1 : parsed.data.votingMode === "free" ? Number(parsed.data.freeVoteLimit || (parsed.data.votingRule === "one_per_category" ? 1 : null)) : null;
+  const freeVoteLimit =
+    isTicketing || parsed.data.votingRule === "one_per_category"
+      ? 1
+      : parsed.data.votingMode === "free"
+      ? Number(parsed.data.freeVoteLimit || 1)
+      : null;
   if (!startsAt || !endsAt || new Date(startsAt) >= new Date(endsAt)) return { error: "Choose a valid start and end time." } as const;
   if (!isTicketing && parsed.data.votingMode === "paid" && (!Number.isSafeInteger(unitPriceMinor) || unitPriceMinor < 1 || unitPriceMinor > 1_000_000_000_000)) return { error: "Enter a paid vote price with up to two decimal places." } as const;
   if (!isTicketing && parsed.data.votingMode === "free" && (!Number.isInteger(freeVoteLimit) || (freeVoteLimit ?? 0) < 1 || (freeVoteLimit ?? 0) > 100)) return { error: "Set a free vote limit from 1 to 100." } as const;
