@@ -7,6 +7,7 @@ import {
   deleteTicketTierAction,
   updateTicketVenueAction,
   getEventAttendeesAction,
+  broadcastTicketSmsAction,
   type ActionState,
   type AttendeeRecord,
 } from "@/lib/tickets/actions";
@@ -35,6 +36,32 @@ export function TicketTiersManager({
   const [attendees, setAttendees] = useState<AttendeeRecord[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [attendeeSearch, setAttendeeSearch] = useState("");
+
+  // SMS Broadcast state
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<string | null>(null);
+
+  async function handleSendBroadcast(e: React.FormEvent) {
+    e.preventDefault();
+    if (!broadcastMsg.trim()) return;
+    setSendingBroadcast(true);
+    setBroadcastStatus(null);
+    try {
+      const res = await broadcastTicketSmsAction(eventId, broadcastMsg.trim());
+      if (res.error) {
+        setBroadcastStatus(`Error: ${res.error}`);
+      } else {
+        setBroadcastStatus(`Success! Broadcast dispatched to ${res.sentCount} ticket holders.`);
+        setBroadcastMsg("");
+      }
+    } catch (err) {
+      setBroadcastStatus(err instanceof Error ? err.message : "Broadcast failed.");
+    } finally {
+      setSendingBroadcast(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -325,6 +352,18 @@ export function TicketTiersManager({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {attendees.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBroadcastModal(true);
+                  setBroadcastStatus(null);
+                }}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#111713] dark:text-stone-200 shadow-xs cursor-pointer"
+              >
+                <span>📢 SMS Alert</span>
+              </button>
+            )}
             {organizationId && (
               <a
                 href={`/api/organizer/${organizationId}/exports/tickets?event=${eventId}`}
@@ -499,6 +538,81 @@ export function TicketTiersManager({
                   className="min-h-11 flex-1 rounded-xl bg-emerald-900 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
                 >
                   {loading ? "Adding..." : "Add Ticket"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. SMS Broadcast Announcement Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl dark:border-[#1c2721] dark:bg-[#070a08]">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3 dark:border-[#1c2721]">
+              <div>
+                <h4 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
+                  <span>📢</span> SMS Announcement to Attendees
+                </h4>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Send an instant SMS update to all {attendees.length} verified ticket holders.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBroadcastModal(false)}
+                className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 cursor-pointer text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendBroadcast} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-stone-300">
+                  Announcement Message
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  maxLength={160}
+                  placeholder="e.g. Doors open at 6:00 PM! Red carpet begins at 6:30 PM. Please have your CODE PAX ready at the gate."
+                  value={broadcastMsg}
+                  onChange={(e) => setBroadcastMsg(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-stone-200 bg-white p-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white resize-none"
+                />
+                <div className="mt-1 flex justify-between text-[11px] text-stone-400">
+                  <span>1 standard SMS (up to 160 characters)</span>
+                  <span>{broadcastMsg.length}/160</span>
+                </div>
+              </div>
+
+              {broadcastStatus && (
+                <div
+                  className={`rounded-xl p-3 text-xs font-semibold ${
+                    broadcastStatus.startsWith("Success")
+                      ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                      : "bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300"
+                  }`}
+                >
+                  {broadcastStatus}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBroadcastModal(false)}
+                  className="min-h-11 flex-1 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#111713] dark:text-stone-300 cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingBroadcast || !broadcastMsg.trim()}
+                  className="min-h-11 flex-1 rounded-xl bg-emerald-900 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+                >
+                  {sendingBroadcast ? "Sending Broadcast..." : `Send to ${attendees.length} Attendees`}
                 </button>
               </div>
             </form>

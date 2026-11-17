@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import type { GateCheckInResponse } from "./types";
-import { sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
+import { normalizeGhanaPhone, sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 
 export type ActionState = {
   success?: boolean;
@@ -310,5 +310,67 @@ export async function findPublicTicketsAction(query: string): Promise<FoundTicke
     }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Organizer: Send SMS broadcast announcement to all ticket holders of an event
+ */
+export async function broadcastTicketSmsAction(
+  eventId: string,
+  message: string
+): Promise<{ success: boolean; sentCount?: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const cleanMsg = message.trim();
+    if (!cleanMsg || cleanMsg.length < 5) {
+      return { success: false, error: "Please enter a message of at least 5 characters." };
+    }
+
+    await requireVerifiedUser();
+
+    const { data: tickets, error } = await supabase
+      .from("event_tickets")
+      .select("customer_phone")
+      .eq("event_id", eventId)
+      .in("status", ["valid", "checked_in"]);
+
+    if (error) return { success: false, error: error.message };
+
+    const rawPhones = (tickets ?? []).map((t) => t.customer_phone).filter(Boolean);
+    const normalizedRecipients = [...new Set(rawPhones.map(normalizeGhanaPhone))].filter((p) => p.length >= 9);
+
+    if (normalizedRecipients.length === 0) {
+      return { success: false, error: "No ticket holders found to message." };
+    }
+
+    const apiKey = process.env.ARKESEL_API_KEY;
+    const senderId = process.env.ARKESEL_SENDER_ID || "VoteCastHub";
+
+    if (!apiKey) {
+      console.info(`[Ticket Broadcast Dev Mode] Simulated broadcast to ${normalizedRecipients.length} phones: "${cleanMsg}"`);
+      return { success: true, sentCount: normalizedRecipients.length };
+    }
+
+    const res = await fetch("https://sms.arkesel.com/api/v2/sms/send", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: senderId,
+        message: cleanMsg,
+        recipients: normalizedRecipients,
+      }),
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `Arkesel returned status ${res.status}` };
+    }
+
+    return { success: true, sentCount: normalizedRecipients.length };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Broadcast failed" };
   }
 }

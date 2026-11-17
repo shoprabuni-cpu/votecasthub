@@ -1,21 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gateCheckInAction } from "@/lib/tickets/actions";
 import type { GateCheckInResponse } from "@/lib/tickets/types";
 import { SiteHeader } from "@/components/site-header";
 import { Icon } from "@/components/icon";
 
+function playAudioFeedback(type: "success" | "warning" | "error") {
+  try {
+    if (typeof window === "undefined") return;
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === "success") {
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.18);
+      if (navigator.vibrate) navigator.vibrate(120);
+    } else if (type === "warning") {
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+      if (navigator.vibrate) navigator.vibrate([100, 80, 100]);
+    } else {
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.35);
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+  } catch {}
+}
+
 export default function GateScannerPage() {
   const [paxInput, setPaxInput] = useState("");
   const [usherName, setUsherName] = useState("Gate Usher 1");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GateCheckInResponse | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   async function handleVerify(codeToVerify?: string) {
-    const code = codeToVerify ?? paxInput;
-    if (!code.trim()) return;
+    const raw = codeToVerify ?? paxInput;
+    if (!raw.trim()) return;
+
+    // Check if raw is a QR payload (JSON) or a direct PAX Code
+    let code = raw.trim();
+    if (code.startsWith("{") && code.includes("pax")) {
+      try {
+        const parsed = JSON.parse(code);
+        if (parsed.pax) code = parsed.pax;
+      } catch {}
+    }
 
     setLoading(true);
     setResult(null);
@@ -24,9 +71,15 @@ export default function GateScannerPage() {
       const res = await gateCheckInAction(code.trim(), usherName);
       setResult(res);
       if (res.status === "success") {
+        playAudioFeedback("success");
         setPaxInput("");
+      } else if (res.status === "already_used") {
+        playAudioFeedback("warning");
+      } else {
+        playAudioFeedback("error");
       }
     } catch (err) {
+      playAudioFeedback("error");
       setResult({
         status: "invalid",
         message: err instanceof Error ? err.message : "Validation error.",
@@ -35,6 +88,52 @@ export default function GateScannerPage() {
       setLoading(false);
     }
   }
+
+  // Camera Barcode Scanner
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let scanInterval: NodeJS.Timeout | null = null;
+
+    if (cameraActive && videoRef.current) {
+      navigator.mediaDevices
+        ?.getUserMedia({ video: { facingMode: "environment" } })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+            videoRef.current.play().catch(() => {});
+          }
+
+          // Check for native BarcodeDetector
+          const win = window as unknown as { BarcodeDetector?: { new (opts: { formats: string[] }): { detect: (src: HTMLVideoElement) => Promise<{ rawValue: string }[]> } } };
+          if (win.BarcodeDetector) {
+            const detector = new win.BarcodeDetector({ formats: ["qr_code", "code_128", "code_39"] });
+            scanInterval = setInterval(async () => {
+              if (videoRef.current && videoRef.current.readyState >= 2) {
+                try {
+                  const codes = await detector.detect(videoRef.current);
+                  if (codes.length > 0 && codes[0].rawValue) {
+                    handleVerify(codes[0].rawValue);
+                    setCameraActive(false);
+                  }
+                } catch {}
+              }
+            }, 500);
+          }
+        })
+        .catch((err) => {
+          console.warn("Camera access denied or unavailable:", err);
+          setCameraActive(false);
+        });
+    }
+
+    return () => {
+      if (scanInterval) clearInterval(scanInterval);
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraActive]);
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900 dark:bg-black dark:text-stone-100">
@@ -97,8 +196,29 @@ export default function GateScannerPage() {
           </div>
 
           <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
-            Works with any barcode/QR handheld gun or smartphone camera paste.
+            Works with any barcode/QR handheld gun, camera scanner, or manual typing.
           </p>
+
+          {/* Camera Scan Toggle */}
+          <div className="mt-4 pt-3 border-t border-stone-100 dark:border-[#1c2721]">
+            <button
+              type="button"
+              onClick={() => setCameraActive((prev) => !prev)}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-xs font-bold text-stone-800 hover:bg-stone-100 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200 cursor-pointer"
+            >
+              <span>📷</span>
+              <span>{cameraActive ? "Turn Off Camera" : "Scan With Device Camera"}</span>
+            </button>
+
+            {cameraActive && (
+              <div className="mt-3 overflow-hidden rounded-2xl border-2 border-emerald-500 bg-black aspect-video relative flex items-center justify-center">
+                <video ref={videoRef} className="size-full object-cover" playsInline muted />
+                <div className="absolute inset-0 border-2 border-dashed border-emerald-400/70 m-8 rounded-xl pointer-events-none flex items-center justify-center">
+                  <span className="text-[11px] font-bold text-white bg-black/60 px-2 py-1 rounded-md">Align QR Code Here</span>
+                </div>
+              </div>
+            )}
+          </div>
         </form>
 
         {/* Validation Result Banner */}

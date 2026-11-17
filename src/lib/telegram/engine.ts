@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { paymentAdmin } from "@/lib/payments/admin";
-import { paystack } from "@/lib/payments/gateway";
+import { paystack, siteUrl } from "@/lib/payments/gateway";
 import { createClient } from "@supabase/supabase-js";
 import {
   answerTelegramCallbackQuery,
@@ -130,6 +130,29 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   if (["/EVENTS", "EVENTS", "VOTE", "MENU", "HELP", "/HELP"].includes(upper)) {
     await presentCompetitionsList(chatId);
     return;
+  }
+
+  if (["/TICKETS", "TICKETS", "/TICKET", "TICKET"].includes(upper)) {
+    const { data: ticketEvents } = await db
+      .from("events")
+      .select("id, name, slug, venue_name, doors_open_time")
+      .in("event_type", ["ticketing", "hybrid"])
+      .eq("status", "published")
+      .gt("ends_at", new Date().toISOString())
+      .limit(6);
+
+    if (ticketEvents && ticketEvents.length > 0) {
+      let msg = "🎟️ *VoteCastHub Event Tickets*\n\nExplore upcoming live events and buy your entrance passes:\n\n";
+      for (const ev of ticketEvents) {
+        msg += `• *${ev.name}*\n  📍 ${ev.venue_name || "Accra"} | 🚪 ${ev.doors_open_time || "Evening"}\n  👉 Buy: ${siteUrl()}/events/${ev.slug}\n\n`;
+      }
+      msg += `🔍 Have an existing ticket? Retrieve your pass:\n👉 ${siteUrl()}/tickets`;
+      await sendTelegramMessage(chatId, msg, { parse_mode: "Markdown" });
+      return;
+    } else {
+      await sendTelegramMessage(chatId, `🎟️ *VoteCastHub Event Tickets*\n\nBrowse upcoming events or look up your confirmed tickets:\n👉 ${siteUrl()}/tickets`, { parse_mode: "Markdown" });
+      return;
+    }
   }
 
   // 3. Fetch Active Session

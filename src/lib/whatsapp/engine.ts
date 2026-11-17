@@ -3,7 +3,7 @@ import { randomUUID, createHmac, createHash } from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { paymentAdmin } from "@/lib/payments/admin";
-import { paystack } from "@/lib/payments/gateway";
+import { paystack, siteUrl } from "@/lib/payments/gateway";
 import { sendWhatsAppMessage, sendWhatsAppInteractiveButtons, sendWhatsAppInteractiveList, sendWhatsAppImage } from "./sendazi";
 import type { NormalizedInboundMessage } from "./types";
 
@@ -286,6 +286,45 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         session: activeSession,
       });
       return;
+    }
+  }
+
+  // 1. My Tickets prompt: Instant retrieval of passes for this WhatsApp phone
+  if (["MY TICKET", "MY TICKETS", "TICKETS", "TICKET"].includes(upperText)) {
+    const { data: myTickets } = await db.rpc("find_public_tickets", { p_query: phone });
+    const list = (myTickets ?? []) as Record<string, unknown>[];
+
+    if (list.length > 0) {
+      let reply = `🎟️ *Your Event Passes (${list.length})*\n\n`;
+      for (const t of list) {
+        reply += `📌 *${t.event_name}*\n`;
+        reply += `👤 Holder: ${t.customer_name}\n`;
+        reply += `🎫 Tier: ${t.tier_name} (${t.quantity} Person)\n`;
+        reply += `🔑 *CODE PAX: #${t.pax_code}*\n`;
+        reply += `📍 Venue: ${t.venue_name || "Event Venue"}\n`;
+        reply += `🟢 Status: ${t.status === "checked_in" ? "✓ Checked In" : "Valid for Entry"}\n`;
+        reply += `🔗 View Digital Pass: ${siteUrl()}/tickets?q=${t.pax_code}\n\n`;
+      }
+      reply += `_Show your CODE PAX or QR code at the entrance for verification._`;
+      await sendWhatsAppMessage(phone, reply);
+      return;
+    } else {
+      const { data: ticketEvents } = await db
+        .from("events")
+        .select("id, name, slug, venue_name, doors_open_time")
+        .in("event_type", ["ticketing", "hybrid"])
+        .eq("status", "published")
+        .gt("ends_at", new Date().toISOString())
+        .limit(5);
+
+      if (ticketEvents && ticketEvents.length > 0) {
+        let msg = `🎟️ *VoteCastHub Event Tickets*\n\nYou don't have any tickets yet. Explore upcoming live events below:\n\n`;
+        for (const ev of ticketEvents) {
+          msg += `• *${ev.name}*\n  📍 ${ev.venue_name || "Accra"} | 🚪 ${ev.doors_open_time || "Evening"}\n  👉 Buy: ${siteUrl()}/events/${ev.slug}\n\n`;
+        }
+        await sendWhatsAppMessage(phone, msg);
+        return;
+      }
     }
   }
 
