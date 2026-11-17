@@ -5,12 +5,12 @@ import { Icon } from "@/components/icon";
 import { EventSetupContext, type SetupEditor, type SetupSection } from "./event-setup-context";
 
 const steps = [
-  { id: "details", label: "Event Basics" },
-  { id: "nominees", label: "Contestants" },
-  { id: "voting", label: "Rules & Channels" },
-  { id: "review", label: "Review & Submit" },
+  { id: "details", label: "Event Basics", num: "01", sub: "Identity & Dates" },
+  { id: "nominees", label: "Contestants", num: "02", sub: "Categories & Nominees" },
+  { id: "voting", label: "Rules & Channels", num: "03", sub: "Pricing & Access" },
+  { id: "review", label: "Review & Submit", num: "04", sub: "Launch Pre-Flight" },
 ] as const;
-const buttonStyle = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
+const buttonStyle = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
 export function GuidedEventWorkspace({ details, nominees, voting, review, editor, viewLink, initialSection = "details", nomineesReady, votingReady = true }: {
   details: ReactNode; nominees: ReactNode; voting: ReactNode; review: ReactNode; editor: ReactNode; viewLink: ReactNode;
   initialSection?: SetupSection; nomineesReady: boolean; votingReady?: boolean;
@@ -110,17 +110,29 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
       const target = steps.find(step => step.id === trigger?.dataset.workspaceSection);
       if (target) { continueAfterSave.current = false; void go(target.id); }
     }}>
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3 mb-4">
+      <section className="relative overflow-hidden rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] sm:p-6">
+        {/* Subtle geometric corner glow */}
+        <div className="pointer-events-none absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-500/5 blur-2xl" />
+        <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Event Studio</span>
-            <h2 ref={heading} tabIndex={-1} className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-stone-900 focus:outline-none">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
+                [ STAGE {steps[index].num} // 04 ]
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                Active Stage
+              </span>
+            </div>
+            <h2 ref={heading} tabIndex={-1} className="mt-1 font-serif text-xl font-bold tracking-tight text-stone-900 focus:outline-none dark:text-stone-100 sm:text-2xl">
               {steps[index].label}
             </h2>
           </div>
-          <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-3 py-1 rounded-full">
-            Step {index + 1} of 4
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1 font-mono text-xs font-semibold text-stone-600 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
+              {steps[index].sub}
+            </span>
+          </div>
         </div>
         <ol aria-label="Event setup progress" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {steps.map((step, stepIndex) => {
@@ -131,24 +143,29 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
                 <button
                   type="button"
                   onClick={() => { continueAfterSave.current = false; void go(step.id); }}
-                  className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all ${
+                  className={`group relative flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-all duration-200 cursor-pointer ${
                     isCurrent
-                      ? "bg-emerald-900 text-white shadow-xs"
+                      ? "bg-emerald-900 text-white shadow-xs ring-1 ring-emerald-800 dark:bg-emerald-800 dark:ring-emerald-700"
                       : isCompleted
-                      ? "bg-emerald-50 text-emerald-950 hover:bg-emerald-100/70"
-                      : "text-stone-500 hover:bg-stone-50"
+                      ? "border border-emerald-200/80 bg-emerald-50/60 text-emerald-950 hover:bg-emerald-100/70 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+                      : "border border-stone-200/80 bg-stone-50/40 text-stone-500 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 dark:border-[#1c2721] dark:bg-[#141b16]/60 dark:text-stone-400 dark:hover:border-stone-700"
                   }`}
                 >
-                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold transition-all ${
                     isCurrent
-                      ? "bg-emerald-700 text-white"
+                      ? "bg-emerald-700 text-white dark:bg-emerald-600"
                       : isCompleted
-                      ? "bg-emerald-200 text-emerald-900"
-                      : "bg-stone-200 text-stone-600"
+                      ? "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200"
+                      : "bg-stone-200/80 text-stone-600 group-hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-400"
                   }`}>
-                    {isCompleted ? "✓" : stepIndex + 1}
+                    {isCompleted ? "✓" : step.num}
                   </span>
-                  <span className="text-xs font-bold truncate">{step.label}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold leading-tight">{step.label}</span>
+                    <span className={`hidden text-[10px] leading-tight md:block truncate ${isCurrent ? "text-emerald-200/90" : "text-stone-400 dark:text-stone-500"}`}>
+                      {step.sub}
+                    </span>
+                  </div>
                 </button>
               </li>
             );
@@ -164,13 +181,13 @@ export function GuidedEventWorkspace({ details, nominees, voting, review, editor
           <section id="workspace-review" aria-label="Review and submit" hidden={section !== "review"} className="space-y-5">{review}</section>
         </div>
       </div>
-      <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs sm:p-5">
-        {message && <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
+      <div className="rounded-2xl border border-stone-200/90 bg-white p-4 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] sm:p-5">
+        {message && <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">{message}</p>}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button type="button" disabled={index === 0 || busy} onClick={() => { continueAfterSave.current = false; void go(steps[index - 1].id); }} className={`${buttonStyle} border border-stone-300 bg-white text-stone-800 hover:bg-stone-50`}><Icon name="arrowLeft" size={16} />Back</button>
+          <button type="button" disabled={index === 0 || busy} onClick={() => { continueAfterSave.current = false; void go(steps[index - 1].id); }} className={`${buttonStyle} border border-stone-300 bg-white text-stone-800 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#141b16] dark:text-stone-200 dark:hover:bg-[#1c2721]`}><Icon name="arrowLeft" size={16} />Back</button>
           <div className="flex flex-wrap items-center gap-3">{section === "review" ? viewLink : <>
-            <p className="text-xs text-stone-500">{editorState.pending ? "Saving your changes…" : section === "nominees" ? "Add as many nominees as you need." : "Your changes are saved before continuing."}</p>
-            <button type="button" onClick={next} disabled={busy} className={`${buttonStyle} bg-emerald-900 text-white hover:bg-emerald-800`}>{editorState.pending ? "Saving…" : section === "nominees" ? "Continue" : "Save & Continue"}<Icon name="arrowRight" size={16} /></button>
+            <p className="text-xs text-stone-500 dark:text-stone-400">{editorState.pending ? "Saving your changes…" : section === "nominees" ? "Add as many contestants as you need." : "Your changes are saved before continuing."}</p>
+            <button type="button" onClick={next} disabled={busy} className={`${buttonStyle} bg-emerald-900 text-white shadow-xs hover:bg-emerald-800 dark:bg-emerald-800 dark:hover:bg-emerald-700`}>{editorState.pending ? "Saving…" : section === "nominees" ? "Continue to Rules" : "Save & Continue"}<Icon name="arrowRight" size={16} /></button>
           </>}</div>
         </div>
       </div>

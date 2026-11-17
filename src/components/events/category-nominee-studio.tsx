@@ -63,17 +63,22 @@ export function CategoryNomineeStudio({
   return (
     <div className="space-y-6">
       {/* Studio Header & Stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-5 dark:border-[#1c2721]">
         <div>
-          <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" />
-            Categories & nominees
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
+              [ 02 // BALLOT & CONTESTANTS ]
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+              {categories.length} Categories · {nominees.length} Contestants
+            </span>
           </div>
-          <h2 className="mt-1 text-2xl font-serif font-medium text-stone-900 tracking-tight">
-            Your voting ballot
+          <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+            Contestants & Award Ballot
           </h2>
-          <p className="mt-0.5 text-xs text-stone-500">
-            {isDraft ? "Add categories, nominees and their photos." : "View the categories and nominees in this event."}
+          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+            {isDraft ? "Organize categories, add nominees with short bios, and upload portraits." : "View the categories and nominees in this event."}
           </p>
         </div>
 
@@ -87,10 +92,10 @@ export function CategoryNomineeStudio({
                 setShowBulkImport(false);
                 setShowBulkPhotos(false);
               }}
-              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                 showAddCategory
-                  ? "bg-emerald-900 text-white shadow-xs"
-                  : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
+                  ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-800"
+                  : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:border-emerald-500"
               }`}
             >
               <Icon name="sparkle" size={13} />
@@ -104,10 +109,10 @@ export function CategoryNomineeStudio({
                 setShowAddCategory(false);
                 setShowBulkPhotos(false);
               }}
-              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                 showBulkImport
-                  ? "bg-emerald-900 text-white shadow-xs"
-                  : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
+                  ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-800"
+                  : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:border-emerald-500"
               }`}
             >
               <Icon name="vote" size={13} />
@@ -122,10 +127,10 @@ export function CategoryNomineeStudio({
                   setShowAddCategory(false);
                   setShowBulkImport(false);
                 }}
-                className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
+                className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                   showBulkPhotos
-                    ? "bg-emerald-900 text-white shadow-xs"
-                    : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50"
+                    ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-800"
+                    : "border border-stone-200 bg-white text-stone-800 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:border-emerald-500"
                 }`}
               >
                 <Icon name="image" size={13} />
@@ -252,22 +257,24 @@ export function CategoryNomineeStudio({
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 relative flex items-center gap-2 shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
+                  className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 relative flex items-center gap-2 shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                     isSelected
-                      ? "bg-emerald-900 text-white shadow-xs"
-                      : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
+                      ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-800"
+                      : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:border-emerald-500"
                   }`}
                 >
                   <span className="truncate max-w-[160px] sm:max-w-[200px]">{cat.name}</span>
                   <span
-                    className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                      isSelected ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-600"
+                    className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-bold ${
+                      isSelected
+                        ? "bg-emerald-700 text-white dark:bg-emerald-600"
+                        : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
                     }`}
                   >
                     {count}
                   </span>
                   {!cat.is_active && (
-                    <span className="text-[10px] text-amber-500 font-bold">Hidden</span>
+                    <span className="font-mono text-[10px] text-amber-500 font-bold">HIDDEN</span>
                   )}
                 </button>
               );
@@ -277,35 +284,40 @@ export function CategoryNomineeStudio({
               key="all"
               type="button"
               onClick={() => setSelectedCategoryId("all")}
-              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5 shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 cursor-pointer ${
                 selectedCategoryId === "all"
-                  ? "bg-emerald-900 text-white shadow-xs"
-                  : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
+                  ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-800"
+                  : "bg-white border border-stone-200/90 text-stone-700 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:border-emerald-500"
               }`}
             >
-              <span>View All ({nominees.length})</span>
+              <span>View All</span>
+              <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-bold ${
+                selectedCategoryId === "all" ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
+              }`}>
+                {nominees.length}
+              </span>
             </button>
           </div>
 
           {/* Active Category Meta & Edit */}
           {activeCategory && (
-            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-xs">
+            <div className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-serif font-bold text-stone-900">{activeCategory.name}</h3>
+                    <h3 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">{activeCategory.name}</h3>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                      className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${
                         activeCategory.is_active
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-stone-100 text-stone-500"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
                       }`}
                     >
-                      {activeCategory.is_active ? "Visible to Voters" : "Hidden from Ballot"}
+                      {activeCategory.is_active ? "BALLOT VISIBLE" : "HIDDEN"}
                     </span>
                   </div>
                   {activeCategory.description && (
-                    <p className="mt-1 text-xs text-stone-600 leading-relaxed max-w-2xl">
+                    <p className="mt-1 text-xs text-stone-600 dark:text-stone-400 leading-relaxed max-w-2xl">
                       {activeCategory.description}
                     </p>
                   )}
@@ -323,20 +335,40 @@ export function CategoryNomineeStudio({
           {/* Nominees Grid */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+              <h4 className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
                 {selectedCategoryId === "all"
-                  ? "All Nominees Across Categories"
-                  : `Nominees in ${activeCategory?.name ?? "Category"} (${filteredNominees.length})`}
+                  ? `[ ALL CONTESTANTS · ${nominees.length} ]`
+                  : `[ ${activeCategory?.name ?? "CATEGORY"} · ${filteredNominees.length} CONTESTANTS ]`}
               </h4>
             </div>
 
-            {filteredNominees.length === 0 && <div className="flex items-start gap-3 rounded-xl border border-dashed border-stone-200 bg-stone-50 p-4"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800"><Icon name="users" size={19} /></span><div><h5 className="text-sm font-semibold text-stone-900">{canManage && isDraft ? "Add your first nominee" : "No nominees in this category yet"}</h5><p className="mt-1 text-sm leading-6 text-stone-600">{canManage && isDraft ? activeCategory ? "Enter a name in the form below. A photo and short biography are optional—you can add them later." : "Choose a category, then add the people voters can choose." : "Nominees will appear here once added."}</p></div></div>}
-              {/* Inline Add Nominee Form if a specific category is selected */}
-              {canManage && isDraft && activeCategory && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-4">
-                  <NomineeForm key={activeCategory.id} categoryId={activeCategory.id} backTo={pagePath} />
+            {filteredNominees.length === 0 && (
+              <div className="flex items-start gap-3 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 p-5 dark:border-[#223028] dark:bg-[#141b16]/30">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 shadow-2xs dark:bg-[#0c120e] dark:text-emerald-400">
+                  <Icon name="users" size={19} />
+                </span>
+                <div>
+                  <h5 className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                    {canManage && isDraft ? "Add your first nominee" : "No nominees in this category yet"}
+                  </h5>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
+                    {canManage && isDraft
+                      ? activeCategory
+                        ? "Enter their name in the form below. A photo portrait and brief biography can also be added."
+                        : "Choose a category, then add the people voters can choose."
+                      : "Nominees will appear here once added."}
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Inline Add Nominee Form if a specific category is selected */}
+            {canManage && isDraft && activeCategory && (
+              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/20 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                <NomineeForm key={activeCategory.id} categoryId={activeCategory.id} backTo={pagePath} />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {filteredNominees.map((nominee) => {
                 const imageUrl = imageUrlMap[nominee.image_path ?? ""];
@@ -346,14 +378,16 @@ export function CategoryNomineeStudio({
                     layout
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className={`relative flex flex-col justify-between rounded-2xl border p-4 transition-all bg-white shadow-2xs hover:shadow-xs ${
-                      nominee.is_active ? "border-stone-200/90" : "border-stone-200/60 opacity-60 bg-stone-50/50"
+                    className={`relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-200 bg-white dark:bg-[#0c120e] shadow-2xs hover:shadow-xs ${
+                      nominee.is_active
+                        ? "border-stone-200/90 dark:border-[#1c2721]"
+                        : "border-stone-200/60 opacity-60 bg-stone-50/50 dark:border-[#1c2721]/60 dark:bg-[#141b16]/30"
                     }`}
                   >
                     <div>
                       <div className="flex items-start gap-3">
                         {/* Avatar photo or monogram */}
-                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100 shadow-2xs">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100 shadow-2xs dark:border-[#223028] dark:bg-[#141b16]">
                           {imageUrl ? (
                             <img
                               src={imageUrl}
@@ -361,23 +395,23 @@ export function CategoryNomineeStudio({
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center font-serif text-base font-bold text-emerald-900 bg-emerald-50">
+                            <div className="flex h-full w-full items-center justify-center font-serif text-base font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300">
                               {nominee.name.trim().slice(0, 1).toUpperCase()}
                             </div>
                           )}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <h5 className="font-semibold text-stone-900 text-sm leading-tight truncate">
+                          <h5 className="font-bold text-stone-900 dark:text-stone-100 text-sm leading-tight truncate">
                             {nominee.name}
                           </h5>
                           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-850">
-                              Code: {nominee.public_code || String(nominee.display_order + 1).padStart(2, "0")}
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-850 dark:bg-emerald-950/60 dark:border-emerald-900/50 dark:text-emerald-300">
+                              CODE: {nominee.public_code || String(nominee.display_order + 1).padStart(2, "0")}
                             </span>
                             {!nominee.is_active && (
-                              <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
-                                Hidden
+                              <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
+                                HIDDEN
                               </span>
                             )}
                           </div>
@@ -385,7 +419,7 @@ export function CategoryNomineeStudio({
                       </div>
 
                       {nominee.biography && (
-                        <p className="mt-2.5 text-xs text-stone-500 line-clamp-2 leading-relaxed">
+                        <p className="mt-2.5 text-xs text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed">
                           {nominee.biography}
                         </p>
                       )}
@@ -393,7 +427,7 @@ export function CategoryNomineeStudio({
 
                     {/* Manage & Photo Tools */}
                     {canManage && (
-                      <div className="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <div className="mt-4 pt-3 border-t border-stone-100 dark:border-[#1c2721] flex flex-wrap items-center justify-between gap-2 text-sm">
                         {isDraft && <EditNomineeForm nominee={nominee} backTo={pagePath} />}
                         <NomineeImageForm
                           eventId={eventId}
@@ -409,8 +443,6 @@ export function CategoryNomineeStudio({
                   </motion.div>
                 );
               })}
-
-
             </div>
           </div>
         </div>

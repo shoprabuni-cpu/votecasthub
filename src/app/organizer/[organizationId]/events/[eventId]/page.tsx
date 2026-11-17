@@ -270,14 +270,26 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
         </>}
         nominees={<section className={panel}>{categoriesError || nomineeError ? <p role="alert" className="text-sm text-red-800">Categories or nominees could not load. Refresh to try again.</p> : <><CategoryNomineeStudio categories={categories ?? []} nominees={nominees ?? []} imageUrlMap={imageUrlMap} eventId={eventId} canManage={canManage} isDraft={event.status === "draft"} pagePath={pagePath} />{event.status !== "draft" && <div className="mt-5 border-t border-stone-100 pt-4"><p className="mb-3 text-sm text-stone-600">Categories and nominees are protected outside private editing.</p>{returnToDraft}</div>}</>}</section>}
-        review={event.status === "draft" ? <section className={`${panel} space-y-6`}>
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-100 pb-4">
+        review={event.status === "draft" ? <section className={`${panel} space-y-6 transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]`}>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Launch Pre-Flight</span>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-stone-900">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
+                  [ 04 // LAUNCH PRE-FLIGHT ]
+                </span>
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                  publishReady
+                    ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${publishReady ? "bg-emerald-600 dark:bg-emerald-400" : "bg-amber-600 dark:bg-amber-400"}`} />
+                  {requiredChecks.filter(c => c.complete).length} of {requiredChecks.length} Ready
+                </span>
+              </div>
+              <h2 className="mt-1 font-serif text-xl sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
                 Review & Submit for Approval
               </h2>
-              <p className="mt-1 text-xs text-stone-500">
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                 {isTicketOnly
                   ? "Verify your venue, schedule, and ticket tiers before submitting to our compliance team."
                   : "Verify your competition rules and contestant roster before sending to our compliance team."}
@@ -285,45 +297,47 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
             </div>
             <Link
               href={`${pagePath}/preview`}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 shadow-2xs dark:border-[#223028] dark:bg-[#141b16] dark:text-stone-200 dark:hover:bg-[#1c2721]"
             >
-              <span>{isTicketOnly ? "Preview Ticket Page" : "Preview Voter Page"}</span> ↗
+              <span>{isTicketOnly ? "Preview Ticket Page" : "Preview Ballot"}</span> ↗
             </Link>
           </div>
 
           {/* Pre-Flight Checklist */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">Pre-Flight Readiness Checklist</h3>
-            <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-stone-50/50">
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300">
+              [ READINESS CHECKLIST // COMPLIANCE ]
+            </h3>
+            <div className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-stone-50/50 dark:divide-[#1c2721] dark:border-[#1c2721] dark:bg-[#141b16]/30">
               {publishChecks.map((item) => (
                 <div key={item.label} className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-xs">
                   <div className="flex items-center gap-3">
                     <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      item.complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+                      item.complete ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
                     }`}>
                       {item.complete ? "✓" : "!"}
                     </span>
-                    <span className={`font-semibold ${item.complete ? "text-stone-800" : "text-amber-950"}`}>
+                    <span className={`font-semibold ${item.complete ? "text-stone-800 dark:text-stone-200" : "text-amber-950 dark:text-amber-300"}`}>
                       {item.label}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {item.complete ? (
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                        Ready
+                      <span className="font-mono text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded dark:bg-emerald-950/60 dark:border-emerald-900/50 dark:text-emerald-300">
+                        READY
                       </span>
                     ) : (
                       <>
-                        <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                          {item.optional ? "Optional" : "Action Needed"}
+                        <span className="font-mono text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded dark:bg-amber-950/60 dark:border-amber-900/50 dark:text-amber-300">
+                          {item.optional ? "OPTIONAL" : "ACTION NEEDED"}
                         </span>
                         {canManage && (
                           <button
                             type="button"
                             data-workspace-section={item.section}
                             data-workspace-editor={item.editor ? "true" : "false"}
-                            className="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-900 hover:bg-stone-50 shadow-2xs cursor-pointer"
+                            className="rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-900 hover:bg-stone-50 shadow-2xs cursor-pointer dark:border-[#223028] dark:bg-[#0c120e] dark:text-emerald-300"
                           >
                             {item.optional ? "Add cover" : "Fix now →"}
                           </button>
@@ -337,46 +351,46 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           </div>
 
           {/* Connected Channels Summary */}
-          <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">
-              {isTicketOnly ? "Enabled Ticketing Services" : "Enabled Voting Channels"}
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 space-y-2.5 dark:border-[#1c2721] dark:bg-[#0c120e]">
+            <h3 className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300">
+              {isTicketOnly ? "[ TICKETING ACCESS CHANNELS ]" : "[ ACTIVE VOTING CHANNELS ]"}
             </h3>
             {isTicketOnly ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                  <span className="font-bold text-emerald-950 block">🌐 Web Pass Checkout</span>
-                  <span className="text-[11px] text-stone-600">Active · MoMo & Card Paystack</span>
+                <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                  <span className="font-bold text-emerald-950 dark:text-emerald-300 block">🌐 Web Pass Checkout</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">MoMo & Card Paystack</span>
                 </div>
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                  <span className="font-bold text-emerald-950 block">💬 SMS & PAX Codes</span>
-                  <span className="text-[11px] text-stone-600">Active · Auto-generated #PAX</span>
+                <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                  <span className="font-bold text-emerald-950 dark:text-emerald-300 block">💬 SMS & PAX Codes</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">Auto-generated #PAX</span>
                 </div>
-                <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
-                  <span className="font-bold text-sky-950 block">📱 Gate Scanner</span>
-                  <span className="text-[11px] text-stone-600">Active · /gate camera check-in</span>
+                <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20">
+                  <span className="font-bold text-sky-950 dark:text-sky-300 block">📱 Gate Scanner</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">/gate camera check-in</span>
                 </div>
-                <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
-                  <span className="font-bold text-stone-800 block">🔍 Pass Retrieval</span>
-                  <span className="text-[11px] text-stone-500">Active · /tickets self-service</span>
+                <div className="p-3 rounded-xl border border-stone-200 bg-stone-50 dark:border-[#223028] dark:bg-[#141b16]">
+                  <span className="font-bold text-stone-800 dark:text-stone-200 block">🔍 Pass Retrieval</span>
+                  <span className="text-[11px] text-stone-500 dark:text-stone-400">/tickets self-service</span>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                  <span className="font-bold text-emerald-950 block">🌐 Web Voting</span>
-                  <span className="text-[11px] text-stone-600">Active · Instant mobile link</span>
+                <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                  <span className="font-bold text-emerald-950 dark:text-emerald-300 block">🌐 Web Voting</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">Instant mobile link</span>
                 </div>
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                  <span className="font-bold text-emerald-950 block">💬 WhatsApp Bot</span>
-                  <span className="text-[11px] text-stone-600">Active · +233 59 299 2566</span>
+                <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                  <span className="font-bold text-emerald-950 dark:text-emerald-300 block">💬 WhatsApp Bot</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">+233 59 299 2566</span>
                 </div>
-                <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
-                  <span className="font-bold text-sky-950 block">✈️ Telegram Bot</span>
-                  <span className="text-[11px] text-stone-600">Active · @VotecastHubGH_bot</span>
+                <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20">
+                  <span className="font-bold text-sky-950 dark:text-sky-300 block">✈️ Telegram Bot</span>
+                  <span className="text-[11px] text-stone-600 dark:text-stone-400">@VotecastHubGH_bot</span>
                 </div>
-                <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
-                  <span className="font-bold text-stone-800 block">📞 USSD (*920#)</span>
-                  <span className="text-[11px] text-stone-500">
+                <div className="p-3 rounded-xl border border-stone-200 bg-stone-50 dark:border-[#223028] dark:bg-[#141b16]">
+                  <span className="font-bold text-stone-800 dark:text-stone-200 block">📞 USSD (*920#)</span>
+                  <span className="text-[11px] text-stone-500 dark:text-stone-400">
                     {ussdError ? "Unavailable" : ussdRequest?.enabled ? "Enabled" : "Optional add-on"}
                   </span>
                 </div>
@@ -386,9 +400,9 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
 
           {/* Payment Account connection callout if Paid */}
           {event.voting_mode === "paid" && !checkoutReady && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-2">
-              <p className="text-xs font-bold text-amber-950">Payment Account Required for Paid Voting</p>
-              <p className="text-[11px] text-amber-900">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <p className="text-xs font-bold text-amber-950 dark:text-amber-200">Payment Account Required for Paid Voting</p>
+              <p className="text-[11px] text-amber-900 dark:text-amber-300">
                 Before submitting for approval, connect your organization's Paystack mobile money settlement account.
               </p>
               <Link
@@ -401,12 +415,12 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           )}
 
           {/* Platform Review Notice */}
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-1 text-xs">
-            <div className="flex items-center gap-2 text-emerald-950 font-bold">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-1 text-xs dark:border-emerald-900/40 dark:bg-emerald-950/20">
+            <div className="flex items-center gap-2 text-emerald-950 dark:text-emerald-300 font-bold">
               <span>🛡️</span>
               <span>Platform Compliance & Verification</span>
             </div>
-            <p className="text-[11px] text-emerald-900/90 leading-relaxed">
+            <p className="text-[11px] text-emerald-900/90 dark:text-emerald-300/90 leading-relaxed">
               Our team reviews contest integrity, fair voting parameters, and settlement routing. Submissions are typically reviewed and approved within <strong>1–2 hours</strong> during Ghana business hours. Once approved, voting will open on your scheduled start date.
             </p>
           </div>
