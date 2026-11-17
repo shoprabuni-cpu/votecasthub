@@ -16,12 +16,22 @@ const baseSections = [
 ] as const;
 type Section = typeof baseSections[number]["id"] | "review";
 
-export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided }: {
+export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false }: {
   details: ReactNode; tickets?: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
   guided?: { initialSection: SetupSection; nomineesReady: boolean; votingReady: boolean };
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
+  isTicketOnly?: boolean;
 }) {
-  const sections: { id: Section; label: string }[] = review ? [...baseSections, { id: "review", label: "Review & Submit" }] : [...baseSections];
+  const sections: { id: Section; label: string }[] = isTicketOnly
+    ? [
+        { id: "details", label: "Event details" },
+        { id: "tickets", label: "🎟️ Tickets & Attendees" },
+        ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
+      ]
+    : review
+    ? [...baseSections, { id: "review", label: "Review & Submit" }]
+    : [...baseSections];
+
   const [section, setSection] = useState<Section>("details");
   const [editing, setEditing] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -30,7 +40,7 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
     if (next === null) return;
     event.preventDefault(); setSection(sections[next].id); buttons.current[next]?.focus();
   }
-  if (guided && review) return <EventLeaveGuard><GuidedEventWorkspace details={details} nominees={nominees} voting={voting} review={review} editor={editor} viewLink={viewLink} {...guided} /></EventLeaveGuard>;
+  if (!isTicketOnly && guided && review) return <EventLeaveGuard><GuidedEventWorkspace details={details} nominees={nominees} voting={voting} review={review} editor={editor} viewLink={viewLink} {...guided} /></EventLeaveGuard>;
   return <EventLeaveGuard><div className="space-y-5" onClick={event => {
     const trigger = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-workspace-section]");
     const target = sections.find(item => item.id === trigger?.dataset.workspaceSection);
@@ -47,7 +57,7 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
     </section>}
     <div className="flex flex-wrap items-center gap-2">
       {canEdit && <button type="button" aria-expanded={editing} aria-controls="workspace-editor" onClick={() => { setSection("details"); setEditing(true); }} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Edit event</button>}
-      {canManageVoting && <button type="button" onClick={() => setSection("voting")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Manage voting</button>}
+      {!isTicketOnly && canManageVoting && <button type="button" onClick={() => setSection("voting")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Manage voting</button>}
       {viewLink}
     </div>
     <div role="tablist" aria-label="Event workspace" className={`grid grid-cols-2 sm:grid-cols-4 ${review ? "lg:grid-cols-5" : ""} gap-1 rounded-2xl border border-stone-200/70 bg-stone-100/80 p-1.5`}>
@@ -58,8 +68,8 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       {details}
     </section>
     {tickets && <section id="workspace-tickets" role="tabpanel" aria-labelledby="workspace-tab-tickets" hidden={section !== "tickets"} className="space-y-5">{tickets}</section>}
-    <section id="workspace-nominees" role="tabpanel" aria-labelledby="workspace-tab-nominees" hidden={section !== "nominees"} className="space-y-5">{nominees}</section>
+    {!isTicketOnly && <section id="workspace-nominees" role="tabpanel" aria-labelledby="workspace-tab-nominees" hidden={section !== "nominees"} className="space-y-5">{nominees}</section>}
     {review && <section id="workspace-review" role="tabpanel" aria-labelledby="workspace-tab-review" hidden={section !== "review"} className="space-y-5">{review}</section>}
-    <section id="workspace-voting" role="tabpanel" aria-labelledby="workspace-tab-voting" hidden={section !== "voting"} className="space-y-5">{voting}</section>
+    {!isTicketOnly && <section id="workspace-voting" role="tabpanel" aria-labelledby="workspace-tab-voting" hidden={section !== "voting"} className="space-y-5">{voting}</section>}
   </div></EventLeaveGuard>;
 }

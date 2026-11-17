@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SegmentedThemeSwitch } from "@/components/theme-toggle";
+import { CreateEventModal } from "@/components/events/create-event-modal";
 
 type Props = { organizationId: string; organizationName: string; role: string; mobile?: boolean; onNavigate?: () => void };
 
@@ -105,30 +106,54 @@ export function WorkspaceSidebar({ organizationId, organizationName, role, mobil
               WORKSPACE
             </div>
 
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={onNavigate}
-                aria-current={link.isActive ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-700 ${
-                  link.isActive
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
-                    : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-[#0a0e0c] dark:hover:text-stone-100"
-                }`}
-              >
-                <NavIcon name={link.icon} />
-                <span>{link.label}</span>
-                {link.badge ? (
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-950 uppercase tracking-wider dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-300">
-                    <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                    <span>{link.badge}</span>
-                  </span>
-                ) : link.isActive ? (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                ) : null}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              if (link.label === "Create event") {
+                return (
+                  <CreateEventModal
+                    key={link.href}
+                    organizationId={organizationId}
+                    trigger={
+                      <button
+                        type="button"
+                        aria-current={link.isActive ? "page" : undefined}
+                        className={`flex w-full min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-700 text-left cursor-pointer ${
+                          link.isActive
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
+                            : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-[#0a0e0c] dark:hover:text-stone-100"
+                        }`}
+                      >
+                        <NavIcon name={link.icon} />
+                        <span>{link.label}</span>
+                      </button>
+                    }
+                  />
+                );
+              }
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={onNavigate}
+                  aria-current={link.isActive ? "page" : undefined}
+                  className={`flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-700 ${
+                    link.isActive
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
+                      : "text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-[#0a0e0c] dark:hover:text-stone-100"
+                  }`}
+                >
+                  <NavIcon name={link.icon} />
+                  <span>{link.label}</span>
+                  {link.badge ? (
+                    <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-950 uppercase tracking-wider dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-300">
+                      <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                      <span>{link.badge}</span>
+                    </span>
+                  ) : link.isActive ? (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                  ) : null}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 

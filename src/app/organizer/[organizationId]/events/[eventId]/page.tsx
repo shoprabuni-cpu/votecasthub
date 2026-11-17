@@ -164,26 +164,38 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const checkoutReady = event.voting_mode === "paid" ? paidCheckoutReady === true : votingRulesReady;
   const { data: verificationReadiness, error: verificationReadinessError } = await supabase.rpc("get_event_verification_readiness", { p_event_id: eventId });
   const verificationReady = !verificationReadinessError && verificationReadiness?.ready === true;
-  const publishReady =
-    datesReady &&
-    activeCategories.length > 0 &&
-    allCategoriesHaveNominees &&
-    checkoutReady &&
-    verificationReady &&
-    !categoriesError &&
-    !nomineeError;
+  const isTicketOnly = event.event_type === "ticketing";
+  const activeTiers = (ticketTiers ?? []).filter((tier: any) => tier.is_active);
+  const tiersReady = activeTiers.length > 0;
 
-  const publishChecks = [
-    { label: verificationReadiness?.message ?? "Voter verification is ready", complete: verificationReady, section: "voting" },
-    { label: "Voting dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
-    {
-      label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",
-      complete: checkoutReady, section: "voting", editor: true,
-    },
-    { label: "Add at least one category", complete: activeCategories.length > 0, section: "nominees" },
-    { label: "Add a nominee to each category", complete: allCategoriesHaveNominees, section: "nominees" },
-    { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
-  ];
+  const publishReady = isTicketOnly
+    ? datesReady && tiersReady && Boolean(eventMeta?.venue_name || event.venue_name)
+    : datesReady &&
+      activeCategories.length > 0 &&
+      allCategoriesHaveNominees &&
+      checkoutReady &&
+      verificationReady &&
+      !categoriesError &&
+      !nomineeError;
+
+  const publishChecks = isTicketOnly
+    ? [
+        { label: "Event dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
+        { label: "Venue is specified", complete: Boolean(eventMeta?.venue_name || event.venue_name), section: "details", editor: true },
+        { label: "Add at least one active ticket tier", complete: tiersReady, section: "tickets" },
+        { label: "Event poster / flyer image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
+      ]
+    : [
+        { label: verificationReadiness?.message ?? "Voter verification is ready", complete: verificationReady, section: "voting" },
+        { label: "Voting dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
+        {
+          label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",
+          complete: checkoutReady, section: "voting", editor: true,
+        },
+        { label: "Add at least one category", complete: activeCategories.length > 0, section: "nominees" },
+        { label: "Add a nominee to each category", complete: allCategoriesHaveNominees, section: "nominees" },
+        { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
+      ];
 
   const publicUrl = `/events/${event.slug}`;
   const imagePaths =
@@ -224,17 +236,18 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
       {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Read feedback</a></div>}
       <EventWorkspace
+        isTicketOnly={isTicketOnly}
         tickets={
           <TicketTiersManager
             eventId={eventId}
             organizationId={organizationId}
             initialTiers={(ticketTiers as any) ?? []}
-            venueName={eventMeta?.venue_name}
+            venueName={eventMeta?.venue_name || event.venue_name}
             venueAddress={eventMeta?.venue_address}
-            doorsOpenTime={eventMeta?.doors_open_time}
+            doorsOpenTime={eventMeta?.doors_open_time || event.doors_open_time}
           />
         }
-        guided={canManage && event.status === "draft" ? { initialSection: requestedStep === "nominees" ? "nominees" : "details", nomineesReady: allCategoriesHaveNominees && !categoriesError && !nomineeError, votingReady: checkoutReady && verificationReady } : undefined}
+        guided={!isTicketOnly && canManage && event.status === "draft" ? { initialSection: requestedStep === "nominees" ? "nominees" : "details", nomineesReady: allCategoriesHaveNominees && !categoriesError && !nomineeError, votingReady: checkoutReady && verificationReady } : undefined}
         nextStep={canManage ? nextStep : undefined}
         progress={canManage && event.status === "draft" ? { completed: requiredChecks.filter(check => check.complete).length, total: requiredChecks.length } : undefined}
         canEdit={permissions.editDraft || permissions.editPublic || (canManage && event.status === "pending_review")}
@@ -265,14 +278,16 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
                 Review & Submit for Approval
               </h2>
               <p className="mt-1 text-xs text-stone-500">
-                Verify your competition rules and contestant roster before sending to our compliance team.
+                {isTicketOnly
+                  ? "Verify your venue, schedule, and ticket tiers before submitting to our compliance team."
+                  : "Verify your competition rules and contestant roster before sending to our compliance team."}
               </p>
             </div>
             <Link
               href={`${pagePath}/preview`}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs"
             >
-              <span>Preview Voter Page</span> ↗
+              <span>{isTicketOnly ? "Preview Ticket Page" : "Preview Voter Page"}</span> ↗
             </Link>
           </div>
 
@@ -323,27 +338,50 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
 
           {/* Connected Channels Summary */}
           <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">Enabled Voting Channels</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-              <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                <span className="font-bold text-emerald-950 block">🌐 Web Voting</span>
-                <span className="text-[11px] text-stone-600">Active · Instant mobile link</span>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+              {isTicketOnly ? "Enabled Ticketing Services" : "Enabled Voting Channels"}
+            </h3>
+            {isTicketOnly ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                  <span className="font-bold text-emerald-950 block">🌐 Web Pass Checkout</span>
+                  <span className="text-[11px] text-stone-600">Active · MoMo & Card Paystack</span>
+                </div>
+                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                  <span className="font-bold text-emerald-950 block">💬 SMS & PAX Codes</span>
+                  <span className="text-[11px] text-stone-600">Active · Auto-generated #PAX</span>
+                </div>
+                <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
+                  <span className="font-bold text-sky-950 block">📱 Gate Scanner</span>
+                  <span className="text-[11px] text-stone-600">Active · /gate camera check-in</span>
+                </div>
+                <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
+                  <span className="font-bold text-stone-800 block">🔍 Pass Retrieval</span>
+                  <span className="text-[11px] text-stone-500">Active · /tickets self-service</span>
+                </div>
               </div>
-              <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
-                <span className="font-bold text-emerald-950 block">💬 WhatsApp Bot</span>
-                <span className="text-[11px] text-stone-600">Active · +233 59 299 2566</span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                  <span className="font-bold text-emerald-950 block">🌐 Web Voting</span>
+                  <span className="text-[11px] text-stone-600">Active · Instant mobile link</span>
+                </div>
+                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/40">
+                  <span className="font-bold text-emerald-950 block">💬 WhatsApp Bot</span>
+                  <span className="text-[11px] text-stone-600">Active · +233 59 299 2566</span>
+                </div>
+                <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
+                  <span className="font-bold text-sky-950 block">✈️ Telegram Bot</span>
+                  <span className="text-[11px] text-stone-600">Active · @VotecastHubGH_bot</span>
+                </div>
+                <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
+                  <span className="font-bold text-stone-800 block">📞 USSD (*920#)</span>
+                  <span className="text-[11px] text-stone-500">
+                    {ussdError ? "Unavailable" : ussdRequest?.enabled ? "Enabled" : "Optional add-on"}
+                  </span>
+                </div>
               </div>
-              <div className="p-3 rounded-lg border border-sky-200 bg-sky-50/40">
-                <span className="font-bold text-sky-950 block">✈️ Telegram Bot</span>
-                <span className="text-[11px] text-stone-600">Active · @VotecastHubGH_bot</span>
-              </div>
-              <div className="p-3 rounded-lg border border-stone-200 bg-stone-50">
-                <span className="font-bold text-stone-800 block">📞 USSD (*920#)</span>
-                <span className="text-[11px] text-stone-500">
-                  {ussdError ? "Unavailable" : ussdRequest?.enabled ? "Enabled" : "Optional add-on"}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Payment Account connection callout if Paid */}

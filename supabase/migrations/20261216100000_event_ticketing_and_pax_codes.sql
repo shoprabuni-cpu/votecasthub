@@ -497,4 +497,20 @@ $$;
 
 grant execute on function public.find_public_tickets(text) to anon, authenticated;
 
+-- 11. Update get_admin_events to return event_type
+drop function if exists public.get_admin_events(text);
+
+create or replace function public.get_admin_events(p_search text default null)
+returns table(id uuid,name text,status text,voting_mode text,organization_name text,starts_at timestamptz,ends_at timestamptz,created_at timestamptz,event_type text)
+language sql stable security definer set search_path='' as $$
+  select e.id,e.name,e.status,e.voting_mode,o.name,e.starts_at,e.ends_at,e.created_at,e.event_type
+  from public.events e join public.organizations o on o.id=e.organization_id
+  where e.purged_at is null
+    and exists(select 1 from public.platform_admins a where a.user_id=auth.uid() and a.is_active)
+    and (p_search is null or e.name ilike '%'||p_search||'%' or o.name ilike '%'||p_search||'%')
+  order by e.created_at desc limit 100;
+$$;
+
+grant execute on function public.get_admin_events(text) to authenticated;
+
 

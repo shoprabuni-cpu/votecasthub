@@ -7,6 +7,7 @@ import { ClosureRequestForm } from "@/components/organizations/closure-request-f
 import { OrganizationEventsList, type EventItem } from "@/components/organizations/organization-events-list";
 import type { EventWorkspaceState } from "@/lib/events/organizer-presentation";
 import { Icon } from "@/components/icon";
+import { CreateEventModal } from "@/components/events/create-event-modal";
 
 export const metadata: Metadata = { title: "Organization events — VotecastHub" };
 
@@ -108,13 +109,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
             )}
 
             {canCreateEvent && (
-              <Link
-                href={`/organizer/${organizationId}/events/new`}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-all hover:bg-emerald-800 active:scale-95"
-              >
-                <span>Create event</span>
-                <span className="text-base leading-none">＋</span>
-              </Link>
+              <CreateEventModal organizationId={organizationId} />
             )}
           </div>
         </div>

@@ -13,6 +13,7 @@ type EventRow = {
   organization_name: string;
   starts_at: string;
   ends_at: string;
+  event_type?: string;
 };
 
 export function AdminEvents({ events }: { events: EventRow[] }) {
@@ -124,9 +125,15 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                     {e.organization_name}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-stone-700">
-                      {e.voting_mode}
-                    </span>
+                    {e.event_type === "ticketing" ? (
+                      <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                        🎟️ Tickets
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-stone-700">
+                        {e.voting_mode}
+                      </span>
+                    )}
                     <span
                       className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                         statusStyles[e.status] ?? statusStyles.draft

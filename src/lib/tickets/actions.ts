@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import type { GateCheckInResponse } from "./types";
@@ -373,4 +374,121 @@ export async function broadcastTicketSmsAction(
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Broadcast failed" };
   }
+}
+
+/**
+ * Organizer: Create a dedicated Ticketed Event with initial ticket tiers
+ */
+export async function createTicketEventAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  let redirectUrl: string | null = null;
+  try {
+    const { supabase } = await requireVerifiedUser();
+
+    const organizationId = formData.get("organizationId")?.toString()?.trim();
+    const name = formData.get("name")?.toString()?.trim();
+    const venueName = formData.get("venueName")?.toString()?.trim();
+    const venueAddress = formData.get("venueAddress")?.toString()?.trim() || null;
+    const doorsOpenTime = formData.get("doorsOpenTime")?.toString()?.trim() || null;
+    const startsAtRaw = formData.get("startsAt")?.toString()?.trim();
+    const endsAtRaw = formData.get("endsAt")?.toString()?.trim();
+    const description = formData.get("description")?.toString()?.trim() || null;
+
+    if (!organizationId) return { error: "Organization ID is required." };
+    if (!name || name.length < 2) return { error: "Event title must be at least 2 characters." };
+    if (!venueName || venueName.length < 2) return { error: "Venue name is required (e.g. Grand Arena, AICC)." };
+    if (!startsAtRaw || !endsAtRaw) return { error: "Event start and end dates are required." };
+
+    const startDate = new Date(startsAtRaw);
+    const endDate = new Date(endsAtRaw);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return { error: "Invalid date format." };
+    }
+    if (startDate >= endDate) {
+      return { error: "Event end time must be after start time." };
+    }
+
+    // Generate unique slug
+    const cleanBase = name
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 88);
+    const slug = `${cleanBase || "ticket-event"}-${Math.random().toString(36).substring(2, 8)}`;
+
+    // Call create_event RPC
+    const { data: newEventId, error: createError } = await supabase.rpc("create_event", {
+      p_organization_id: organizationId,
+      p_name: name,
+      p_slug: slug,
+      p_description: description,
+      p_unit_price_minor: 0,
+      p_starts_at: startDate.toISOString(),
+      p_ends_at: endDate.toISOString(),
+      p_results_visibility: "hidden",
+      p_voting_mode: "free",
+      p_free_vote_limit_per_phone: null,
+      p_voting_rule: "one_per_category",
+      p_voting_rules: null,
+    });
+
+    if (createError || !newEventId) {
+      return { error: createError?.message || "Failed to create ticketing event." };
+    }
+
+    // Update event_type and venue details
+    await supabase
+      .from("events")
+      .update({
+        event_type: "ticketing",
+        venue_name: venueName,
+        venue_address: venueAddress,
+        doors_open_time: doorsOpenTime,
+      })
+      .eq("id", newEventId);
+
+    // Create Initial Ticket Tier 1 (e.g. Regular / Standard)
+    const tierName = formData.get("tierName")?.toString()?.trim() || "Regular";
+    const tierPriceGhs = parseFloat(formData.get("tierPriceGhs")?.toString() ?? "0") || 0;
+    const tierCapacity = parseInt(formData.get("tierCapacity")?.toString() ?? "100", 10) || 100;
+
+    await supabase.from("event_ticket_tiers").insert({
+      event_id: newEventId,
+      name: tierName,
+      price_minor: Math.round(tierPriceGhs * 100),
+      capacity: tierCapacity,
+      is_active: true,
+      sort_order: 1,
+    });
+
+    // Optional Tier 2 (e.g. VIP / Table)
+    const tier2Name = formData.get("tier2Name")?.toString()?.trim();
+    if (tier2Name) {
+      const tier2PriceGhs = parseFloat(formData.get("tier2PriceGhs")?.toString() ?? "0") || 0;
+      const tier2Capacity = parseInt(formData.get("tier2Capacity")?.toString() ?? "50", 10) || 50;
+      await supabase.from("event_ticket_tiers").insert({
+        event_id: newEventId,
+        name: tier2Name,
+        price_minor: Math.round(tier2PriceGhs * 100),
+        capacity: tier2Capacity,
+        is_active: true,
+        sort_order: 2,
+      });
+    }
+
+    revalidatePath(`/organizer/${organizationId}/events`);
+    redirectUrl = `/organizer/${organizationId}/events/${newEventId}`;
+  } catch (err: any) {
+    if (err?.digest?.startsWith?.("NEXT_REDIRECT")) throw err;
+    return { error: err instanceof Error ? err.message : "Failed to create ticketing event." };
+  }
+
+  if (redirectUrl) {
+    redirect(redirectUrl);
+  }
+  return { success: true };
 }
