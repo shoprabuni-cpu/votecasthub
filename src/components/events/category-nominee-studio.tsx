@@ -342,30 +342,16 @@ export function CategoryNomineeStudio({
               </h4>
             </div>
 
-            {filteredNominees.length === 0 && (
-              <div className="flex items-start gap-3 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 p-5 dark:border-[#223028] dark:bg-[#141b16]/30">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 shadow-2xs dark:bg-[#0c120e] dark:text-emerald-400">
-                  <Icon name="users" size={19} />
-                </span>
-                <div>
-                  <h5 className="text-sm font-bold text-stone-900 dark:text-stone-100">
-                    {canManage && isDraft ? "Add your first nominee" : "No nominees in this category yet"}
-                  </h5>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
-                    {canManage && isDraft
-                      ? activeCategory
-                        ? "Enter their name in the form below. A photo portrait and brief biography can also be added."
-                        : "Choose a category, then add the people voters can choose."
-                      : "Nominees will appear here once added."}
-                  </p>
-                </div>
+            {/* Add Nominee Form if a specific category is selected */}
+            {canManage && isDraft && activeCategory && (
+              <div className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]">
+                <NomineeForm key={activeCategory.id} categoryId={activeCategory.id} backTo={pagePath} />
               </div>
             )}
 
-            {/* Inline Add Nominee Form if a specific category is selected */}
-            {canManage && isDraft && activeCategory && (
-              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/20 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                <NomineeForm key={activeCategory.id} categoryId={activeCategory.id} backTo={pagePath} />
+            {!canManage && filteredNominees.length === 0 && (
+              <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-6 text-center dark:border-[#1c2721] dark:bg-[#0c120e]">
+                <p className="text-xs text-stone-500 dark:text-stone-400">No nominees in this category yet.</p>
               </div>
             )}
 

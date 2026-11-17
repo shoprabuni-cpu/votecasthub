@@ -418,33 +418,24 @@ export function EventDetailsForm({
                 className="space-y-6"
               >
                 <div className="border-b border-stone-100 pb-4 dark:border-[#1c2721]">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
-                      [ 01 // BASICS & TIMELINE ]
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-                      Essential Setup
-                    </span>
-                  </div>
-                  <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+                  <h2 className="font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
                     What are you celebrating?
                   </h2>
                   <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                    Give your event a memorable title, brief context, and set the voting window in Ghana time.
+                    Give your event an official title, optional story, and set the voting window in Ghana time.
                   </p>
                 </div>
 
                 <div className="space-y-5">
                   {/* Event Format Selector */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300">
-                        [ FORMAT // ARCHITECTURE ] <span className="text-emerald-700 dark:text-emerald-400">*</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                        Event Format
                       </label>
-                      <span className="text-[10px] text-stone-400 dark:text-stone-500">Choose event type</span>
+                      <span className="text-[11px] text-stone-400 dark:text-stone-500">Choose type</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setEventType("voting")}
@@ -455,7 +446,7 @@ export function EventDetailsForm({
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className="text-base">🗳️</span>
+                          <span>🗳️</span>
                           <span className="text-xs font-bold">Voting Contest</span>
                         </div>
                         <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Awards, polls & elections</p>
@@ -470,7 +461,7 @@ export function EventDetailsForm({
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className="text-base">🎟️</span>
+                          <span>🎟️</span>
                           <span className="text-xs font-bold">Tickets Only</span>
                         </div>
                         <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Concerts, summits, passes</p>
@@ -485,7 +476,7 @@ export function EventDetailsForm({
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className="text-base">🎟️ + 🗳️</span>
+                          <span>🎟️ + 🗳️</span>
                           <span className="text-xs font-bold">Voting + Tickets</span>
                         </div>
                         <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Awards with ticketed gala</p>
@@ -494,13 +485,13 @@ export function EventDetailsForm({
                   </div>
 
                   {/* Event Name */}
-                  <div className="rounded-2xl border border-stone-200/90 bg-stone-50/30 p-4 transition-all focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-emerald-600/10 dark:border-[#1c2721] dark:bg-[#141b16]/30 dark:focus-within:border-emerald-500 dark:focus-within:bg-[#0c120e]">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label htmlFor="input-event-name" className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
-                        Official Event Name <span className="text-emerald-700 dark:text-emerald-400">*</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="input-event-name" className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                        Official Event Name <span className="text-emerald-600 dark:text-emerald-400">*</span>
                       </label>
-                      <span className="font-mono text-[10px] text-stone-400 dark:text-stone-500">
-                        [{String(values.name.length).padStart(3, "0")} / 160]
+                      <span className="font-mono text-[10px] text-stone-400">
+                        {values.name.length} / 160
                       </span>
                     </div>
                     <input
@@ -511,18 +502,18 @@ export function EventDetailsForm({
                       value={values.name}
                       onChange={(e) => updateValue("name", e.target.value)}
                       placeholder="e.g. AAMUSTED Student Choice Awards 2026"
-                      className="w-full bg-transparent text-sm sm:text-base font-semibold text-stone-900 placeholder:text-stone-400 focus:outline-none dark:text-stone-100 dark:placeholder:text-stone-600"
+                      className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100 dark:placeholder:text-stone-600"
                     />
-                    <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400">
                       Appears on voter ballots, digital certificates, and share previews.
                     </p>
                   </div>
 
                   {/* Venue & Time for Tickets */}
                   {(eventType === "ticketing" || eventType === "hybrid") && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/70 dark:bg-amber-950/20 dark:border-amber-900/40">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-amber-50/60 border border-amber-200/70 dark:bg-amber-950/20 dark:border-amber-900/40">
                       <div>
-                        <label htmlFor="input-venue-name" className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block mb-1">
+                        <label htmlFor="input-venue-name" className="text-xs font-semibold text-stone-800 dark:text-stone-200 block mb-1">
                           Venue / Location Name
                         </label>
                         <input
@@ -531,11 +522,11 @@ export function EventDetailsForm({
                           value={venueName}
                           onChange={(e) => { markChanged(); setVenueName(e.target.value); }}
                           placeholder="e.g. Accra International Conference Centre"
-                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-100"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100"
                         />
                       </div>
                       <div>
-                        <label htmlFor="input-doors-open" className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block mb-1">
+                        <label htmlFor="input-doors-open" className="text-xs font-semibold text-stone-800 dark:text-stone-200 block mb-1">
                           Doors Open / Red Carpet Time
                         </label>
                         <input
@@ -544,20 +535,20 @@ export function EventDetailsForm({
                           value={doorsOpenTime}
                           onChange={(e) => { markChanged(); setDoorsOpenTime(e.target.value); }}
                           placeholder="e.g. 7:00 PM GMT"
-                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-100"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100"
                         />
                       </div>
                     </div>
                   )}
 
                   {/* Description */}
-                  <div className="rounded-2xl border border-stone-200/90 bg-stone-50/30 p-4 transition-all focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-emerald-600/10 dark:border-[#1c2721] dark:bg-[#141b16]/30 dark:focus-within:border-emerald-500 dark:focus-within:bg-[#0c120e]">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label htmlFor="input-event-description" className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="input-event-description" className="text-xs font-semibold text-stone-700 dark:text-stone-300">
                         Event Story & Context <span className="text-stone-400 font-normal">· optional</span>
                       </label>
-                      <span className="font-mono text-[10px] text-stone-400 dark:text-stone-500">
-                        [{String(values.description.length).padStart(4, "0")} / 5000]
+                      <span className="font-mono text-[10px] text-stone-400">
+                        {values.description.length} / 5000
                       </span>
                     </div>
                     <textarea
@@ -567,25 +558,18 @@ export function EventDetailsForm({
                       value={values.description}
                       onChange={(e) => updateValue("description", e.target.value)}
                       placeholder="Briefly describe what this awards ceremony, contest, or election stands for..."
-                      className="w-full resize-none bg-transparent text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none dark:text-stone-100 dark:placeholder:text-stone-600 leading-relaxed"
+                      className="w-full resize-none rounded-xl border border-stone-300 bg-white p-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100 dark:placeholder:text-stone-600 leading-relaxed"
                     />
                   </div>
 
-                  {/* Date Pickers with Ghana Helpers */}
-                  <div className="rounded-2xl border border-stone-200/90 bg-stone-50/40 p-4 sm:p-5 dark:border-[#1c2721] dark:bg-[#141b16]/40 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200/60 pb-3 dark:border-[#1c2721]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] font-bold tracking-wider text-emerald-800 uppercase dark:text-emerald-400">
-                          [ SCHEDULE // GMT +00:00 GHANA ]
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300">
-                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600 dark:bg-emerald-400" />
-                          Ghana Telco Time
-                        </span>
-                      </div>
-                      {/* Presets */}
+                  {/* Date Pickers */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                        Voting Window (Ghana GMT)
+                      </label>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-stone-400 dark:text-stone-500 font-mono hidden sm:inline">PRESETS:</span>
+                        <span className="text-[10px] text-stone-400 font-mono hidden sm:inline">PRESETS:</span>
                         {(["7days", "14days", "30days"] as const).map((preset) => {
                           const label = preset === "7days" ? "+7 Days" : preset === "14days" ? "+14 Days" : "+30 Days";
                           return (
@@ -593,7 +577,7 @@ export function EventDetailsForm({
                               key={preset}
                               type="button"
                               onClick={() => applyDatePreset(preset)}
-                              className="rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-xs font-bold text-stone-700 shadow-2xs hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-900 transition-all active:scale-95 cursor-pointer dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:border-emerald-600"
+                              className="rounded-lg border border-stone-200 bg-white px-2 py-0.5 text-xs font-semibold text-stone-700 hover:border-emerald-600 hover:text-emerald-900 transition-all dark:border-[#223028] dark:bg-[#141b16] dark:text-stone-300 cursor-pointer"
                             >
                               {label}
                             </button>
@@ -602,9 +586,9 @@ export function EventDetailsForm({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="rounded-xl border border-stone-200 bg-white p-3 dark:border-[#223028] dark:bg-[#0c120e]">
-                        <label htmlFor="input-starts-at" className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 dark:text-stone-400 mb-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="input-starts-at" className="block text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-1">
                           Voting Opens (GMT)
                         </label>
                         <input
@@ -612,11 +596,11 @@ export function EventDetailsForm({
                           type="datetime-local"
                           value={values.startsAt}
                           onChange={(e) => updateValue("startsAt", e.target.value)}
-                          className="w-full bg-transparent font-mono text-xs sm:text-sm font-semibold text-stone-900 focus:outline-none dark:text-stone-100"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold font-mono text-stone-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100"
                         />
                       </div>
-                      <div className="rounded-xl border border-stone-200 bg-white p-3 dark:border-[#223028] dark:bg-[#0c120e]">
-                        <label htmlFor="input-ends-at" className="block text-[11px] font-bold uppercase tracking-wider text-stone-600 dark:text-stone-400 mb-1">
+                      <div>
+                        <label htmlFor="input-ends-at" className="block text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-1">
                           Voting Closes (GMT)
                         </label>
                         <input
@@ -624,19 +608,15 @@ export function EventDetailsForm({
                           type="datetime-local"
                           value={values.endsAt}
                           onChange={(e) => updateValue("endsAt", e.target.value)}
-                          className="w-full bg-transparent font-mono text-xs sm:text-sm font-semibold text-stone-900 focus:outline-none dark:text-stone-100"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold font-mono text-stone-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100"
                         />
                       </div>
                     </div>
 
                     {getEventDurationLabel(values.startsAt, values.endsAt) && (
-                      <div className="flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-200/80 px-3.5 py-2 text-xs font-medium text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
-                        <span className="flex items-center gap-1.5 font-bold">
-                          <span>⏳</span>
-                          <span>Active Period: {getEventDurationLabel(values.startsAt, values.endsAt)}</span>
-                        </span>
-                        <span className="font-mono text-[10px] text-emerald-800 dark:text-emerald-400">Accra GMT</span>
-                      </div>
+                      <p className="text-xs font-mono text-emerald-800 dark:text-emerald-400 pt-1">
+                        ⏳ Active duration: {getEventDurationLabel(values.startsAt, values.endsAt)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -654,16 +634,8 @@ export function EventDetailsForm({
                 className="space-y-6"
               >
                 <div className="border-b border-stone-100 pb-4 dark:border-[#1c2721]">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">
-                      [ 03 // RULES & CHANNELS ]
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      {votingMode === "paid" ? "Paystack Mobile Money" : "Fair Ballot System"}
-                    </span>
-                  </div>
-                  <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-                    {eventType === "ticketing" ? "Ticketed Event Setup" : "How should voters participate?"}
+                  <h2 className="font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+                    {eventType === "ticketing" ? "Ticketed Event Setup" : "Voting & Participation Rules"}
                   </h2>
                   <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                     {eventType === "ticketing"
@@ -673,7 +645,7 @@ export function EventDetailsForm({
                 </div>
 
                 {eventType === "ticketing" && (
-                  <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 space-y-1.5">
+                  <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 space-y-1.5">
                     <div className="font-bold flex items-center gap-1.5 text-sm text-amber-950 dark:text-amber-100">
                       <span>🎟️</span> Standalone Event Ticketing
                     </div>
@@ -684,7 +656,7 @@ export function EventDetailsForm({
                 )}
 
                 {/* Handcrafted Mode Selector Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Free Voting */}
                   <button
                     type="button"
@@ -693,7 +665,7 @@ export function EventDetailsForm({
                       setVotingMode("free");
                       setStepError(null);
                     }}
-                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
+                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-4 sm:p-5 transition-all duration-200 select-none ${
                       votingMode === "free"
                         ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/30 dark:ring-emerald-500"
                         : "border-stone-200 bg-stone-50/30 hover:border-stone-300 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/40 dark:hover:border-stone-700"
@@ -720,9 +692,6 @@ export function EventDetailsForm({
                     <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
                       Voters pay nothing. Enforce fairness through phone SMS verification, secret VIP passcodes, or campus rosters.
                     </p>
-                    <div className="mt-3 flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-800 dark:text-emerald-400">
-                      <span>✦ SMS / WHATSAPP / VIP VOUCHERS</span>
-                    </div>
                   </button>
 
                   {/* Paid Voting */}
@@ -733,7 +702,7 @@ export function EventDetailsForm({
                       setVotingMode("paid");
                       setStepError(null);
                     }}
-                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-200 select-none ${
+                    className={`w-full text-left relative cursor-pointer rounded-2xl border-2 p-4 sm:p-5 transition-all duration-200 select-none ${
                       votingMode === "paid"
                         ? "border-amber-600 bg-amber-950/5 ring-1 ring-amber-600 shadow-xs dark:border-amber-500 dark:bg-amber-950/30 dark:ring-amber-500"
                         : "border-stone-200 bg-stone-50/30 hover:border-stone-300 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/40 dark:hover:border-stone-700"
@@ -760,25 +729,22 @@ export function EventDetailsForm({
                     <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
                       Voters purchase votes via MTN MoMo, Telecel Cash, AT Money, and Visa/Mastercard. No SMS credits consumed.
                     </p>
-                    <div className="mt-3 flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-800 dark:text-amber-400">
-                      <span>₵ POWERED BY PAYSTACK GHANA</span>
-                    </div>
                   </button>
                 </div>
 
                 {/* Sub-config depending on mode */}
                 {votingMode === "paid" ? (
-                  <div className="rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 space-y-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+                  <div className="rounded-2xl border border-amber-200/80 bg-amber-50/30 p-4 sm:p-5 space-y-3 dark:border-amber-900/40 dark:bg-amber-950/20">
                     <div className="flex items-center justify-between">
-                      <label htmlFor="input-price-ghs" className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
-                        [ RATE // PRICE PER VOTE ]
+                      <label htmlFor="input-price-ghs" className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
+                        Price per Vote
                       </label>
                       <span className="font-mono text-xs font-bold text-amber-800 dark:text-amber-300">
                         GH₵ {(Number.parseFloat(values.priceGhs) || 0).toFixed(2)} / vote
                       </span>
                     </div>
-                    <div className="relative rounded-2xl border border-stone-300 bg-white dark:border-[#223028] dark:bg-[#0c120e] p-2 focus-within:border-amber-600 focus-within:ring-2 focus-within:ring-amber-600/20">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-4 font-bold text-stone-500 dark:text-stone-400 text-sm">
+                    <div className="relative rounded-xl border border-stone-300 bg-white dark:border-[#223028] dark:bg-[#0c120e] p-1.5 focus-within:border-amber-600 focus-within:ring-2 focus-within:ring-amber-600/20">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 font-bold text-stone-500 dark:text-stone-400 text-sm">
                         GH₵
                       </span>
                       <input
@@ -789,12 +755,12 @@ export function EventDetailsForm({
                         min="0.01"
                         value={values.priceGhs}
                         onChange={(e) => updateValue("priceGhs", e.target.value)}
-                        className="w-full bg-transparent pl-12 pr-4 py-2 font-mono text-base font-bold text-stone-900 focus:outline-none dark:text-stone-100"
+                        className="w-full bg-transparent pl-11 pr-3 py-1.5 font-mono text-base font-bold text-stone-900 focus:outline-none dark:text-stone-100"
                       />
                     </div>
                     {/* Quick Price Chips */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] text-stone-500 dark:text-stone-400">POPULAR:</span>
+                      <span className="font-mono text-[10px] text-stone-500 dark:text-stone-400">QUICK:</span>
                       {["0.50", "1.00", "2.00", "5.00", "10.00"].map((p) => (
                         <button
                           key={p}
@@ -818,288 +784,201 @@ export function EventDetailsForm({
                         const minVotes = Math.ceil(1.00 / numP);
                         const minTotal = (minVotes * numP).toFixed(2);
                         return (
-                          <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs space-y-1 dark:border-amber-900/50 dark:bg-amber-950/40">
-                            <div className="flex items-center gap-1.5 font-bold text-amber-950 dark:text-amber-200">
-                              <span>ℹ️</span>
-                              <span>Mobile Money Minimum Checkout: GH₵ 1.00</span>
-                            </div>
+                          <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 text-xs space-y-1 dark:border-amber-900/50 dark:bg-amber-950/40">
                             <p className="text-[11px] text-amber-900 dark:text-amber-300 leading-relaxed">
-                              Paystack and Ghana telcos (MTN MoMo, Telecel Cash, AT Money) enforce a minimum transaction size of <strong>GH₵ 1.00</strong>. At <strong>GH₵ {numP.toFixed(2)}</strong> per vote, voters will be prompted to purchase a minimum package of <strong>{minVotes} votes (GH₵ {minTotal})</strong> at checkout.
+                              Ghana telcos enforce a minimum checkout of <strong>GH₵ 1.00</strong>. At <strong>GH₵ {numP.toFixed(2)}</strong>/vote, voters will checkout a minimum package of <strong>{minVotes} votes (GH₵ {minTotal})</strong>.
                             </p>
                           </div>
                         );
                       }
                       return null;
                     })()}
-
-                    <p className="text-[11px] text-amber-900/80 dark:text-amber-400/80 leading-relaxed font-mono">
-                      💡 Payouts: Connect your organization's verified Paystack account in Payments before going live.
-                    </p>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-stone-200/90 bg-stone-50/40 p-5 space-y-6 dark:border-[#1c2721] dark:bg-[#141b16]/40">
-                    {/* 1. Who is allowed to vote? */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
-                          1. Who is allowed to vote?
-                        </label>
-                        <span className="font-mono text-[10px] text-stone-400 dark:text-stone-500">AUDIENCE VERIFICATION</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {/* Option 1: Open to Public */}
-                        <button
-                          type="button"
-                          onClick={() => setVerificationMethod("phone")}
-                          className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                            verificationMethod === "phone"
-                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:hover:border-stone-700"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xl">🌍</span>
-                            {verificationMethod === "phone" && (
-                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold dark:bg-emerald-600">
-                                ✓
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Open to Public</h4>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">
-                            Ghana phone or WhatsApp OTP verification. 1 ballot per person.
-                          </p>
-                        </button>
-
-                        {/* Option 2: VIP Passcodes */}
-                        <button
-                          type="button"
-                          onClick={() => setVerificationMethod("invite_code")}
-                          className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                            verificationMethod === "invite_code"
-                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:hover:border-stone-700"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xl">🎟️</span>
-                            {verificationMethod === "invite_code" && (
-                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold dark:bg-emerald-600">
-                                ✓
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">VIP / Delegate Codes</h4>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">
-                            Secret 1-time vouchers (e.g. VIP-8492) distributed to delegates.
-                          </p>
-                        </button>
-
-                        {/* Option 3: Voter Roll */}
-                        <button
-                          type="button"
-                          onClick={() => setVerificationMethod("voter_list")}
-                          className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                            verificationMethod === "voter_list"
-                              ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:hover:border-stone-700"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xl">🎓</span>
-                            {verificationMethod === "voter_list" && (
-                              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-800 text-white text-[10px] font-bold dark:bg-emerald-600">
-                                ✓
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Restricted Voter Roll</h4>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">
-                            Student IDs, Index Numbers, or Staff Emails uploaded on a roster.
-                          </p>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 2. Vote Allowance per Person */}
-                    <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-3.5 shadow-2xs dark:border-[#223028] dark:bg-[#0c120e]">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <h4 className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
-                            2. Vote Allowance per Person
-                          </h4>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400">How many times each verified voter can participate.</p>
-                        </div>
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[10px] font-bold text-emerald-950 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          <span>✦</span>
-                          <span>{audienceContext[verificationMethod].badge}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        {/* Option A: 1 vote per category */}
-                        <button
-                          type="button"
-                          onClick={() => selectAllowanceMode("one_per_category")}
-                          className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-                            allowanceMode === "one_per_category"
-                              ? "border-emerald-800 bg-emerald-50/40 ring-1 ring-emerald-800 shadow-2xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 dark:border-[#223028] dark:bg-[#0c120e]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-stone-900 dark:text-stone-100">
-                              1 Vote in Every Category <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-[11px]">(Recommended)</span>
-                            </span>
-                            <span className="font-mono text-[10px] font-bold bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded">
-                              Standard Ballot
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
-                            {audienceContext[verificationMethod].catDesc}
-                          </p>
-                        </button>
-
-                        {/* Option B: 1 single vote */}
-                        <button
-                          type="button"
-                          onClick={() => selectAllowanceMode("single_choice")}
-                          className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-                            allowanceMode === "single_choice"
-                              ? "border-emerald-800 bg-emerald-50/40 ring-1 ring-emerald-800 shadow-2xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 dark:border-[#223028] dark:bg-[#0c120e]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-stone-900 dark:text-stone-100">1 Single Vote Across Entire Event</span>
-                            <span className="font-mono text-[10px] font-bold bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded">
-                              Strict Single Choice
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
-                            {audienceContext[verificationMethod].singleDesc}
-                          </p>
-                        </button>
-
-                        {/* Option C: Custom limit */}
-                        <div
-                          onClick={() => selectAllowanceMode("custom_limit")}
-                          className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                            allowanceMode === "custom_limit"
-                              ? "border-emerald-800 bg-emerald-50/40 ring-1 ring-emerald-800 shadow-2xs dark:border-emerald-500 dark:bg-emerald-950/40"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 dark:border-[#223028] dark:bg-[#0c120e]"
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-stone-900 dark:text-stone-100">Custom Vote Allowance:</span>
-                            <div className="inline-flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-lg border border-stone-300 dark:border-stone-700">
-                              <input
-                                type="number"
-                                min="2"
-                                max="100"
-                                value={allowanceMode === "custom_limit" ? values.freeVoteLimit : "3"}
-                                onChange={(e) => {
-                                  selectAllowanceMode("custom_limit");
-                                  updateValue("freeVoteLimit", e.target.value);
-                                }}
-                                className="w-12 bg-transparent text-center font-bold text-xs text-stone-900 dark:text-stone-100 focus:outline-none"
-                              />
-                              <span className="text-stone-500 dark:text-stone-400 font-semibold text-[11px]">votes per voter</span>
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
-                            {audienceContext[verificationMethod].customDesc(allowanceMode === "custom_limit" ? values.freeVoteLimit : "3")}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Timing note for VIP Codes */}
-                    {verificationMethod === "invite_code" && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs space-y-1 dark:border-amber-900/40 dark:bg-amber-950/30">
-                        <div className="flex items-center gap-2 text-amber-950 dark:text-amber-200 font-bold">
-                          <span>🎟️</span>
-                          <span>Generate Single-Use VIP Passcodes</span>
-                        </div>
-                        <p className="text-[11px] text-amber-900 dark:text-amber-300 leading-relaxed">
-                          You will be able to generate 50, 100, or custom batches of secret passcodes with a 1-click Excel download in your Event Workspace right after saving.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Timing note for Voter Roll */}
-                    {verificationMethod === "voter_list" && (
-                      <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 text-xs space-y-1 dark:border-sky-900/40 dark:bg-sky-950/30">
-                        <div className="flex items-center gap-2 text-sky-950 dark:text-sky-200 font-bold">
-                          <span>🎓</span>
-                          <span>Import Student / Member Roster</span>
-                        </div>
-                        <p className="text-[11px] text-sky-900 dark:text-sky-300 leading-relaxed">
-                          You will be able to upload your Excel or CSV spreadsheet of Student IDs, Index Numbers, or institutional emails in your Event Workspace right after saving.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* SMS Credit & Phone Channel Transparency */}
-                    {verificationMethod === "phone" && (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
-                              💬
-                            </span>
-                            <div>
-                              <p className="text-xs font-bold text-stone-900 dark:text-stone-100">
-                                {smsBalance === null
-                                  ? "SMS Verification Ready"
-                                  : smsBalance === 0
-                                  ? "0 SMS Credits Remaining"
-                                  : `${smsBalance.toLocaleString()} SMS Credits Available`}
-                              </p>
-                              <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                                Arkesel SMS OTP delivery for Ghanaian phone numbers
-                              </p>
-                            </div>
-                          </div>
-                          <a
-                            href={`/organizer/${organizationId}/credits`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex min-h-9 items-center rounded-lg border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-stone-50 shadow-2xs dark:border-[#223028] dark:bg-[#0c120e] dark:text-emerald-300"
-                          >
-                            Top up SMS Credits →
-                          </a>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-emerald-200/60 dark:border-emerald-900/40 text-[11px]">
-                          <div className="rounded-lg bg-white p-2.5 border border-emerald-100 dark:bg-[#0c120e] dark:border-[#223028]">
-                            <span className="font-bold text-emerald-950 dark:text-emerald-300 block">💬 WhatsApp: Free</span>
-                            <span className="text-stone-500 dark:text-stone-400 leading-snug">
-                              Voters are authenticated natively. Uses 0 SMS credits.
-                            </span>
-                          </div>
-                          <div className="rounded-lg bg-white p-2.5 border border-sky-100 dark:bg-[#0c120e] dark:border-[#223028]">
-                            <span className="font-bold text-sky-950 dark:text-sky-300 block">✈️ Telegram: Free</span>
-                            <span className="text-stone-500 dark:text-stone-400 leading-snug">
-                              Native contact verification. Uses 0 SMS credits.
-                            </span>
-                          </div>
-                          <div className="rounded-lg bg-white p-2.5 border border-emerald-100 dark:bg-[#0c120e] dark:border-[#223028]">
-                            <span className="font-bold text-stone-900 dark:text-stone-100 block">🌐 Web Phone OTP: 1 Credit</span>
-                            <span className="text-stone-500 dark:text-stone-400 leading-snug">
-                              Sending a 6-digit SMS OTP consumes 1 SMS credit per voter.
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/30 p-4 text-xs text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+                    <p className="font-bold">Free voting is active</p>
+                    <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400 mt-0.5">
+                      Voters cast ballots for free after verifying their phone number. By default, each verified voter gets 1 vote in every category.
+                    </p>
                   </div>
                 )}
+
+                {/* Progressive Disclosure: Advanced Ballot Rules */}
+                <details className="group rounded-2xl border border-stone-200/80 bg-stone-50/40 p-4.5 transition-colors dark:border-[#1c2721] dark:bg-[#141b16]/30">
+                  <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200">
+                    <span className="flex items-center gap-2">
+                      <span>⚙️ Advanced Access & Ballot Rules</span>
+                      <span className="text-[10px] text-stone-400 font-normal hidden sm:inline">(Voter lists, passcodes, limits, tally visibility)</span>
+                    </span>
+                    <span className="text-[10px] text-stone-400 transition-transform group-open:rotate-180">▼</span>
+                  </summary>
+
+                  <div className="mt-5 space-y-6 border-t border-stone-200/60 pt-5 dark:border-[#1c2721]">
+                    {/* Free voting options inside advanced */}
+                    {votingMode === "free" && (
+                      <div className="space-y-5">
+                        {/* 1. Who is allowed to vote? */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block">
+                            Who is allowed to vote?
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => setVerificationMethod("phone")}
+                              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                                verificationMethod === "phone"
+                                  ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
+                                  : "border-stone-200 bg-white hover:border-stone-300 dark:border-[#223028] dark:bg-[#0c120e]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-base">🌍</span>
+                                {verificationMethod === "phone" && <span className="text-emerald-800 dark:text-emerald-400 font-bold text-xs">✓</span>}
+                              </div>
+                              <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Open to Public</h4>
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">Phone/WhatsApp OTP</p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setVerificationMethod("invite_code")}
+                              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                                verificationMethod === "invite_code"
+                                  ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
+                                  : "border-stone-200 bg-white hover:border-stone-300 dark:border-[#223028] dark:bg-[#0c120e]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-base">🎟️</span>
+                                {verificationMethod === "invite_code" && <span className="text-emerald-800 dark:text-emerald-400 font-bold text-xs">✓</span>}
+                              </div>
+                              <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">VIP / Delegate Codes</h4>
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">1-time voucher codes</p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setVerificationMethod("voter_list")}
+                              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                                verificationMethod === "voter_list"
+                                  ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
+                                  : "border-stone-200 bg-white hover:border-stone-300 dark:border-[#223028] dark:bg-[#0c120e]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-base">🎓</span>
+                                {verificationMethod === "voter_list" && <span className="text-emerald-800 dark:text-emerald-400 font-bold text-xs">✓</span>}
+                              </div>
+                              <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">Restricted Voter Roll</h4>
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug mt-0.5">Student/Member roster</p>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Vote Allowance per Person */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block">
+                            Vote Allowance per Person
+                          </label>
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => selectAllowanceMode("one_per_category")}
+                              className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                                allowanceMode === "one_per_category"
+                                  ? "border-emerald-800 bg-emerald-50/40 ring-1 ring-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/40"
+                                  : "border-stone-200 bg-white hover:bg-stone-50/50 dark:border-[#223028] dark:bg-[#0c120e]"
+                              }`}
+                            >
+                              <span className="text-xs font-bold text-stone-900 dark:text-stone-100 block">
+                                1 Vote in Every Category (Recommended)
+                              </span>
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                                Voters cast 1 vote in each award category.
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => selectAllowanceMode("single_choice")}
+                              className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                                allowanceMode === "single_choice"
+                                  ? "border-emerald-800 bg-emerald-50/40 ring-1 ring-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/40"
+                                  : "border-stone-200 bg-white hover:bg-stone-50/50 dark:border-[#223028] dark:bg-[#0c120e]"
+                              }`}
+                            >
+                              <span className="text-xs font-bold text-stone-900 dark:text-stone-100 block">
+                                1 Single Vote Across Entire Event
+                              </span>
+                              <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                                A voter can only vote once in the whole competition.
+                              </p>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Results Visibility */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block">
+                        When should voters see live results?
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[
+                          { val: "organizer_only", label: "Only the Organizer", desc: "Keep tallies hidden until announcement." },
+                          { val: "live", label: "Real-time Live Tally", desc: "Voters see rankings as votes arrive." },
+                          { val: "after_close", label: "After Voting Closes", desc: "Tallies reveal automatically once deadline passes." },
+                          { val: "hidden", label: "Strictly Confidential", desc: "Results never revealed publicly." },
+                        ].map((item) => (
+                          <div
+                            key={item.val}
+                            onClick={() => updateValue("resultsVisibility", item.val)}
+                            className={`cursor-pointer rounded-xl border p-3 transition-all select-none ${
+                              values.resultsVisibility === item.val
+                                ? "border-emerald-800 bg-emerald-950/5 ring-1 ring-emerald-800 shadow-xs dark:border-emerald-500 dark:bg-emerald-950/40"
+                                : "border-stone-200 bg-white hover:border-stone-300 dark:border-[#223028] dark:bg-[#0c120e]"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-stone-900 dark:text-stone-100">{item.label}</span>
+                              {values.resultsVisibility === item.val && (
+                                <span className="h-2 w-2 rounded-full bg-emerald-800 dark:bg-emerald-400" />
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">{item.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Voter Notice / Disclaimer */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="input-voting-rules" className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
+                          Voter Notice or Disclaimers <span className="text-stone-400 font-normal">· optional</span>
+                        </label>
+                        <span className="font-mono text-[10px] text-stone-400">
+                          {values.votingRules.length} / 3000
+                        </span>
+                      </div>
+                      <textarea
+                        id="input-voting-rules"
+                        rows={2}
+                        maxLength={3000}
+                        value={values.votingRules}
+                        onChange={(e) => updateValue("votingRules", e.target.value)}
+                        placeholder="e.g. Only registered students of the Faculty of Engineering may vote..."
+                        className="w-full resize-none rounded-xl border border-stone-300 bg-white p-2.5 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none dark:border-[#223028] dark:bg-[#080b09] dark:text-stone-100 dark:placeholder:text-stone-600 leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </details>
               </motion.div>
             )}
 
-            {(step === 3 || (grouped && step === 2)) && (
+            {(!grouped && step === 3) && (
               <motion.div
                 key="step-3"
                 custom={direction}
