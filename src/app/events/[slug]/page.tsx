@@ -279,7 +279,6 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
   const ussdInfo = await loadUssdInstructions(event.id);
   const presentation = eventPresentation(event);
   const status = presentation.label;
-  const votePath = `/events/${slug}`;
   const resultsByNominee = new Map(publicResults.map((result) => [result.nominee_id, Number(result.vote_count)]));
   const usedByCategory = new Map<string, number>();
   const usedByNominee = new Map<string, number>();
@@ -295,6 +294,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
   const focusedNominee = focusedNomineeId ? nominees.find((n) => n.id === focusedNomineeId) : null;
   const focusedCategory = focusedNominee ? categories.find((c) => c.id === focusedNominee.category_id) : null;
   const focusedImageUrl = focusedNominee ? imageUrlByPath.get(focusedNominee.image_path ?? "") : null;
+  const votePath = focusedNominee ? `/events/${slug}?nominee=${focusedNominee.id}` : `/events/${slug}`;
   const focusedUsed = focusedNominee
     ? event.voting_rule === "per_nominee_limit"
       ? usedByNominee.get(focusedNominee.id) ?? 0
