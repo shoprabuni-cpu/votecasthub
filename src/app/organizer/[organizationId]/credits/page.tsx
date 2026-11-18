@@ -98,8 +98,7 @@ export default async function CreditsPage({ params }: Props) {
               SMS Credits & Coverage
             </h1>
             <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 max-w-xl">
-              Voters never pay for free elections. SMS credits power one-time phone passcodes to
-              guarantee one-vote-per-person ballot fairness across Ghana.
+              SMS credits are exclusively required for verifying phone numbers in free voting elections. All other SMS (ticket passes, receipts, alerts) are 100% free and covered by the platform.
             </p>
           </div>
         </div>
@@ -128,8 +127,8 @@ export default async function CreditsPage({ params }: Props) {
                 {creditUnavailable
                   ? "We could not load the balance right now. Please refresh the page."
                   : balance === 0
-                  ? "You have zero credits remaining. Top up below before running free voter verification."
-                  : "Credits are deducted automatically as Ghanaian voters request SMS verification codes."}
+                  ? "You have zero credits remaining. Top up below before running phone-verified free voting (paid voting and ticketing do not require SMS credits)."
+                  : "Credits are deducted automatically only when Ghanaian voters request phone verification for free voting ballots."}
               </p>
             </div>
 

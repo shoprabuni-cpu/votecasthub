@@ -84,7 +84,7 @@ export function EventReviewSummary({
           ? smsReady
             ? "Credits ready for Ghana SMS delivery"
             : "Top up credits before publishing"
-          : "Not needed for selected method",
+          : "Not needed (Only phone-verified free voting uses SMS credits; all other SMS are free)",
       critical: votingMode === "free" && verificationMethod === "phone",
     },
     {

@@ -172,13 +172,17 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const isTicketOnly = explicitType === "ticketing" || (hasTicketTiers && !hasNomineeCategories);
   const venueReady = Boolean(eventMeta?.venue_name || event.venue_name);
 
+  const hasPaidTiers = activeTiers.some((tier: any) => Number(tier.price_minor) > 0);
+  const ticketPaymentReady = !hasPaidTiers || paidCheckoutReady === true;
+
   const publishReady = isTicketOnly
-    ? datesReady && tiersReady && venueReady
+    ? datesReady && tiersReady && venueReady && ticketPaymentReady
     : datesReady &&
       activeCategories.length > 0 &&
       allCategoriesHaveNominees &&
       checkoutReady &&
       verificationReady &&
+      ticketPaymentReady &&
       !categoriesError &&
       !nomineeError;
 
@@ -187,15 +191,21 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         { label: "Event dates are valid and close in the future", complete: datesReady, section: "tickets" },
         { label: "Venue is specified", complete: venueReady, section: "tickets" },
         { label: "Add at least one active ticket tier", complete: tiersReady, section: "tickets" },
+        ...(hasPaidTiers
+          ? [{ label: "Paystack settlement connected (10% platform fee)", complete: ticketPaymentReady, section: "tickets" }]
+          : []),
         { label: "Event poster / flyer image added (optional)", complete: Boolean(event.image_path), optional: true, section: "tickets" },
       ]
     : [
         { label: verificationReadiness?.message ?? "Voter verification is ready", complete: verificationReady, section: "voting" },
         { label: "Voting dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
         {
-          label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected",
+          label: event.voting_mode === "free" ? "A selectable voting rule is set" : "Payment checkout is connected (10% platform fee)",
           complete: checkoutReady, section: "voting", editor: true,
         },
+        ...(hasPaidTiers
+          ? [{ label: "Ticketing payment connected (10% platform fee)", complete: ticketPaymentReady, section: "tickets" }]
+          : []),
         { label: "Add at least one category", complete: activeCategories.length > 0, section: "nominees" },
         { label: "Add a nominee to each category", complete: allCategoriesHaveNominees, section: "nominees" },
         { label: "Event cover image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
