@@ -12,8 +12,8 @@ const DynamicFolder = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-52 w-52 items-center justify-center rounded-2xl border border-stone-800 bg-[#0d1410] text-xs font-medium text-stone-500">
-        Loading 3D folder...
+      <div className="flex h-52 w-52 items-center justify-center rounded-2xl border border-stone-200 bg-stone-50 text-xs font-medium text-stone-400 dark:border-stone-800 dark:bg-[#0d1410] dark:text-stone-500">
+        Loading folder...
       </div>
     ),
   }
@@ -227,19 +227,10 @@ export function GuidesFolderShowcase() {
 
   return (
     <div className="w-full">
-      {/* 3D Solid Folders Interactive Showcase */}
-      <div className="relative my-8 flex flex-col items-center justify-center gap-16 rounded-3xl border border-stone-800/80 bg-[#0a0f0c]/90 px-6 py-12 sm:px-12 sm:py-16 md:flex-row md:gap-24 lg:gap-36 shadow-2xl backdrop-blur-sm">
-        {/* Subtle top indicator bar */}
-        <div className="absolute top-4 left-6 right-6 flex items-center justify-between text-[11px] font-semibold tracking-wider text-stone-400 uppercase">
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            Interactive 3D Folders • Click to open &amp; explore guides
-          </span>
-          <span className="hidden sm:inline text-stone-500">Tap any sheet to open guide</span>
-        </div>
-
+      {/* 3D Solid Folders Display (spaced generously with clean layout) */}
+      <div className="my-8 flex flex-col items-center justify-center gap-16 py-8 sm:py-12 md:flex-row md:gap-24 lg:gap-36">
         {/* Folder 1: Organizer Playbooks (Solid Emerald) */}
-        <div className="flex flex-col items-center pt-4">
+        <div className="flex flex-col items-center">
           <div className="py-2">
             <DynamicFolder
               label="Organizer Guides"
@@ -258,15 +249,15 @@ export function GuidesFolderShowcase() {
             />
           </div>
           <div className="mt-5 text-center">
-            <h3 className="text-base font-semibold text-white tracking-tight">Organizer Playbooks</h3>
-            <p className="mt-1 text-xs text-stone-400 max-w-[240px]">
+            <h3 className="text-base font-semibold text-stone-900 dark:text-white tracking-tight">Organizer Playbooks</h3>
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 max-w-[240px]">
               Step-by-step blueprints for awards, campus elections, security &amp; event promotion.
             </p>
           </div>
         </div>
 
         {/* Folder 2: Voter Channels (Solid Sapphire) */}
-        <div className="flex flex-col items-center pt-4">
+        <div className="flex flex-col items-center">
           <div className="py-2">
             <DynamicFolder
               label="Voter Channels"
@@ -285,8 +276,8 @@ export function GuidesFolderShowcase() {
             />
           </div>
           <div className="mt-5 text-center">
-            <h3 className="text-base font-semibold text-white tracking-tight">Voter Channels &amp; Bots</h3>
-            <p className="mt-1 text-xs text-stone-400 max-w-[240px]">
+            <h3 className="text-base font-semibold text-stone-900 dark:text-white tracking-tight">Voter Channels &amp; Bots</h3>
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 max-w-[240px]">
               Complete walkthroughs for WhatsApp bot, Telegram bot, and offline USSD dialing.
             </p>
           </div>
@@ -294,12 +285,12 @@ export function GuidesFolderShowcase() {
       </div>
 
       {/* Tactile Quick-Access Guide Buttons */}
-      <div className="mt-10">
+      <div className="mt-8">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-xs font-bold tracking-widest text-emerald-400 uppercase">
+          <p className="text-xs font-bold tracking-widest text-emerald-800 dark:text-emerald-400 uppercase">
             Quick Guide Directory
           </p>
-          <span className="text-xs text-stone-400">7 guides available</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400">7 guides available</span>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -307,17 +298,17 @@ export function GuidesFolderShowcase() {
             <Link
               key={guide.slug}
               href={`/guides/${guide.slug}`}
-              className="group flex items-center justify-between rounded-xl border border-stone-800 bg-[#0c120e] p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-500/80 hover:bg-[#111a14] hover:shadow-lg hover:shadow-emerald-950/20"
+              className="group flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:shadow-md dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-emerald-500/80 dark:hover:bg-[#111a14]"
             >
               <div className="min-w-0 pr-3">
-                <p className="truncate text-xs font-semibold text-stone-100 group-hover:text-emerald-400 transition-colors">
+                <p className="truncate text-xs font-semibold text-stone-900 group-hover:text-emerald-700 dark:text-stone-100 dark:group-hover:text-emerald-400 transition-colors">
                   {guide.title}
                 </p>
-                <p className="mt-1 line-clamp-1 text-[11px] text-stone-400">
+                <p className="mt-1 line-clamp-1 text-[11px] text-stone-500 dark:text-stone-400">
                   {guide.description}
                 </p>
               </div>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-stone-700 bg-stone-900 text-xs font-bold text-stone-300 transition group-hover:border-emerald-500 group-hover:bg-emerald-500 group-hover:text-black">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs font-bold text-stone-600 transition group-hover:border-emerald-500 group-hover:bg-emerald-600 group-hover:text-white dark:border-[#223329] dark:bg-[#141e18] dark:text-stone-300 dark:group-hover:bg-emerald-500 dark:group-hover:text-black">
                 →
               </span>
             </Link>
