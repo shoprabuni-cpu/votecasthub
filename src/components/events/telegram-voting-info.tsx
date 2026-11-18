@@ -37,7 +37,7 @@ export function TelegramVotingInfo({
   }
 
   return (
-    <section className="rounded-2xl border border-sky-200/80 bg-linear-to-br from-sky-50/50 via-white to-white p-5 shadow-xs transition-colors dark:border-sky-900/40 dark:from-sky-950/20 dark:via-[#0c120e] dark:to-[#141b16] sm:p-6">
+    <section className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-sky-900/40 dark:bg-[#0c120e] sm:p-6">
       <div className="flex items-start gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-100/70 p-1 dark:bg-sky-950 dark:border dark:border-sky-800/40">
           <Image

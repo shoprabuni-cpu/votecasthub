@@ -215,8 +215,8 @@ export function CategoryNomineeStudio({
 
       {/* Main Categories Navigation or Empty State */}
       {categories.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-emerald-200/80 bg-linear-to-br from-emerald-50/40 via-white to-stone-50/50 px-5 py-8 text-center transition-colors dark:border-emerald-800/40 dark:from-emerald-950/20 dark:via-[#0c120e] dark:to-[#141b16] sm:p-10">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-2xs dark:bg-emerald-950 dark:text-emerald-300">
+        <div className="rounded-2xl border border-dashed border-stone-200/80 bg-stone-50/50 px-5 py-8 text-center transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] sm:p-10">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-2xs dark:bg-emerald-950/70 dark:text-emerald-400 dark:border dark:border-emerald-800/40">
             <Icon name="award" size={24} />
           </div>
           <h3 className="mt-4 text-base font-serif font-bold text-stone-900 dark:text-stone-100">

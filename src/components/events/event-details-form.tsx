@@ -427,62 +427,23 @@ export function EventDetailsForm({
                 </div>
 
                 <div className="space-y-5">
-                  {/* Event Format Selector */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-stone-700 dark:text-stone-300">
-                        Event Format
-                      </label>
-                      <span className="text-[11px] text-stone-400 dark:text-stone-500">Choose type</span>
+                  {/* Optional Hybrid Gala Ticket Checkbox */}
+                  <label className="flex items-start gap-2.5 rounded-xl border border-stone-200/80 bg-stone-50/40 p-3 cursor-pointer transition-colors hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/30 dark:hover:bg-[#141b16]/60">
+                    <input
+                      type="checkbox"
+                      checked={eventType === "hybrid"}
+                      onChange={(e) => setEventType(e.target.checked ? "hybrid" : "voting")}
+                      className="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600 dark:border-[#223028] dark:bg-[#080b09]"
+                    />
+                    <div className="text-xs">
+                      <span className="font-semibold text-stone-800 dark:text-stone-200">
+                        🎟️ Also sell gala passes / attendee tickets (Hybrid Event)
+                      </span>
+                      <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                        Enable if this voting contest includes an in-person awards night or gala ceremony with ticketed admission.
+                      </p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEventType("voting")}
-                        className={`rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer ${
-                          eventType === "voting"
-                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600/30 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
-                            : "border-stone-200/90 bg-stone-50/40 text-stone-700 hover:border-stone-300 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/40 dark:text-stone-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>🗳️</span>
-                          <span className="text-xs font-bold">Voting Contest</span>
-                        </div>
-                        <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Awards, polls & elections</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEventType("ticketing")}
-                        className={`rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer ${
-                          eventType === "ticketing"
-                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600/30 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
-                            : "border-stone-200/90 bg-stone-50/40 text-stone-700 hover:border-stone-300 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/40 dark:text-stone-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>🎟️</span>
-                          <span className="text-xs font-bold">Tickets Only</span>
-                        </div>
-                        <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Concerts, summits, passes</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEventType("hybrid")}
-                        className={`rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer ${
-                          eventType === "hybrid"
-                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600/30 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200"
-                            : "border-stone-200/90 bg-stone-50/40 text-stone-700 hover:border-stone-300 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#141b16]/40 dark:text-stone-300"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>🎟️ + 🗳️</span>
-                          <span className="text-xs font-bold">Voting + Tickets</span>
-                        </div>
-                        <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">Awards with ticketed gala</p>
-                      </button>
-                    </div>
-                  </div>
+                  </label>
 
                   {/* Event Name */}
                   <div className="space-y-1.5">
@@ -635,25 +596,12 @@ export function EventDetailsForm({
               >
                 <div className="border-b border-stone-100 pb-4 dark:border-[#1c2721]">
                   <h2 className="font-serif text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-                    {eventType === "ticketing" ? "Ticketed Event Setup" : "Voting & Participation Rules"}
+                    Voting & Participation Rules
                   </h2>
                   <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                    {eventType === "ticketing"
-                      ? "Configure ticketing rules and access for your attendees."
-                      : "Choose whether this is a free public poll or a paid ballot using Mobile Money & Cards."}
+                    Choose whether this is a free public poll or a paid ballot using Mobile Money & Cards.
                   </p>
                 </div>
-
-                {eventType === "ticketing" && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 space-y-1.5">
-                    <div className="font-bold flex items-center gap-1.5 text-sm text-amber-950 dark:text-amber-100">
-                      <span>🎟️</span> Standalone Event Ticketing
-                    </div>
-                    <p className="leading-relaxed">
-                      This event is set up purely for selling tickets and issuing memorable <strong>CODE PAX</strong> gate passes. You will configure ticket tiers (e.g. Early Bird, Regular, VIP, Table of 4), prices, and gate check-in right in the <strong>🎟️ Tickets</strong> tab of your Event Studio!
-                    </p>
-                  </div>
-                )}
 
                 {/* Handcrafted Mode Selector Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
