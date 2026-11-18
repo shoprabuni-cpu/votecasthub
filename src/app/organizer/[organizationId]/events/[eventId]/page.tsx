@@ -184,10 +184,10 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
 
   const publishChecks = isTicketOnly
     ? [
-        { label: "Event dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
-        { label: "Venue is specified", complete: venueReady, section: "details", editor: true },
+        { label: "Event dates are valid and close in the future", complete: datesReady, section: "tickets" },
+        { label: "Venue is specified", complete: venueReady, section: "tickets" },
         { label: "Add at least one active ticket tier", complete: tiersReady, section: "tickets" },
-        { label: "Event poster / flyer image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
+        { label: "Event poster / flyer image added (optional)", complete: Boolean(event.image_path), optional: true, section: "tickets" },
       ]
     : [
         { label: verificationReadiness?.message ?? "Voter verification is ready", complete: verificationReady, section: "voting" },
@@ -264,6 +264,10 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
             eventId={eventId}
             organizationId={organizationId}
             initialTiers={(ticketTiers as any) ?? []}
+            eventName={event.name}
+            eventDescription={event.description}
+            startsAt={event.starts_at}
+            endsAt={event.ends_at}
             venueName={eventMeta?.venue_name || event.venue_name}
             venueAddress={eventMeta?.venue_address}
             doorsOpenTime={eventMeta?.doors_open_time || event.doors_open_time}

@@ -6,6 +6,7 @@ import {
   createTicketTierAction,
   deleteTicketTierAction,
   updateTicketVenueAction,
+  updateTicketEventDetailsAction,
   getEventAttendeesAction,
   broadcastTicketSmsAction,
   type ActionState,
@@ -14,10 +15,22 @@ import {
 import type { TicketTier } from "@/lib/tickets/types";
 import { Icon } from "@/components/icon";
 
+function asLocalDatetime(isoString?: string | null) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function TicketTiersManager({
   eventId,
   organizationId,
   initialTiers = [],
+  eventName = "",
+  eventDescription = "",
+  startsAt = "",
+  endsAt = "",
   venueName = "",
   venueAddress = "",
   doorsOpenTime = "",
@@ -26,6 +39,10 @@ export function TicketTiersManager({
   eventId: string;
   organizationId?: string;
   initialTiers: TicketTier[];
+  eventName?: string;
+  eventDescription?: string | null;
+  startsAt?: string;
+  endsAt?: string;
   venueName?: string | null;
   venueAddress?: string | null;
   doorsOpenTime?: string | null;
@@ -33,6 +50,18 @@ export function TicketTiersManager({
 }) {
   const [tiers, setTiers] = useState<TicketTier[]>(initialTiers);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Event Details State
+  const [name, setEventName] = useState(eventName);
+  const [description, setDescription] = useState(eventDescription ?? "");
+  const [startDate, setStartDate] = useState(asLocalDatetime(startsAt));
+  const [endDate, setEndDate] = useState(asLocalDatetime(endsAt));
+  const [venue, setVenue] = useState(venueName ?? "");
+  const [address, setAddress] = useState(venueAddress ?? "");
+  const [doorsTime, setDoorsTime] = useState(doorsOpenTime ?? "");
+  const [detailsSaved, setDetailsSaved] = useState(false);
+  const [detailsSaving, setDetailsSaving] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   // Attendee Guest List state
   const [attendees, setAttendees] = useState<AttendeeRecord[]>([]);
@@ -93,17 +122,11 @@ export function TicketTiersManager({
   });
 
   // New tier form state
-  const [name, setName] = useState("");
+  const [tierName, setTierName] = useState("");
   const [priceGhs, setPriceGhs] = useState("");
   const [capacity, setCapacity] = useState("100");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Venue form state
-  const [venue, setVenue] = useState(venueName ?? "");
-  const [address, setAddress] = useState(venueAddress ?? "");
-  const [doorsTime, setDoorsTime] = useState(doorsOpenTime ?? "");
-  const [venueSaved, setVenueSaved] = useState(false);
 
   async function handleAddTier(e: React.FormEvent) {
     e.preventDefault();
@@ -112,7 +135,7 @@ export function TicketTiersManager({
 
     const formData = new FormData();
     formData.append("eventId", eventId);
-    formData.append("name", name.trim());
+    formData.append("name", tierName.trim());
     formData.append("priceGhs", priceGhs.trim());
     formData.append("capacity", capacity.trim());
 
@@ -121,7 +144,7 @@ export function TicketTiersManager({
       if (res.error) {
         setError(res.error);
       } else {
-        setName("");
+        setTierName("");
         setPriceGhs("");
         setCapacity("100");
         setShowAddModal(false);
@@ -131,7 +154,7 @@ export function TicketTiersManager({
           {
             id: crypto.randomUUID(),
             event_id: eventId,
-            name: name.trim(),
+            name: tierName.trim(),
             price_minor: Math.round(parseFloat(priceGhs) * 100),
             capacity: parseInt(capacity, 10),
             sold_count: 0,
@@ -163,20 +186,30 @@ export function TicketTiersManager({
     }
   }
 
-  async function handleSaveVenue(e: React.FormEvent) {
+  async function handleSaveDetails(e: React.FormEvent) {
     e.preventDefault();
-    setVenueSaved(false);
+    setDetailsSaving(true);
+    setDetailsError(null);
+    setDetailsSaved(false);
 
     const formData = new FormData();
     formData.append("eventId", eventId);
-    formData.append("venueName", venue);
-    formData.append("venueAddress", address);
-    formData.append("doorsOpenTime", doorsTime);
+    if (organizationId) formData.append("organizationId", organizationId);
+    formData.append("name", name.trim());
+    formData.append("description", description.trim());
+    formData.append("startsAt", startDate);
+    formData.append("endsAt", endDate);
+    formData.append("venueName", venue.trim());
+    formData.append("venueAddress", address.trim());
+    formData.append("doorsOpenTime", doorsTime.trim());
 
-    const res = await updateTicketVenueAction({}, formData);
-    if (!res.error) {
-      setVenueSaved(true);
-      setTimeout(() => setVenueSaved(false), 3000);
+    const res = await updateTicketEventDetailsAction({}, formData);
+    setDetailsSaving(false);
+    if (res.error) {
+      setDetailsError(res.error);
+    } else {
+      setDetailsSaved(true);
+      setTimeout(() => setDetailsSaved(false), 4000);
     }
   }
 
@@ -197,70 +230,137 @@ export function TicketTiersManager({
         </section>
       )}
 
-      {/* 1. Venue & Timing Card */}
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#070a08]">
-        <div className="mb-4 flex items-center justify-between">
+      {/* 1. Event Information, Venue & Schedule Card */}
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#070a08] sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3 dark:border-[#1c2721]">
           <div>
             <h3 className="text-base font-bold text-stone-900 dark:text-white">
-              Venue &amp; Gate Timing
+              Event Information, Venue & Schedule
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400">
-              Where and when ticket holders should arrive.
+              The core details shown on your ticket passes and public booking page.
             </p>
           </div>
-          {venueSaved && (
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+          {detailsSaved && (
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300">
               ✓ Saved!
             </span>
           )}
         </div>
 
-        <form onSubmit={handleSaveVenue} className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Venue Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. National Theatre"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-xs text-stone-900 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white"
-            />
+        {detailsError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            ⚠️ {detailsError}
           </div>
+        )}
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Location / Landmark
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. South Liberia Road, Accra"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-xs text-stone-900 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Doors Open At
-            </label>
-            <div className="flex gap-2">
+        <form onSubmit={handleSaveDetails} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Event Name / Title <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                placeholder="e.g. 6:00 PM"
+                required
+                value={name}
+                onChange={(e) => setEventName(e.target.value)}
+                placeholder="e.g. Best Students Personality, Accra Tech Gala"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Short Description
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief summary for ticket buyers (dress code, performers, what to expect)"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Event Starts At <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Event Ends At <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3 pt-1">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Venue Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. National Theatre, Grand Arena"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Location / Landmark
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. South Liberia Road, Accra"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 mb-1">
+                Doors Open At
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 5:00 PM Gate Open"
                 value={doorsTime}
                 onChange={(e) => setDoorsTime(e.target.value)}
-                className="mt-1 min-h-11 flex-1 rounded-xl border border-stone-200 bg-white px-3 text-xs text-stone-900 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
               />
-              <button
-                type="submit"
-                className="mt-1 inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-4 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
-              >
-                Save
-              </button>
             </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={detailsSaving}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-6 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer transition-colors"
+            >
+              {detailsSaving ? "Saving..." : "Save Event Details"}
+            </button>
           </div>
         </form>
       </section>
@@ -497,8 +597,8 @@ export function TicketTiersManager({
                   type="text"
                   required
                   placeholder="e.g. Regular or VIP"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={tierName}
+                  onChange={(e) => setTierName(e.target.value)}
                   className="mt-1 min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 focus:border-emerald-600 dark:border-[#1c2721] dark:bg-[#030504] dark:text-white"
                 />
               </div>

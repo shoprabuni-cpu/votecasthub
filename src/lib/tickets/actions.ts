@@ -97,6 +97,93 @@ export async function deleteTicketTierAction(
 }
 
 /**
+ * Organizer: Update Full Ticket Event Details (Name, Description, Dates, Venue, Doors Open)
+ */
+export async function updateTicketEventDetailsAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const { supabase } = await requireVerifiedUser();
+
+    const eventId = formData.get("eventId")?.toString()?.trim();
+    const organizationId = formData.get("organizationId")?.toString()?.trim();
+    const name = formData.get("name")?.toString()?.trim();
+    const description = formData.get("description")?.toString()?.trim() || null;
+    const startsAtRaw = formData.get("startsAt")?.toString()?.trim();
+    const endsAtRaw = formData.get("endsAt")?.toString()?.trim();
+    const venueName = formData.get("venueName")?.toString()?.trim() || null;
+    const venueAddress = formData.get("venueAddress")?.toString()?.trim() || null;
+    const doorsOpenTime = formData.get("doorsOpenTime")?.toString()?.trim() || null;
+
+    if (!eventId) return { error: "Event ID is required." };
+    if (!name) return { error: "Event name is required." };
+    if (!startsAtRaw || !endsAtRaw) return { error: "Start and end dates are required." };
+
+    const startDate = new Date(startsAtRaw);
+    const endDate = new Date(endsAtRaw);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return { error: "Invalid date format." };
+    }
+    if (startDate >= endDate) {
+      return { error: "Event end time must be after start time." };
+    }
+
+    // Call update_event_draft RPC
+    const { error: draftErr } = await supabase.rpc("update_event_draft", {
+      p_event_id: eventId,
+      p_name: name,
+      p_description: description,
+      p_unit_price_minor: 0,
+      p_starts_at: startDate.toISOString(),
+      p_ends_at: endDate.toISOString(),
+      p_results_visibility: "hidden",
+      p_voting_mode: "free",
+      p_free_vote_limit_per_phone: 1,
+      p_voting_rule: "one_per_category",
+      p_voting_rules: null,
+    });
+
+    if (draftErr) {
+      return { error: draftErr.message };
+    }
+
+    // Call set_event_ticketing_details RPC (with fallback)
+    const { error: rpcErr } = await supabase.rpc("set_event_ticketing_details", {
+      p_event_id: eventId,
+      p_event_type: "ticketing",
+      p_venue_name: venueName,
+      p_venue_address: venueAddress,
+      p_doors_open_time: doorsOpenTime,
+    });
+
+    if (rpcErr) {
+      await supabase
+        .from("events")
+        .update({
+          event_type: "ticketing",
+          venue_name: venueName,
+          venue_address: venueAddress,
+          doors_open_time: doorsOpenTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", eventId);
+    }
+
+    if (organizationId) {
+      revalidatePath(`/organizer/${organizationId}/events/${eventId}`);
+      revalidatePath(`/organizer/${organizationId}/events`);
+    }
+    revalidatePath(`/organizer`, "layout");
+    revalidatePath(`/events`, "layout");
+
+    return { success: true, message: "Event details saved successfully." };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update event details." };
+  }
+}
+
+/**
  * Organizer: Update Event Venue, Address, and Doors Open Time
  */
 export async function updateTicketVenueAction(

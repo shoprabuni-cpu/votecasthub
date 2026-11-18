@@ -15,8 +15,8 @@ export function eventNextStep(input: {
   const { status, organizationId, isTicketOnly = false } = input;
   if (status === "draft") {
     if (isTicketOnly) {
-      if (!input.datesReady) return { title: "Choose your event dates", description: "Set the start time and end time for your ticketed event.", label: "Set event dates", section: "details", editor: true };
-      if (!input.venueReady) return { title: "Specify event venue", description: "Add the venue name (and optional address) so attendees know where to go.", label: "Set venue details", section: "details", editor: true };
+      if (!input.datesReady) return { title: "Choose your event dates", description: "Set the start time and end time for your ticketed event.", label: "Set event dates", section: "tickets" };
+      if (!input.venueReady) return { title: "Specify event venue", description: "Add the venue name (and optional address) so attendees know where to go.", label: "Set venue details", section: "tickets" };
       if (!input.tiersReady) return { title: "Set up your ticket tiers", description: "Add at least one active ticket tier (e.g. Regular, VIP, Table) with price and capacity.", label: "Manage ticket tiers", section: "tickets" };
       return { title: "Your ticketed event is ready", description: "Preview your ticket sales page, then submit your event for approval.", label: "Review and submit", section: "review" };
     }
