@@ -55,8 +55,47 @@ export default async function NomineePage({ params }: Props) {
     unavailable = true;
   }
   if (!unavailable && (!event || !nominee || !category)) notFound();
-  if (unavailable) return <main className="public-page"><SiteHeader /><section className="empty-state"><h1>Nominee details are temporarily unavailable.</h1><p>Please try again shortly.</p><Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href="/events">Back to events</Link></section></main>;
+  if (unavailable) return (
+    <main className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <SiteHeader />
+      <section className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-4 py-16 text-center sm:px-6">
+        <h1 className="mb-3 font-serif text-3xl sm:text-4xl font-medium tracking-tight text-stone-900 dark:text-white">Nominee details are temporarily unavailable.</h1>
+        <p className="max-w-md text-sm leading-relaxed text-stone-600 dark:text-stone-300">Please try again shortly.</p>
+        <Link className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200" href="/events">Back to events</Link>
+      </section>
+    </main>
+  );
   if (!event || !nominee || !category) notFound();
   const ussdInfo = await loadUssdInstructions(event.id);
-  return <main className="public-page"><SiteHeader /><article className="nominee-profile"><Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`/events/${event.slug}`}>← Back to {event.name}</Link>{imageUrl ? <div className="nominee-photo-profile" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nominee.name} photo`} /> : <span className="nominee-avatar nominee-avatar-large" aria-hidden="true">{nominee.name.trim().slice(0, 1).toUpperCase()}</span>}<p className="eyebrow">{category.name}</p><h1>{nominee.name}</h1>{nominee.public_code && <p className="nominee-profile-code">{nominee.public_code}</p>}<p className="nominee-biography">{nominee.biography || "A profile for this nominee has not been added yet."}</p><EventNotices eventId={event.id} /><VotingNotice event={event} /><UssdInstructions eventId={event.id} /><ShareButton title={nominee.name} text={`${nominee.name} — ${event.name}`} url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${event.slug}/nominees/${nominee.id}`} flyer={{ ussd: ussdInfo ?? undefined, nominee: nominee.name, category: category.name, imageUrl, eventName: event.name, code: nominee.public_code, startsAt: event.starts_at, endsAt: event.ends_at, status: event.status, votingMode: event.voting_mode, unitPriceMinor: event.unit_price_minor, eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : event.slug }} /><Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`/events/${event.slug}`}>{eventPresentation(event).key === "open" ? "Go to voting" : "Explore event & results"}</Link></article><footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link><span>© {new Date().getFullYear()} VotecastHub GH</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav></footer></main>;
+  return (
+    <main className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <SiteHeader />
+      <article className="mx-auto flex w-full max-w-3xl flex-col items-start gap-4 px-4 py-10 sm:px-6 sm:py-16">
+        <Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 min-h-10 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200" href={`/events/${event.slug}`}>← Back to {event.name}</Link>
+        {imageUrl ? (
+          <div className="h-36 w-36 rounded-full bg-cover bg-center shadow-lg border-2 border-emerald-500/20 mb-2" style={{ backgroundImage: `url("${imageUrl}")` }} role="img" aria-label={`${nominee.name} photo`} />
+        ) : (
+          <span className="flex h-36 w-36 items-center justify-center rounded-full bg-emerald-50 text-4xl font-serif text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 mb-2 border border-emerald-200 dark:border-emerald-900/50" aria-hidden="true">{nominee.name.trim().slice(0, 1).toUpperCase()}</span>
+        )}
+        <p className="text-xs font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">{category.name}</p>
+        <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-stone-900 dark:text-white">{nominee.name}</h1>
+        {nominee.public_code && <p className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Code: {nominee.public_code}</p>}
+        <p className="text-sm sm:text-base leading-relaxed text-stone-600 dark:text-stone-300 whitespace-pre-wrap max-w-2xl">{nominee.biography || "A profile for this nominee has not been added yet."}</p>
+        <EventNotices eventId={event.id} />
+        <VotingNotice event={event} />
+        <UssdInstructions eventId={event.id} />
+        <ShareButton title={nominee.name} text={`${nominee.name} — ${event.name}`} url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${event.slug}/nominees/${nominee.id}`} flyer={{ ussd: ussdInfo ?? undefined, nominee: nominee.name, category: category.name, imageUrl, eventName: event.name, code: nominee.public_code, startsAt: event.starts_at, endsAt: event.ends_at, status: event.status, votingMode: event.voting_mode, unitPriceMinor: event.unit_price_minor, eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : event.slug }} />
+        <Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500" href={`/events/${event.slug}`}>{eventPresentation(event).key === "open" ? "Go to voting" : "Explore event & results"}</Link>
+      </article>
+      <footer className="mx-auto mt-16 max-w-6xl border-t border-stone-200 px-4 py-8 sm:px-6 text-xs text-stone-600 dark:border-[#1c2721] dark:text-stone-400 flex flex-wrap items-center justify-between gap-4">
+        <Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link>
+        <span>© {new Date().getFullYear()} VotecastHub GH</span>
+        <nav aria-label="Legal and company links" className="flex items-center gap-4 font-medium">
+          <Link href="/about" className="hover:text-emerald-700 dark:hover:text-emerald-400">About</Link>
+          <Link href="/privacy" className="hover:text-emerald-700 dark:hover:text-emerald-400">Privacy</Link>
+          <Link href="/terms" className="hover:text-emerald-700 dark:hover:text-emerald-400">Terms</Link>
+        </nav>
+      </footer>
+    </main>
+  );
 }

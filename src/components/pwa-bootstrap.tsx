@@ -38,5 +38,29 @@ export function PwaBootstrap() {
   }
 
   if (installed || standalone) return null;
-  return <div className="pwa-install-control"><button type="button" className="pwa-install-button" onClick={installApp}>{prompt ? "Install app" : "Use as an app"}</button>{help && <div className="pwa-install-help" role="status"><button type="button" aria-label="Close install instructions" onClick={() => setHelp(false)}>×</button><strong>Add VotecastHub to your home screen</strong><p>In your browser menu, choose <b>Install app</b> or <b>Add to Home Screen</b>.</p></div>}</div>;
+  return (
+    <div className="fixed bottom-4 left-4 z-30">
+      <button
+        type="button"
+        className="cursor-pointer rounded-full border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-emerald-800 shadow-md transition hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:text-emerald-400 dark:hover:bg-stone-800"
+        onClick={installApp}
+      >
+        {prompt ? "Install app" : "Use as an app"}
+      </button>
+      {help && (
+        <div className="absolute bottom-12 left-0 w-[min(285px,calc(100vw-32px))] rounded-xl border border-stone-200 bg-white p-4 text-xs leading-relaxed shadow-xl dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200" role="status">
+          <button
+            type="button"
+            aria-label="Close install instructions"
+            className="absolute top-1.5 right-2 border-0 bg-transparent text-xl cursor-pointer text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
+            onClick={() => setHelp(false)}
+          >
+            ×
+          </button>
+          <strong className="block font-semibold text-stone-900 dark:text-white mb-1">Add VotecastHub to your home screen</strong>
+          <p>In your browser menu, choose <b>Install app</b> or <b>Add to Home Screen</b>.</p>
+        </div>
+      )}
+    </div>
+  );
 }

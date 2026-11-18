@@ -8,14 +8,20 @@ export function ResetPasswordForm() {
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(updatePasswordAction, null);
 
   return (
-    <form action={formAction} className="auth-form">
-      <label htmlFor="password">New password</label>
-      <input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={256} required />
-      <label htmlFor="confirmPassword">Confirm new password</label>
-      <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={256} required />
-      <p className="input-hint">Use at least 12 characters. Choose a password you do not use elsewhere.</p>
-      {state?.message && <p className={state.success ? "form-message form-success" : "form-message"} role={state.success ? "status" : "alert"}>{state.message}</p>}
-      <button className="primary-link auth-submit" type="submit" disabled={pending}>{pending ? "Updating password…" : "Update password"}</button>
+    <form action={formAction} className="mt-6 space-y-4">
+      <div>
+        <label htmlFor="password" className="block text-xs font-semibold text-stone-700 dark:text-stone-300">New password</label>
+        <input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={256} required className="mt-1 block w-full rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 transition focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-stone-700 dark:bg-[#141d18] dark:text-stone-100 dark:focus:border-emerald-500" />
+      </div>
+      <div>
+        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-stone-700 dark:text-stone-300">Confirm new password</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={256} required className="mt-1 block w-full rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 transition focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-stone-700 dark:bg-[#141d18] dark:text-stone-100 dark:focus:border-emerald-500" />
+        <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">Use at least 12 characters. Choose a password you do not use elsewhere.</p>
+      </div>
+      {state?.message && <p className={state.success ? "rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300" : "rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300"} role={state.success ? "status" : "alert"}>{state.message}</p>}
+      <button className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500" type="submit" disabled={pending}>
+        {pending ? "Updating password…" : "Update password"}
+      </button>
     </form>
   );
 }

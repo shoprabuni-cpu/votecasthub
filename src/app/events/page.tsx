@@ -14,10 +14,29 @@ export default async function EventsPage() {
   try { page = await loadEventDirectory(directoryFilters.parse({})); }
   catch { unavailable = true; }
 
-  return <main className="public-page">
-    <SiteHeader />
-    <section className="public-page-heading"><p className="eyebrow">VOTECASTHUB GH EVENTS</p><h1>Find an event worth celebrating.</h1><p>Explore awards and competitions. Browse categories and meet the nominees.</p></section>
-    <EventBrowser initialPage={page} unavailable={unavailable} />
-    <footer className="site-footer"><Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link><span>Voting for events and awards.</span><span>© {new Date().getFullYear()} VotecastHub GH</span><nav aria-label="Legal and company links"><Link href="/about">About</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav></footer>
-  </main>;
+  return (
+    <main className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      <SiteHeader />
+      <section className="mx-auto max-w-6xl px-4 pt-12 pb-6 sm:px-6 sm:pt-16">
+        <p className="flex items-center gap-2 text-xs font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">VOTECASTHUB GH EVENTS</p>
+        <h1 className="mt-3 font-serif text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-stone-900 dark:text-white">Find an event worth celebrating.</h1>
+        <p className="mt-2 text-base text-stone-600 dark:text-stone-300">Explore awards and competitions. Browse categories and meet the nominees.</p>
+      </section>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <EventBrowser initialPage={page} unavailable={unavailable} />
+      </div>
+      <footer className="mx-auto mt-16 max-w-6xl border-t border-stone-200 px-4 py-8 sm:px-6 text-xs text-stone-600 dark:border-[#1c2721] dark:text-stone-400 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link>
+          <span className="text-stone-500 dark:text-stone-400">Voting for events and awards.</span>
+        </div>
+        <span>© {new Date().getFullYear()} VotecastHub GH</span>
+        <nav aria-label="Legal and company links" className="flex items-center gap-4 font-medium">
+          <Link href="/about" className="hover:text-emerald-700 dark:hover:text-emerald-400">About</Link>
+          <Link href="/privacy" className="hover:text-emerald-700 dark:hover:text-emerald-400">Privacy</Link>
+          <Link href="/terms" className="hover:text-emerald-700 dark:hover:text-emerald-400">Terms</Link>
+        </nav>
+      </footer>
+    </main>
+  );
 }
