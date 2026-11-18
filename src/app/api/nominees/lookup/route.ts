@@ -107,6 +107,18 @@ export async function GET(request: NextRequest) {
         .order("display_order", { ascending: true })
         .limit(8);
 
+      // Sign images from supabase storage if relative paths
+      const allPaths = [match.image_path, ...(siblings || []).map((s) => s.image_path)].filter(Boolean) as string[];
+      const urlMap = new Map<string, string>();
+      if (allPaths.length > 0) {
+        const { data: signedImgs } = await supabase.storage.from("nominee-images").createSignedUrls(allPaths, 3600);
+        if (signedImgs) {
+          for (const img of signedImgs) {
+            if (img.path && img.signedUrl) urlMap.set(img.path, img.signedUrl);
+          }
+        }
+      }
+
       return NextResponse.json({
         matchType: "single_nominee",
         nominee: {
@@ -114,7 +126,7 @@ export async function GET(request: NextRequest) {
           name: match.name,
           public_code: match.public_code,
           biography: match.biography,
-          image_path: match.image_path,
+          image_path: match.image_path ? (urlMap.get(match.image_path) ?? match.image_path) : null,
         },
         category: {
           id: category.id,
@@ -130,12 +142,26 @@ export async function GET(request: NextRequest) {
           voting_mode: event.voting_mode,
           event_type: event.event_type,
         },
-        siblingNominees: siblings || [],
+        siblingNominees: (siblings || []).map((s) => ({
+          ...s,
+          image_path: s.image_path ? (urlMap.get(s.image_path) ?? s.image_path) : null,
+        })),
       });
     }
 
     // 4. If multiple nominees match (e.g. collision on a bare number or category code across two events)
     if (candidates.length > 1) {
+      const matchPaths = candidates.map((m) => m.image_path).filter(Boolean) as string[];
+      const urlMap = new Map<string, string>();
+      if (matchPaths.length > 0) {
+        const { data: signedImgs } = await supabase.storage.from("nominee-images").createSignedUrls(matchPaths, 3600);
+        if (signedImgs) {
+          for (const img of signedImgs) {
+            if (img.path && img.signedUrl) urlMap.set(img.path, img.signedUrl);
+          }
+        }
+      }
+
       return NextResponse.json({
         matchType: "multiple_nominees",
         query: cleanCode,
@@ -147,7 +173,7 @@ export async function GET(request: NextRequest) {
               id: m.id,
               name: m.name,
               public_code: m.public_code,
-              image_path: m.image_path,
+              image_path: m.image_path ? (urlMap.get(m.image_path) ?? m.image_path) : null,
             },
             category: {
               id: cat.id,

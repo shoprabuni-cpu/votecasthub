@@ -185,6 +185,7 @@ export function NomineeQuickVoteModal({
                           src={m.nominee.image_path}
                           alt={m.nominee.name}
                           fill
+                          unoptimized
                           className="object-cover"
                         />
                       ) : (
@@ -244,6 +245,8 @@ export function NomineeQuickVoteModal({
                       src={currentNominee.image_path}
                       alt={currentNominee.name}
                       fill
+                      unoptimized
+                      priority
                       className="object-cover"
                     />
                   ) : (
@@ -314,6 +317,7 @@ export function NomineeQuickVoteModal({
                               src={sib.image_path}
                               alt={sib.name}
                               fill
+                              unoptimized
                               className="object-cover"
                             />
                           ) : (

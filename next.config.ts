@@ -14,6 +14,15 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+    ],
+  },
   async headers() {
     const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
     return [
