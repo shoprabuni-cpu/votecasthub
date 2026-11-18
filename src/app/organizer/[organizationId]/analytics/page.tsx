@@ -215,57 +215,57 @@ export default async function AnalyticsPage({
         {/* Master KPI Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Votes */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs">
-            <span className="text-xs font-medium text-stone-500 block">Total Confirmed Ballots</span>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900">
+          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Total Confirmed Ballots</span>
+            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
               {totalVotesCount.toLocaleString()}
             </strong>
-            <p className="mt-2 text-[11px] text-stone-400">
+            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
               Latest: {lastVoteGhana}
             </p>
           </article>
 
           {/* Votes Today */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs">
+          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-stone-500">Votes Cast Today</span>
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Votes Cast Today</span>
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800">
+            <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
               {safeNum(analytics.votes_today).toLocaleString()}
             </strong>
-            <p className="mt-2 text-[11px] text-stone-400">Since midnight Accra GMT</p>
+            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">Since midnight Accra GMT</p>
           </article>
 
           {/* Voter Conversion */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs">
-            <span className="text-xs font-medium text-stone-500 block">Voter Conversion Rate</span>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900">
+          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Voter Conversion Rate</span>
+            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
               {conversionRate}%
             </strong>
-            <p className="mt-2 text-[11px] text-stone-400">
+            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
               {visitorsCount.toLocaleString()} visitors ({safeNum(analytics.views).toLocaleString()} page views)
             </p>
           </article>
 
           {/* Earnings (if paid) or Roster count (if free) */}
           {paid ? (
-            <article className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 to-white p-5 shadow-xs">
-              <span className="text-xs font-medium text-amber-950 block">Organizer Net Revenue</span>
-              <strong className="mt-2 block text-3xl font-bold font-mono text-amber-900">
+            <article className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 to-white p-5 shadow-xs dark:border-amber-900/50 dark:from-amber-950/30 dark:to-[#0c120e]">
+              <span className="text-xs font-medium text-amber-950 dark:text-amber-300 block">Organizer Net Revenue</span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-amber-900 dark:text-amber-400">
                 {money(row.net_minor)}
               </strong>
-              <p className="mt-2 text-[11px] text-stone-500">
+              <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
                 Gross: {money(row.gross_minor)} ({safeNum(row.paid_votes).toLocaleString()} paid votes)
               </p>
             </article>
           ) : (
-            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs">
-              <span className="text-xs font-medium text-stone-500 block">Contest Scope</span>
-              <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900">
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Contest Scope</span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
                 {analytics.nominees.length}
               </strong>
-              <p className="mt-2 text-[11px] text-stone-400">
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
                 Nominees across {analytics.categories.length} award categories
               </p>
             </article>
@@ -274,9 +274,9 @@ export default async function AnalyticsPage({
 
         {/* Action Prompt when starting out */}
         {(stage === "draft" || stage === "upcoming" || stage === "paused" || !totalVotesCount) && (
-          <aside className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <aside className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark:border-[#1c2721] dark:bg-[#0c120e]">
             <div>
-              <h2 className="font-semibold text-stone-900 text-sm">
+              <h2 className="font-semibold text-stone-900 dark:text-white text-sm">
                 {stage === "draft"
                   ? "Get your event ready"
                   : stage === "upcoming"
@@ -287,7 +287,7 @@ export default async function AnalyticsPage({
                   ? "No votes were counted"
                   : "Share to get your first votes"}
               </h2>
-              <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-xl">
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 leading-relaxed max-w-xl">
                 {stage === "draft"
                   ? "Review your categories, nominees, and voting window in the Event Setup Studio before publishing."
                   : stage === "upcoming"
@@ -301,7 +301,7 @@ export default async function AnalyticsPage({
             </div>
             {stage === "draft" || stage === "paused" ? (
               <Link
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-all"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-all dark:bg-emerald-800 dark:hover:bg-emerald-700"
                 href={`/organizer/${organizationId}/events/${event.id}`}
               >
                 <span>Manage Event</span>

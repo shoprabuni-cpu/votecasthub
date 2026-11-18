@@ -34,10 +34,10 @@ function formatDate(value: string) {
 
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, string> = {
-    owner: "bg-emerald-50 text-emerald-900 border-emerald-200/80 font-bold",
-    admin: "bg-amber-50 text-amber-900 border-amber-200/80 font-semibold",
-    editor: "bg-sky-50 text-sky-900 border-sky-200/80 font-semibold",
-    viewer: "bg-stone-100 text-stone-700 border-stone-200 font-medium",
+    owner: "bg-emerald-50 text-emerald-900 border-emerald-200/80 font-bold dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60",
+    admin: "bg-amber-50 text-amber-900 border-amber-200/80 font-semibold dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60",
+    editor: "bg-sky-50 text-sky-900 border-sky-200/80 font-semibold dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800/60",
+    viewer: "bg-stone-100 text-stone-700 border-stone-200 font-medium dark:bg-[#121914] dark:text-stone-300 dark:border-[#1c2721]",
   };
 
   return (
@@ -53,10 +53,10 @@ function RoleBadge({ role }: { role: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    pending: "bg-amber-50 text-amber-800 border-amber-200/80",
-    accepted: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
-    revoked: "bg-red-50 text-red-700 border-red-200/80",
-    expired: "bg-stone-100 text-stone-600 border-stone-200",
+    pending: "bg-amber-50 text-amber-800 border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60",
+    accepted: "bg-emerald-50 text-emerald-800 border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60",
+    revoked: "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/60",
+    expired: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-[#121914] dark:text-stone-400 dark:border-[#1c2721]",
   };
 
   return (
@@ -89,12 +89,12 @@ function RevokeInvitationForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-700 shadow-2xs hover:bg-red-50 hover:border-red-300 disabled:opacity-60 transition-all cursor-pointer"
+        className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-700 shadow-2xs hover:bg-red-50 hover:border-red-300 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60 disabled:opacity-60 transition-all cursor-pointer"
       >
         {pending ? "Revoking..." : "Revoke link"}
       </button>
       {state?.message && (
-        <span className="text-[11px] text-stone-500 font-medium">{state.message}</span>
+        <span className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">{state.message}</span>
       )}
     </form>
   );
@@ -131,15 +131,15 @@ export function InvitationPanel({
   return (
     <div className="space-y-8">
       {/* Invite Form Card */}
-      <div className="rounded-2xl border border-stone-200/90 bg-white p-6 shadow-xs space-y-6">
+      <div className="rounded-2xl border border-stone-200/90 bg-white p-6 shadow-xs space-y-6 dark:border-[#1c2721] dark:bg-[#0c120e]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <Icon name="userPlus" size={15} />
             </span>
-            <h2 className="text-base font-serif font-bold text-stone-900">Invite a Teammate</h2>
+            <h2 className="text-base font-serif font-bold text-stone-900 dark:text-white">Invite a Teammate</h2>
           </div>
-          <p className="mt-1 text-xs text-stone-500">
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
             Generate an access link with assigned permissions. The invited teammate must sign in with
             their invited email address to accept.
           </p>
@@ -151,11 +151,11 @@ export function InvitationPanel({
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
             {/* Email Address */}
             <div className="sm:col-span-7 space-y-1.5">
-              <label htmlFor="input-invite-email" className="block text-xs font-semibold text-stone-800">
+              <label htmlFor="input-invite-email" className="block text-xs font-semibold text-stone-800 dark:text-stone-300">
                 Email Address
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-400">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-400 dark:text-stone-500">
                   <Icon name="mail" size={15} />
                 </span>
                 <input
@@ -166,26 +166,26 @@ export function InvitationPanel({
                   maxLength={254}
                   required
                   placeholder="colleague@institution.edu.gh"
-                  className="w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15"
+                  className="w-full rounded-xl border border-stone-300 bg-white pl-10 pr-4 py-2.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-100 dark:placeholder:text-stone-600"
                 />
               </div>
             </div>
 
             {/* Role Select */}
             <div className="sm:col-span-5 space-y-1.5">
-              <label htmlFor="select-invite-role" className="block text-xs font-semibold text-stone-800">
+              <label htmlFor="select-invite-role" className="block text-xs font-semibold text-stone-800 dark:text-stone-300">
                 Permission Role
               </label>
               <select
                 id="select-invite-role"
                 name="role"
                 defaultValue="editor"
-                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-semibold text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-semibold text-stone-800 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200"
               >
-                <option value="editor">Editor · Setup events & nominees</option>
-                <option value="viewer">Viewer · Read-only access & tallies</option>
+                <option value="editor" className="dark:bg-[#0c120e]">Editor · Setup events & nominees</option>
+                <option value="viewer" className="dark:bg-[#0c120e]">Viewer · Read-only access & tallies</option>
                 {canInviteAdmin && (
-                  <option value="admin">Admin · Manage team & organization</option>
+                  <option value="admin" className="dark:bg-[#0c120e]">Admin · Manage team & organization</option>
                 )}
               </select>
             </div>
@@ -193,29 +193,29 @@ export function InvitationPanel({
 
           {/* Role Explanations */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600">
-              <strong className="text-stone-900 font-semibold block mb-0.5">Editor</strong>
+            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-400">
+              <strong className="text-stone-900 dark:text-white font-semibold block mb-0.5">Editor</strong>
               Can create award categories, upload nominee photos, and manage draft ballots.
             </div>
-            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600">
-              <strong className="text-stone-900 font-semibold block mb-0.5">Viewer</strong>
+            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-400">
+              <strong className="text-stone-900 dark:text-white font-semibold block mb-0.5">Viewer</strong>
               Can inspect ballots and real-time tallies without making configuration changes.
             </div>
-            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600">
-              <strong className="text-stone-900 font-semibold block mb-0.5">Admin</strong>
+            <div className="rounded-xl border border-stone-100 bg-stone-50/50 p-2.5 text-[11px] text-stone-600 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-400">
+              <strong className="text-stone-900 dark:text-white font-semibold block mb-0.5">Admin</strong>
               Can manage teammates, connect payment settlement, and edit org profile.
             </div>
           </div>
 
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[11px] text-stone-400">
+            <p className="text-[11px] text-stone-400 dark:text-stone-500">
               ✦ Invitation links automatically expire in 7 days for security.
             </p>
 
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-60 transition-all active:scale-95 cursor-pointer dark:bg-emerald-800 dark:hover:bg-emerald-700"
             >
               {pending ? (
                 <>
@@ -237,8 +237,8 @@ export function InvitationPanel({
           <div
             className={`rounded-xl p-3.5 text-xs font-semibold flex items-center gap-2 ${
               state.success
-                ? "border border-emerald-200 bg-emerald-50 text-emerald-900"
-                : "border border-red-200 bg-red-50 text-red-900"
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                : "border border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
             }`}
             role={state.success ? "status" : "alert"}
           >
@@ -249,19 +249,19 @@ export function InvitationPanel({
 
         {/* Newly Created Invite Link Share Card */}
         {state?.inviteUrl && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2.5">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
                 Invitation Link Ready to Share
               </span>
-              <span className="text-[11px] text-emerald-700 font-medium">Valid for 7 days</span>
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">Valid for 7 days</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 readOnly
                 value={state.inviteUrl}
-                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 font-mono text-xs text-stone-800 focus:outline-none select-all"
+                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 font-mono text-xs text-stone-800 focus:outline-none select-all dark:border-emerald-800/60 dark:bg-[#0a0d0b] dark:text-stone-100"
               />
               <button
                 type="button"
@@ -272,7 +272,7 @@ export function InvitationPanel({
                 <span>{copied ? "Copied!" : "Copy link"}</span>
               </button>
             </div>
-            <p className="text-[11px] text-emerald-800/80">
+            <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
               Send this link to your teammate via email, WhatsApp, or Slack. They will be added to this
               organization upon accepting.
             </p>
@@ -281,38 +281,38 @@ export function InvitationPanel({
       </div>
 
       {/* Current Team Members Section */}
-      <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden">
-        <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between">
+      <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden dark:border-[#1c2721] dark:bg-[#0c120e]">
+        <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between dark:border-[#1c2721]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
               CURRENT ROSTER
             </p>
-            <h2 className="text-base font-serif font-bold text-stone-900">Active Members</h2>
+            <h2 className="text-base font-serif font-bold text-stone-900 dark:text-white">Active Members</h2>
           </div>
-          <span className="text-xs text-stone-500">
+          <span className="text-xs text-stone-500 dark:text-stone-400">
             {members.length} {members.length === 1 ? "member" : "members"}
           </span>
         </div>
 
-        <div className="divide-y divide-stone-100">
+        <div className="divide-y divide-stone-100 dark:divide-[#1c2721]">
           {members.map((member) => (
             <div
               key={member.user_id}
-              className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-50/40 transition-colors"
+              className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-50/40 dark:hover:bg-[#121914]/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 {/* Initial Avatar */}
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 font-serif font-bold text-stone-700 text-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 font-serif font-bold text-stone-700 text-sm dark:bg-[#121914] dark:text-stone-300">
                   {(member.display_name || member.email)[0].toUpperCase()}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-stone-900">
+                    <span className="text-xs font-semibold text-stone-900 dark:text-white">
                       {member.display_name || member.email}
                     </span>
                     <RoleBadge role={member.role} />
                   </div>
-                  <div className="text-[11px] text-stone-400 flex items-center gap-2 mt-0.5">
+                  <div className="text-[11px] text-stone-400 dark:text-stone-500 flex items-center gap-2 mt-0.5">
                     {member.display_name && <span>{member.email}</span>}
                     <span>· Joined {formatDate(member.joined_at)}</span>
                   </div>
@@ -324,31 +324,31 @@ export function InvitationPanel({
       </div>
 
       {/* Invitations History Section */}
-      <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden">
-        <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between">
+      <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden dark:border-[#1c2721] dark:bg-[#0c120e]">
+        <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between dark:border-[#1c2721]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">HISTORY</p>
-            <h2 className="text-base font-serif font-bold text-stone-900">Recent Invitations</h2>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">HISTORY</p>
+            <h2 className="text-base font-serif font-bold text-stone-900 dark:text-white">Recent Invitations</h2>
           </div>
-          <span className="text-xs text-stone-500">
+          <span className="text-xs text-stone-500 dark:text-stone-400">
             {invitations.filter((i) => i.status === "pending").length} pending
           </span>
         </div>
 
         {invitations.length ? (
-          <div className="divide-y divide-stone-100">
+          <div className="divide-y divide-stone-100 dark:divide-[#1c2721]">
             {invitations.map((invite) => (
               <div
                 key={invite.id}
-                className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-50/40 transition-colors"
+                className="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-50/40 dark:hover:bg-[#121914]/50 transition-colors"
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-stone-900">{invite.email}</span>
+                    <span className="text-xs font-semibold text-stone-900 dark:text-white">{invite.email}</span>
                     <RoleBadge role={invite.role} />
                     <StatusBadge status={invite.status} />
                   </div>
-                  <p className="text-[11px] text-stone-400">
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
                     Created {formatDate(invite.created_at)} · Expires {formatDate(invite.expires_at)}
                   </p>
                 </div>
@@ -366,11 +366,11 @@ export function InvitationPanel({
           </div>
         ) : (
           <div className="p-10 text-center space-y-2">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-[#121914] dark:text-stone-500">
               <Icon name="mail" size={18} />
             </div>
-            <p className="text-xs font-semibold text-stone-700">No invitations created yet</p>
-            <p className="text-xs text-stone-400 max-w-sm mx-auto">
+            <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">No invitations created yet</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500 max-w-sm mx-auto">
               Use the form above to invite team members and delegate event management.
             </p>
           </div>

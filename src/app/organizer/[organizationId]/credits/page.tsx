@@ -70,7 +70,7 @@ export default async function CreditsPage({ params }: Props) {
   ];
 
   return (
-    <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900 pb-20">
+    <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900 dark:bg-black dark:text-stone-100 transition-colors pb-20">
       <DashboardHeader organizationId={organizationId} />
 
       <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
@@ -78,7 +78,7 @@ export default async function CreditsPage({ params }: Props) {
         <div>
           <Link
             href={`/organizer/${organizationId}/events`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors dark:text-stone-400 dark:hover:text-stone-200"
           >
             <Icon name="arrowLeft" size={14} />
             <span>{organization?.name ?? "Back to workspace"}</span>
@@ -86,18 +86,18 @@ export default async function CreditsPage({ params }: Props) {
         </div>
 
         {/* Hero Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-6 dark:border-[#1c2721]">
           <div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-600" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
                 VOTER VERIFICATION
               </p>
             </div>
-            <h1 className="mt-2 text-2xl font-serif font-bold tracking-tight text-stone-900 sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-serif font-bold tracking-tight text-stone-900 sm:text-3xl dark:text-white">
               SMS Credits & Coverage
             </h1>
-            <p className="mt-1 text-xs text-stone-500 max-w-xl">
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 max-w-xl">
               Voters never pay for free elections. SMS credits power one-time phone passcodes to
               guarantee one-vote-per-person ballot fairness across Ghana.
             </p>
@@ -107,24 +107,24 @@ export default async function CreditsPage({ params }: Props) {
         {/* Balance & Overview Card */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Main Balance */}
-          <div className="md:col-span-2 rounded-2xl border border-stone-200/90 bg-white p-6 shadow-xs flex flex-col justify-between">
+          <div className="md:col-span-2 rounded-2xl border border-stone-200/90 bg-white p-6 shadow-xs flex flex-col justify-between dark:border-[#1c2721] dark:bg-[#0c120e]">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                   Current Balance
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/60 dark:text-emerald-300">
                   <Icon name="phone" size={11} />
                   <span>SMS Network Active</span>
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-4xl font-serif font-bold text-stone-900 tracking-tight">
+                <span className="text-4xl font-serif font-bold text-stone-900 tracking-tight dark:text-white">
                   {creditUnavailable ? "Unavailable" : Math.max(0, balance).toLocaleString()}
                 </span>
-                <span className="text-sm font-medium text-stone-500">credits</span>
+                <span className="text-sm font-medium text-stone-500 dark:text-stone-400">credits</span>
               </div>
-              <p className="mt-2 text-xs text-stone-500 leading-relaxed">
+              <p className="mt-2 text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
                 {creditUnavailable
                   ? "We could not load the balance right now. Please refresh the page."
                   : balance === 0
@@ -134,12 +134,12 @@ export default async function CreditsPage({ params }: Props) {
             </div>
 
             {/* Meter Bar */}
-            <div className="mt-5 pt-4 border-t border-stone-100">
-              <div className="flex items-center justify-between text-[11px] text-stone-400 mb-1.5 font-medium">
+            <div className="mt-5 pt-4 border-t border-stone-100 dark:border-[#1c2721]">
+              <div className="flex items-center justify-between text-[11px] text-stone-400 mb-1.5 font-medium dark:text-stone-500">
                 <span>Coverage Gauge</span>
                 <span>{balance > 0 ? "Ready for voting" : "Needs top-up"}</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-[#18221c]">
                 <div
                   className="h-full rounded-full bg-emerald-700 transition-all duration-500"
                   style={{ width: `${Math.max(0, Math.min(100, (balance / 500) * 100))}%` }}
@@ -149,13 +149,13 @@ export default async function CreditsPage({ params }: Props) {
           </div>
 
           {/* Usage Stats Box */}
-          <div className="rounded-2xl border border-stone-200/90 bg-gradient-to-br from-stone-50 to-white p-6 shadow-xs flex flex-col justify-between">
+          <div className="rounded-2xl border border-stone-200/90 bg-gradient-to-br from-stone-50 to-white p-6 shadow-xs flex flex-col justify-between dark:border-[#1c2721] dark:from-[#0a0d0b] dark:to-[#0c120e]">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 All-Time Usage
               </span>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-serif font-bold text-stone-900">
+                <span className="text-3xl font-serif font-bold text-stone-900 dark:text-white">
                   {usageError ? "—" : (usageCount ?? 0).toLocaleString()}
                 </span>
                 <span className="text-xs text-stone-500">attempts</span>
@@ -195,10 +195,10 @@ export default async function CreditsPage({ params }: Props) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 PURCHASE PACKAGES
               </p>
-              <h2 className="text-lg font-serif font-bold text-stone-900">Choose your coverage</h2>
+              <h2 className="text-lg font-serif font-bold text-stone-900 dark:text-white">Choose your coverage</h2>
             </div>
             <span className="text-xs text-stone-400">Instant MTN MoMo, Telecel & Cards via Paystack</span>
           </div>
@@ -209,8 +209,8 @@ export default async function CreditsPage({ params }: Props) {
                 key={pkg.name}
                 className={`relative rounded-2xl border p-6 transition-all duration-200 flex flex-col justify-between ${
                   pkg.featured
-                    ? "border-emerald-800 bg-white shadow-md ring-1 ring-emerald-800/20"
-                    : "border-stone-200/90 bg-white hover:border-stone-300 shadow-xs"
+                    ? "border-emerald-800 bg-white shadow-md ring-1 ring-emerald-800/20 dark:border-emerald-600 dark:bg-[#0c120e] dark:ring-emerald-500/20"
+                    : "border-stone-200/90 bg-white hover:border-stone-300 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-800"
                 }`}
               >
                 {pkg.featured && (
@@ -221,7 +221,7 @@ export default async function CreditsPage({ params }: Props) {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+                    <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                       {pkg.name}
                     </span>
                     {!pkg.featured && (
@@ -230,21 +230,21 @@ export default async function CreditsPage({ params }: Props) {
                   </div>
 
                   <div className="flex items-baseline gap-1 my-2">
-                    <span className="text-3xl font-serif font-bold text-stone-900 tracking-tight">
+                    <span className="text-3xl font-serif font-bold text-stone-900 dark:text-white tracking-tight">
                       {pkg.displayCount}
                     </span>
-                    <span className="text-xs font-semibold text-stone-500">credits</span>
+                    <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">credits</span>
                   </div>
 
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg font-bold text-emerald-900">GH₵ {pkg.priceGhs}</span>
+                    <span className="text-lg font-bold text-emerald-900 dark:text-emerald-400">GH₵ {pkg.priceGhs}</span>
                     <span className="text-[11px] text-stone-400">· {pkg.perSms} / SMS attempt</span>
                   </div>
 
-                  <p className="text-xs text-stone-500 leading-relaxed min-h-[36px]">{pkg.note}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed min-h-[36px]">{pkg.note}</p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-stone-100">
+                <div className="mt-6 pt-4 border-t border-stone-100 dark:border-[#1c2721]">
                   <PaystackCreditButton
                     organizationId={organizationId}
                     credits={pkg.count}
@@ -258,24 +258,24 @@ export default async function CreditsPage({ params }: Props) {
         </div>
 
         {/* Transaction History Table */}
-        <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden">
-          <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between">
+        <div className="rounded-2xl border border-stone-200/90 bg-white shadow-xs overflow-hidden dark:border-[#1c2721] dark:bg-[#0c120e]">
+          <div className="border-b border-stone-100 p-5 sm:px-6 flex items-center justify-between dark:border-[#1c2721]">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">LEDGER</p>
-              <h2 className="text-base font-serif font-bold text-stone-900">Purchase Activity</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">LEDGER</p>
+              <h2 className="text-base font-serif font-bold text-stone-900 dark:text-white">Purchase Activity</h2>
             </div>
-            <span className="text-xs text-stone-500">Last 25 transactions</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400">Last 25 transactions</span>
           </div>
 
           {purchaseError ? (
-            <div className="p-8 text-center text-xs text-red-600 font-medium">
+            <div className="p-8 text-center text-xs text-red-600 font-medium dark:text-red-400">
               We could not load purchase history. Please refresh and try again.
             </div>
           ) : purchases?.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-stone-100 bg-stone-50/60 text-[11px] font-semibold text-stone-500">
+                  <tr className="border-b border-stone-100 bg-stone-50/60 text-[11px] font-semibold text-stone-500 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-400">
                     <th className="py-3 px-4 sm:px-6">Reference</th>
                     <th className="py-3 px-4">Credits</th>
                     <th className="py-3 px-4">Amount Paid</th>
@@ -283,32 +283,32 @@ export default async function CreditsPage({ params }: Props) {
                     <th className="py-3 px-4 sm:px-6">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 dark:divide-[#1c2721]">
                   {purchases.map((p) => (
-                    <tr key={p.reference} className="hover:bg-stone-50/50 transition-colors">
-                      <td className="py-3.5 px-4 sm:px-6 font-mono text-[11px] font-medium text-stone-800">
+                    <tr key={p.reference} className="hover:bg-stone-50/50 dark:hover:bg-[#121914]/50 transition-colors">
+                      <td className="py-3.5 px-4 sm:px-6 font-mono text-[11px] font-medium text-stone-800 dark:text-stone-200">
                         {p.reference}
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-stone-900">
+                      <td className="py-3.5 px-4 font-semibold text-stone-900 dark:text-white">
                         +{p.credits.toLocaleString()}
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-stone-700">
+                      <td className="py-3.5 px-4 font-medium text-stone-700 dark:text-stone-300">
                         GH₵ {(p.amount_minor / 100).toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                             p.status === "paid" || p.status === "completed"
-                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/50"
                               : p.status === "pending"
-                              ? "bg-amber-50 text-amber-800 border border-amber-200"
-                              : "bg-red-50 text-red-700 border border-red-200"
+                              ? "bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/50"
+                              : "bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/50"
                           }`}
                         >
                           {p.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 text-stone-500">
+                      <td className="py-3.5 px-4 sm:px-6 text-stone-500 dark:text-stone-400">
                         {new Date(p.created_at).toLocaleDateString("en-GH", {
                           dateStyle: "medium",
                           timeZone: "Africa/Accra",
@@ -321,11 +321,11 @@ export default async function CreditsPage({ params }: Props) {
             </div>
           ) : (
             <div className="p-10 text-center space-y-2">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-[#121914] dark:text-stone-500">
                 <Icon name="phone" size={18} />
               </div>
-              <p className="text-xs font-semibold text-stone-700">No credit purchases yet</p>
-              <p className="text-xs text-stone-400 max-w-sm mx-auto">
+              <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">No credit purchases yet</p>
+              <p className="text-xs text-stone-400 max-w-sm mx-auto dark:text-stone-500">
                 Select any package above to add voter verification coverage to your organization.
               </p>
             </div>
@@ -333,19 +333,19 @@ export default async function CreditsPage({ params }: Props) {
         </div>
 
         {/* Paid Voting Callout */}
-        <div className="rounded-2xl border border-stone-200/90 bg-gradient-to-br from-stone-50 to-white p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="rounded-2xl border border-stone-200/90 bg-gradient-to-br from-stone-50 to-white p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark:border-[#1c2721] dark:from-[#0a0d0b] dark:to-[#0c120e]">
           <div className="flex items-start gap-3.5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-900 font-bold font-serif text-lg">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-900 font-bold font-serif text-lg dark:text-amber-300">
               ₵
             </span>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-400">
                 RUNNING PAID VOTING INSTEAD?
               </p>
-              <h3 className="text-sm font-semibold text-stone-900 mt-0.5">
+              <h3 className="text-sm font-semibold text-stone-900 dark:text-white mt-0.5">
                 Paid events consume zero SMS credits
               </h3>
-              <p className="text-xs text-stone-500 mt-1 max-w-lg leading-relaxed">
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-lg leading-relaxed">
                 Paid ballots verify identity directly through Mobile Money checkout (MTN MoMo,
                 Telecel Cash, Visa/Mastercard). Connect your Paystack settlement account to start
                 monetizing.
@@ -354,7 +354,7 @@ export default async function CreditsPage({ params }: Props) {
           </div>
           <Link
             href={`/organizer/${organizationId}/payments`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 transition-all shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-stone-300 dark:border-[#1c2721] dark:bg-[#121914] dark:text-stone-200 dark:hover:bg-[#18211b] dark:hover:border-stone-700 transition-all shrink-0 cursor-pointer"
           >
             <span>Set up payments</span>
             <Icon name="arrowRight" size={13} />

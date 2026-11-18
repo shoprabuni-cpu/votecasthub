@@ -30,7 +30,7 @@ export default async function NewEventPage({ params, searchParams }: Props) {
   if (!organization && !error) notFound();
 
   return (
-    <main className="min-h-screen bg-stone-50/60 pb-16 dark:bg-black">
+    <main className="min-h-screen bg-stone-50/60 pb-16 dark:bg-black dark:text-stone-100 transition-colors">
       <DashboardHeader organizationId={organizationId} />
       <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-6">
         {/* Navigation Breadcrumb */}

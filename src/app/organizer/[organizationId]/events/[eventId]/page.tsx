@@ -95,14 +95,14 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const typedEventRows = (eventRows ?? []) as OrganizationEvent[];
   if (eventError || membershipError) {
     return (
-      <main className="min-h-screen bg-stone-50/60 pb-16">
+      <main className="min-h-screen bg-stone-50/60 pb-16 dark:bg-black dark:text-stone-100 transition-colors">
         <DashboardHeader organizationId={organizationId} />
         <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-10 text-center">
-          <div className="rounded-2xl border border-red-200 bg-white p-8 shadow-xs">
-            <h1 className="text-lg font-serif font-semibold text-stone-900">We could not load this event.</h1>
-            <p className="mt-1 text-xs text-stone-500">Refresh the page or try again shortly.</p>
+          <div className="rounded-2xl border border-red-200 bg-white p-8 shadow-xs dark:border-red-900/60 dark:bg-[#0c120e]">
+            <h1 className="text-lg font-serif font-semibold text-stone-900 dark:text-white">We could not load this event.</h1>
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Refresh the page or try again shortly.</p>
             <Link
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-emerald-400 dark:hover:bg-[#121914]"
               href={`/organizer/${organizationId}/events`}
             >
               ← Back to events
@@ -235,9 +235,9 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         </div>
         <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 font-mono">{ghanaDate(event.starts_at)} → {ghanaDate(event.ends_at)} · Ghana GMT</p>
       </header>
-      {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{presentation.warning}</p>}
-      {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">This workspace is read-only for your current access.</p>}
-      {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Read feedback</a></div>}
+      {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
+      {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-300">This workspace is read-only for your current access.</p>}
+      {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200">Read feedback</a></div>}
       <EventWorkspace
         isTicketOnly={isTicketOnly}
         tickets={

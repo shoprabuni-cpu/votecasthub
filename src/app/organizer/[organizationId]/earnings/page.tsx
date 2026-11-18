@@ -39,7 +39,7 @@ export default async function EarningsPage({
   const root = `/organizer/${organizationId}`;
 
   return (
-    <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
+    <main className="min-h-screen bg-stone-50/70 text-stone-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900 dark:bg-black dark:text-stone-100 transition-colors pb-20">
       <DashboardHeader organizationId={organizationId} />
 
       <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
@@ -47,7 +47,7 @@ export default async function EarningsPage({
         <div>
           <Link
             href={`${root}/events`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors dark:text-stone-400 dark:hover:text-stone-200"
           >
             <Icon name="arrowLeft" size={14} />
             <span>{org?.name ?? "Workspace"}</span>
@@ -55,16 +55,16 @@ export default async function EarningsPage({
         </div>
 
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-6 dark:border-[#1c2721]">
           <div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-600" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">PAYMENTS & REVENUE</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">PAYMENTS & REVENUE</p>
             </div>
-            <h1 className="mt-2 text-2xl font-serif font-bold tracking-tight text-stone-900 sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-serif font-bold tracking-tight text-stone-900 sm:text-3xl dark:text-white">
               Earnings & Settlement Ledger
             </h1>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
               Complete audit of vote earnings, platform fee absorption, and automatic settlement batches.
             </p>
           </div>
