@@ -164,7 +164,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const checkoutReady = event.voting_mode === "paid" ? paidCheckoutReady === true : votingRulesReady;
   const { data: verificationReadiness, error: verificationReadinessError } = await supabase.rpc("get_event_verification_readiness", { p_event_id: eventId });
   const verificationReady = !verificationReadinessError && verificationReadiness?.ready === true;
-  const isTicketOnly = event.event_type === "ticketing";
+  const isTicketOnly = (eventMeta?.event_type ?? event.event_type) === "ticketing";
   const activeTiers = (ticketTiers ?? []).filter((tier: any) => tier.is_active);
   const tiersReady = activeTiers.length > 0;
 
@@ -280,7 +280,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           <Link href="/gate" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"><span>📱 Gate Scanner</span> ↗</Link>
         </div>}
         editor={<>
-          {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules, eventType: (event.event_type as any) ?? "voting", venueName: event.venue_name, doorsOpenTime: event.doors_open_time }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
+          {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules, eventType: ((eventMeta?.event_type ?? event.event_type) as any) ?? "voting", venueName: event.venue_name, doorsOpenTime: event.doors_open_time }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
           {returnToDraft}
           {!permissions.returnToDraft && permissions.editPublic && event.status !== "closed" && <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-600">Competition settings stay fixed while published. Full editing requires no voting or payment history and owner/admin access.</p>}
         </>}

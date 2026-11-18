@@ -18,6 +18,7 @@ export type EventItem = {
   currency?: string;
   unit_price_minor?: number;
   voting_mode?: string;
+  event_type?: string;
 };
 
 type Props = {
@@ -218,11 +219,19 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                         {presentation.label}
                       </span>
 
-                      {event.voting_mode && (
+                      {event.event_type === "ticketing" ? (
+                        <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                          🎟️ Tickets
+                        </span>
+                      ) : event.event_type === "hybrid" ? (
+                        <span className="rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
+                          🎟️ + 🗳️ Hybrid
+                        </span>
+                      ) : event.voting_mode ? (
                         <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-500">
                           {event.voting_mode.replaceAll("_", " ")}
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-400 transition-all group-hover:bg-emerald-700 group-hover:text-white group-hover:translate-x-0.5">
@@ -236,7 +245,7 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
 
                   {event.slug && (
                     <p className="mt-1 text-xs text-stone-400 font-mono">
-                      /events/{event.slug}
+                      {event.event_type === "ticketing" ? `/tickets` : `/events/${event.slug}`}
                     </p>
                   )}
                 </div>
@@ -253,7 +262,11 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                       </span>
                     </div>
 
-                    {event.unit_price_minor ? (
+                    {event.event_type === "ticketing" ? (
+                      <span className="font-mono text-emerald-700 font-semibold text-[11px]">
+                        🎟️ Gate Pass / Tickets
+                      </span>
+                    ) : event.unit_price_minor ? (
                       <span className="font-mono text-emerald-700 font-semibold">
                         ₵{(event.unit_price_minor / 100).toFixed(2)}/vote
                       </span>

@@ -27,7 +27,11 @@ export default async function OrganizationEventsPage({ params }: Props) {
 
   if (!orgError && !organization) notFound();
 
-  const [{ data: membership, error: membershipError }, { data: events, error: eventsError }] = await Promise.all([
+  const [
+    { data: membership, error: membershipError },
+    { data: events, error: eventsError },
+    { data: eventMetas },
+  ] = await Promise.all([
     supabase
       .from("organization_members")
       .select("role")
@@ -35,6 +39,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
       .eq("user_id", userId)
       .maybeSingle(),
     supabase.rpc("get_organization_events", { p_organization_id: organizationId }),
+    supabase.from("events").select("id, event_type").eq("organization_id", organizationId),
   ]);
 
   if (!membership && !membershipError) notFound();
@@ -43,7 +48,12 @@ export default async function OrganizationEventsPage({ params }: Props) {
   const isManager = ["owner", "admin"].includes(membership?.role ?? "");
   const { data: workspaceStates } = await supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId });
   const states = new Map(((workspaceStates ?? []) as EventWorkspaceState[]).map(row => [row.event_id, row]));
-  const eventRows = (events ?? []).map((event: EventItem) => ({ ...event, ...states.get(event.id) })) as EventItem[];
+  const typeMap = new Map((eventMetas ?? []).map(row => [row.id, row.event_type]));
+  const eventRows = (events ?? []).map((event: EventItem) => ({
+    ...event,
+    event_type: typeMap.get(event.id) ?? "voting",
+    ...states.get(event.id),
+  })) as EventItem[];
   // eslint-disable-next-line react-hooks/purity -- Evaluate voting windows once in this async Server Component.
   const requestTime = Date.now();
 

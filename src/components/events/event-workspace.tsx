@@ -24,15 +24,15 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
 }) {
   const sections: { id: Section; label: string }[] = isTicketOnly
     ? [
-        { id: "details", label: "Event details" },
         { id: "tickets", label: "🎟️ Tickets & Attendees" },
+        { id: "details", label: "Event details" },
         ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
       ]
     : review
     ? [...baseSections, { id: "review", label: "Review & Submit" }]
     : [...baseSections];
 
-  const [section, setSection] = useState<Section>("details");
+  const [section, setSection] = useState<Section>(isTicketOnly ? "tickets" : "details");
   const [editing, setEditing] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   function navigate(event: KeyboardEvent<HTMLButtonElement>, index: number) {
