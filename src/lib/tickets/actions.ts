@@ -431,7 +431,7 @@ export async function createTicketEventAction(
       p_ends_at: endDate.toISOString(),
       p_results_visibility: "hidden",
       p_voting_mode: "free",
-      p_free_vote_limit_per_phone: null,
+      p_free_vote_limit_per_phone: 1,
       p_voting_rule: "one_per_category",
       p_voting_rules: null,
     });
