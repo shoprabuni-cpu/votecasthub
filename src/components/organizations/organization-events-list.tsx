@@ -261,103 +261,106 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                 key={event.id}
                 width="100%"
                 height="100%"
-                radius={20}
+                radius={24}
+                theme="dark"
+                tint="#ffffff"
+                metalness={0.95}
+                roughness={0.28}
+                blurStrength={6}
+                shine={1.2}
+                glare={0.65}
+                tiltStrength={10}
                 contentPadding={0}
-                tint="#059669"
-                metalness={0.35}
-                roughness={0.4}
-                shine={0.8}
-                glare={0.4}
-                tiltStrength={7}
-                className="flex h-full min-w-0 flex-col shadow-xs transition-all hover:shadow-md"
+                className="flex h-full min-w-0 flex-col transition-transform duration-300 hover:scale-[1.01]"
               >
                 <Link
                   href={`/organizer/${organizationId}/events/${event.id}`}
-                  className="group relative flex h-full w-full min-w-0 flex-col justify-between overflow-hidden rounded-[20px] bg-white/95 p-6 backdrop-blur-xs transition-colors hover:bg-emerald-50/20 dark:bg-[#0c120e]/95 dark:hover:bg-[#121814]"
+                  className="group relative flex h-full w-full min-w-0 flex-col justify-between p-6 text-white"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isLiveNow
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider backdrop-blur-md border ${
+                            isLiveNow
+                              ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/50"
                               : isPublished
-                                ? "bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800/50"
-                                : isDraft
-                                  ? "bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50"
-                                  : "bg-stone-100 text-stone-600 border border-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:border-stone-800"
-                            }`}
+                              ? "bg-teal-950/70 text-teal-300 border-teal-500/40"
+                              : isDraft
+                              ? "bg-amber-950/70 text-amber-300 border-amber-500/40"
+                              : "bg-white/10 text-white/70 border-white/10"
+                          }`}
                         >
-                          {isLiveNow && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
+                          {isLiveNow && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
                           {presentation.label}
                         </span>
 
                         {isTicketing ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-950/60 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-300 backdrop-blur-md">
                             <TicketIcon size={12} />
                             <span>Ticketed Event</span>
                           </span>
                         ) : isHybrid ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-400/40 bg-purple-950/60 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-300 backdrop-blur-md">
                             <TicketIcon size={11} />
                             <VoteIcon size={11} />
                             <span>Hybrid</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-300 backdrop-blur-md">
                             <VoteIcon size={11} />
                             <span>Voting Contest</span>
                           </span>
                         )}
                       </div>
 
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-400 transition-all group-hover:bg-emerald-700 group-hover:text-white group-hover:translate-x-0.5 dark:bg-[#141d18] dark:text-stone-500">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-white transition-all group-hover:bg-emerald-600 group-hover:border-emerald-500 group-hover:translate-x-0.5">
                         <Icon name="arrowRight" size={14} />
                       </div>
                     </div>
 
-                    <h3 className="mt-3.5 text-lg font-bold text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-2 dark:text-white dark:group-hover:text-emerald-400">
+                    <h3 className="mt-3.5 text-xl font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-2">
                       {event.name}
                     </h3>
 
                     {event.venue_name && (
-                      <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1">
+                      <p className="mt-1 text-xs font-medium text-white/80 flex items-center gap-1">
                         <span>📍</span>
                         <span className="truncate">{event.venue_name}</span>
                       </p>
                     )}
 
                     {event.slug && (
-                      <p className="mt-1 text-xs text-stone-400 font-mono dark:text-stone-500">
+                      <p className="mt-1 text-xs text-white/50 font-mono">
                         /events/{event.slug}
                       </p>
                     )}
                   </div>
 
-                  {presentation.warning && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
-                  {event.review_feedback && <p className="mt-3 line-clamp-3 text-sm text-stone-700 dark:text-stone-300"><strong>Platform feedback: </strong>{event.review_feedback}</p>}
-                  <p className="mt-3 text-xs font-semibold text-emerald-800 dark:text-emerald-400">{presentation.action} →</p>
-                  <div className="mt-6 border-t border-stone-100 pt-4 dark:border-[#1c2721]">
-                    <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+                  {presentation.warning && <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/60 p-3 text-xs text-amber-200">{presentation.warning}</p>}
+                  {event.review_feedback && <p className="mt-3 line-clamp-3 text-sm text-white/80"><strong>Platform feedback: </strong>{event.review_feedback}</p>}
+                  <p className="mt-3 text-xs font-semibold text-emerald-400">{presentation.action} →</p>
+                  <div className="mt-6 border-t border-white/10 pt-4">
+                    <div className="flex items-center justify-between text-xs text-white/60">
                       <div className="flex items-center gap-1.5">
-                        <Icon name="calendar" size={13} className="text-stone-400 dark:text-stone-500" />
+                        <Icon name="calendar" size={13} className="text-white/40" />
                         <span>
                           {dateFormatter.format(startDate)} – {dateFormatter.format(endDate)}
                         </span>
                       </div>
 
                       {isTicketing ? (
-                        <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold text-[11px] dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 font-mono text-emerald-300 font-semibold text-[11px]">
                           <TicketIcon size={13} />
                           <span>Passes &amp; Tickets</span>
                         </span>
                       ) : event.unit_price_minor ? (
-                        <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 font-mono text-emerald-300 font-semibold">
                           <VoteIcon size={12} />
                           <span>₵{(event.unit_price_minor / 100).toFixed(2)}/vote</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 font-mono text-stone-500 dark:text-stone-400 text-[11px]">
+                        <span className="inline-flex items-center gap-1 font-mono text-white/60 text-[11px]">
                           <VoteIcon size={12} />
                           <span>Free ballot</span>
                         </span>
