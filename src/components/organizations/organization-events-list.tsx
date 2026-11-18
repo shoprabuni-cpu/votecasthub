@@ -5,6 +5,7 @@ import Link from "next/link";
 import { organizerEventPresentation } from "@/lib/events/organizer-presentation";
 import { Icon } from "@/components/icon";
 import { TicketIcon, VoteIcon } from "@/components/brand-icons";
+import { ReflectiveCard } from "@/components/ui/ReflectiveCard";
 
 export type EventItem = {
   id: string;
@@ -54,15 +55,15 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
         statusFilter === "all"
           ? true
           : statusFilter === "closed"
-          ? event.status === "closed" || event.status === "archived"
-          : event.status === statusFilter;
+            ? event.status === "closed" || event.status === "archived"
+            : event.status === statusFilter;
 
       const matchesType =
         typeFilter === "all"
           ? true
           : typeFilter === "ticketing"
-          ? event.event_type === "ticketing" || event.event_type === "hybrid"
-          : event.event_type !== "ticketing";
+            ? event.event_type === "ticketing" || event.event_type === "hybrid"
+            : event.event_type !== "ticketing";
 
       const matchesSearch =
         searchQuery.trim() === "" ||
@@ -91,11 +92,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
         <button
           type="button"
           onClick={() => setStatusFilter("all")}
-          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-            statusFilter === "all"
+          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${statusFilter === "all"
               ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/30 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:ring-emerald-500/20"
               : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 shadow-2xs dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-800 dark:hover:bg-[#121914]"
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-stone-500 dark:text-stone-400">
             <span>All Events</span>
@@ -110,11 +110,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
         <button
           type="button"
           onClick={() => setStatusFilter("published")}
-          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-            statusFilter === "published"
+          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${statusFilter === "published"
               ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/30 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:ring-emerald-500/20"
               : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 shadow-2xs dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-800 dark:hover:bg-[#121914]"
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-stone-500 dark:text-stone-400">
             <span>Published</span>
@@ -129,11 +128,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
         <button
           type="button"
           onClick={() => setStatusFilter("draft")}
-          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-            statusFilter === "draft"
+          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${statusFilter === "draft"
               ? "border-amber-500 bg-amber-50/80 shadow-xs ring-1 ring-amber-500/30 dark:border-amber-500/40 dark:bg-amber-950/30 dark:ring-amber-500/20"
               : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 shadow-2xs dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-800 dark:hover:bg-[#121914]"
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-stone-500 dark:text-stone-400">
             <span>Not published</span>
@@ -148,11 +146,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
         <button
           type="button"
           onClick={() => setStatusFilter("closed")}
-          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${
-            statusFilter === "closed"
+          className={`group flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.98] cursor-pointer ${statusFilter === "closed"
               ? "border-stone-400 bg-stone-100 shadow-xs ring-1 ring-stone-400/30 dark:border-stone-700 dark:bg-stone-900 dark:ring-stone-600/20"
               : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50 shadow-2xs dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-800 dark:hover:bg-[#121914]"
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold text-stone-500 dark:text-stone-400">
             <span>Completed</span>
@@ -194,22 +191,20 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
             <button
               type="button"
               onClick={() => setTypeFilter("all")}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                typeFilter === "all"
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${typeFilter === "all"
                   ? "bg-white text-stone-900 shadow-2xs dark:bg-[#121914] dark:text-white"
                   : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-              }`}
+                }`}
             >
               All Types
             </button>
             <button
               type="button"
               onClick={() => setTypeFilter("voting")}
-              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                typeFilter === "voting"
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${typeFilter === "voting"
                   ? "bg-white text-emerald-900 shadow-2xs dark:bg-[#121914] dark:text-emerald-300"
                   : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-              }`}
+                }`}
             >
               <VoteIcon size={12} />
               <span>Voting ({votingCount})</span>
@@ -217,11 +212,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
             <button
               type="button"
               onClick={() => setTypeFilter("ticketing")}
-              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                typeFilter === "ticketing"
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${typeFilter === "ticketing"
                   ? "bg-white text-amber-900 shadow-2xs dark:bg-[#121914] dark:text-amber-300"
                   : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
-              }`}
+                }`}
             >
               <TicketIcon size={12} />
               <span>Tickets ({ticketCount})</span>
@@ -263,102 +257,115 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
             const isHybrid = event.event_type === "hybrid";
 
             return (
-              <Link
+              <ReflectiveCard
                 key={event.id}
-                href={`/organizer/${organizationId}/events/${event.id}`}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white p-6 shadow-xs transition-all duration-200 hover:border-emerald-600/40 hover:shadow-md hover:bg-emerald-50/10 active:scale-[0.99] dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-emerald-800/80 dark:hover:bg-[#121814]"
+                width="100%"
+                height="100%"
+                radius={20}
+                contentPadding={0}
+                tint="#059669"
+                metalness={0.35}
+                roughness={0.4}
+                shine={0.8}
+                glare={0.4}
+                tiltStrength={7}
+                className="flex h-full min-w-0 flex-col shadow-xs transition-all hover:shadow-md"
               >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${
-                          isLiveNow
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
-                            : isPublished
-                            ? "bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800/50"
-                            : isDraft
-                            ? "bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50"
-                            : "bg-stone-100 text-stone-600 border border-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:border-stone-800"
-                        }`}
-                      >
-                        {isLiveNow && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
-                        {presentation.label}
-                      </span>
+                <Link
+                  href={`/organizer/${organizationId}/events/${event.id}`}
+                  className="group relative flex h-full w-full min-w-0 flex-col justify-between overflow-hidden rounded-[20px] bg-white/95 p-6 backdrop-blur-xs transition-colors hover:bg-emerald-50/20 dark:bg-[#0c120e]/95 dark:hover:bg-[#121814]"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${isLiveNow
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60"
+                              : isPublished
+                                ? "bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800/50"
+                                : isDraft
+                                  ? "bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50"
+                                  : "bg-stone-100 text-stone-600 border border-stone-200 dark:bg-stone-900 dark:text-stone-400 dark:border-stone-800"
+                            }`}
+                        >
+                          {isLiveNow && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
+                          {presentation.label}
+                        </span>
+
+                        {isTicketing ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                            <TicketIcon size={12} />
+                            <span>Ticketed Event</span>
+                          </span>
+                        ) : isHybrid ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
+                            <TicketIcon size={11} />
+                            <VoteIcon size={11} />
+                            <span>Hybrid</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <VoteIcon size={11} />
+                            <span>Voting Contest</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-400 transition-all group-hover:bg-emerald-700 group-hover:text-white group-hover:translate-x-0.5 dark:bg-[#141d18] dark:text-stone-500">
+                        <Icon name="arrowRight" size={14} />
+                      </div>
+                    </div>
+
+                    <h3 className="mt-3.5 text-lg font-bold text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-2 dark:text-white dark:group-hover:text-emerald-400">
+                      {event.name}
+                    </h3>
+
+                    {event.venue_name && (
+                      <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1">
+                        <span>📍</span>
+                        <span className="truncate">{event.venue_name}</span>
+                      </p>
+                    )}
+
+                    {event.slug && (
+                      <p className="mt-1 text-xs text-stone-400 font-mono dark:text-stone-500">
+                        /events/{event.slug}
+                      </p>
+                    )}
+                  </div>
+
+                  {presentation.warning && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
+                  {event.review_feedback && <p className="mt-3 line-clamp-3 text-sm text-stone-700 dark:text-stone-300"><strong>Platform feedback: </strong>{event.review_feedback}</p>}
+                  <p className="mt-3 text-xs font-semibold text-emerald-800 dark:text-emerald-400">{presentation.action} →</p>
+                  <div className="mt-6 border-t border-stone-100 pt-4 dark:border-[#1c2721]">
+                    <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+                      <div className="flex items-center gap-1.5">
+                        <Icon name="calendar" size={13} className="text-stone-400 dark:text-stone-500" />
+                        <span>
+                          {dateFormatter.format(startDate)} – {dateFormatter.format(endDate)}
+                        </span>
+                      </div>
 
                       {isTicketing ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
-                          <TicketIcon size={12} />
-                          <span>Ticketed Event</span>
+                        <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold text-[11px] dark:text-emerald-400">
+                          <TicketIcon size={13} />
+                          <span>Passes &amp; Tickets</span>
                         </span>
-                      ) : isHybrid ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
-                          <TicketIcon size={11} />
-                          <VoteIcon size={11} />
-                          <span>Hybrid</span>
+                      ) : event.unit_price_minor ? (
+                        <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold dark:text-emerald-400">
+                          <VoteIcon size={12} />
+                          <span>₵{(event.unit_price_minor / 100).toFixed(2)}/vote</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                          <VoteIcon size={11} />
-                          <span>Voting Contest</span>
+                        <span className="inline-flex items-center gap-1 font-mono text-stone-500 dark:text-stone-400 text-[11px]">
+                          <VoteIcon size={12} />
+                          <span>Free ballot</span>
                         </span>
                       )}
                     </div>
-
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-400 transition-all group-hover:bg-emerald-700 group-hover:text-white group-hover:translate-x-0.5 dark:bg-[#141d18] dark:text-stone-500">
-                      <Icon name="arrowRight" size={14} />
-                    </div>
                   </div>
-
-                  <h3 className="mt-3.5 text-lg font-bold text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-2 dark:text-white dark:group-hover:text-emerald-400">
-                    {event.name}
-                  </h3>
-
-                  {event.venue_name && (
-                    <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1">
-                      <span>📍</span>
-                      <span className="truncate">{event.venue_name}</span>
-                    </p>
-                  )}
-
-                  {event.slug && (
-                    <p className="mt-1 text-xs text-stone-400 font-mono dark:text-stone-500">
-                      /events/{event.slug}
-                    </p>
-                  )}
-                </div>
-
-                {presentation.warning && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
-                {event.review_feedback && <p className="mt-3 line-clamp-3 text-sm text-stone-700 dark:text-stone-300"><strong>Platform feedback: </strong>{event.review_feedback}</p>}
-                <p className="mt-3 text-xs font-semibold text-emerald-800 dark:text-emerald-400">{presentation.action} →</p>
-                <div className="mt-6 border-t border-stone-100 pt-4 dark:border-[#1c2721]">
-                  <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="calendar" size={13} className="text-stone-400 dark:text-stone-500" />
-                      <span>
-                        {dateFormatter.format(startDate)} – {dateFormatter.format(endDate)}
-                      </span>
-                    </div>
-
-                    {isTicketing ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold text-[11px] dark:text-emerald-400">
-                        <TicketIcon size={13} />
-                        <span>Passes &amp; Tickets</span>
-                      </span>
-                    ) : event.unit_price_minor ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold dark:text-emerald-400">
-                        <VoteIcon size={12} />
-                        <span>₵{(event.unit_price_minor / 100).toFixed(2)}/vote</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-mono text-stone-500 dark:text-stone-400 text-[11px]">
-                        <VoteIcon size={12} />
-                        <span>Free ballot</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
+                </Link>
+              </ReflectiveCard>
             );
           })}
         </div>
