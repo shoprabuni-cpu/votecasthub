@@ -49,6 +49,7 @@ export default function GateScannerPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GateCheckInResponse | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   async function handleVerify(codeToVerify?: string) {
@@ -95,6 +96,7 @@ export default function GateScannerPage() {
     let scanInterval: NodeJS.Timeout | null = null;
 
     if (cameraActive && videoRef.current) {
+      setCameraError(null);
       navigator.mediaDevices
         ?.getUserMedia({ video: { facingMode: "environment" } })
         .then((s) => {
@@ -123,6 +125,11 @@ export default function GateScannerPage() {
         })
         .catch((err) => {
           console.warn("Camera access denied or unavailable:", err);
+          setCameraError(
+            err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError"
+              ? "Camera permission was denied. Click the lock/camera icon in your browser address bar to allow camera access, or type the code manually below."
+              : "Camera is currently unavailable on this device. You can type the code manually below."
+          );
           setCameraActive(false);
         });
     }
@@ -203,12 +210,22 @@ export default function GateScannerPage() {
           <div className="mt-4 pt-3 border-t border-stone-100 dark:border-[#1c2721]">
             <button
               type="button"
-              onClick={() => setCameraActive((prev) => !prev)}
+              onClick={() => {
+                setCameraError(null);
+                setCameraActive((prev) => !prev);
+              }}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 text-xs font-bold text-stone-800 hover:bg-stone-100 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200 cursor-pointer"
             >
               <span>📷</span>
               <span>{cameraActive ? "Turn Off Camera" : "Scan With Device Camera"}</span>
             </button>
+
+            {cameraError && (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
+                <p className="font-semibold">⚠️ Camera Access Notice</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed">{cameraError}</p>
+              </div>
+            )}
 
             {cameraActive && (
               <div className="mt-3 overflow-hidden rounded-2xl border-2 border-emerald-500 bg-black aspect-video relative flex items-center justify-center">
