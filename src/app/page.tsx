@@ -28,8 +28,7 @@ export default async function HomePage() {
 
       <section className="mx-auto grid max-w-6xl min-h-[580px] items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:py-20" aria-labelledby="hero-title">
         <div className="max-w-xl">
-          <p className="flex items-center gap-2 text-xs font-bold tracking-widest text-emerald-800 dark:text-emerald-400 uppercase"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> FOR GHANAIAN AWARDS, SUMMITS & LIVE EVENTS</p>
-          <h1 id="hero-title" className="mt-5 mb-4 font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-stone-900 leading-[1.08] dark:text-white">Fair voting & seamless <em className="italic text-emerald-800 dark:text-emerald-400 font-serif">event ticketing.</em></h1>
+          <h1 id="hero-title" className="mb-4 font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-stone-900 leading-[1.08] dark:text-white">Fair voting & seamless <em className="italic text-emerald-800 dark:text-emerald-400 font-serif">event ticketing.</em></h1>
           <p className="max-w-lg text-base sm:text-lg leading-relaxed text-stone-600 dark:text-stone-300">The all-in-one platform for Ghanaian awards, contests, conferences, and parties. Sell event tickets with auto-generated PAX codes or run credible nominee voting with instant Mobile Money.</p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link className="inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500" href="/events">Explore events & tickets <span aria-hidden="true">↗</span></Link>
