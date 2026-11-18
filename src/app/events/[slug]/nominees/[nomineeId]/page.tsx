@@ -85,7 +85,12 @@ export default async function NomineePage({ params }: Props) {
         <VotingNotice event={event} />
         <UssdInstructions eventId={event.id} />
         <ShareButton title={nominee.name} text={`${nominee.name} — ${event.name}`} url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${event.slug}/nominees/${nominee.id}`} flyer={{ ussd: ussdInfo ?? undefined, nominee: nominee.name, category: category.name, imageUrl, eventName: event.name, code: nominee.public_code, startsAt: event.starts_at, endsAt: event.ends_at, status: event.status, votingMode: event.voting_mode, unitPriceMinor: event.unit_price_minor, eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : event.slug }} />
-        <Link className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500" href={`/events/${event.slug}`}>{eventPresentation(event).key === "open" ? "Go to voting" : "Explore event & results"}</Link>
+        <Link
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-900 bg-emerald-900 px-6 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-800 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+          href={`/events/${event.slug}?nominee=${nominee.id}`}
+        >
+          {eventPresentation(event).key === "open" ? `Vote for ${nominee.name} →` : "Explore event & results"}
+        </Link>
       </article>
       <footer className="mx-auto mt-16 max-w-6xl border-t border-stone-200 px-4 py-8 sm:px-6 text-xs text-stone-600 dark:border-[#1c2721] dark:text-stone-400 flex flex-wrap items-center justify-between gap-4">
         <Link className="inline-flex items-center" href="/"><BrandLogo height={34} /></Link>

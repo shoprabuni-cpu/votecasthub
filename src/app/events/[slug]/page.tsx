@@ -21,7 +21,10 @@ import { loadPublicSearchMetadata } from "@/lib/seo/public-data";
 import { publicMetadata, PRIVATE_ROBOTS, breadcrumbs } from "@/lib/seo/metadata";
 import { StructuredData } from "@/components/seo/structured-data";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ nominee?: string; category?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -42,8 +45,10 @@ function ghDate(value: string) {
   }).format(new Date(value));
 }
 
-export default async function PublicEventPage({ params }: Props) {
+export default async function PublicEventPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const query = await searchParams;
+  const focusedNomineeId = typeof query?.nominee === "string" ? query.nominee : undefined;
   let event: {
     id: string;
     name: string;
@@ -287,6 +292,19 @@ export default async function PublicEventPage({ params }: Props) {
   const isOpen = presentation.key === "open";
   const isTicketOnly = event.event_type === "ticketing" || (ticketTiers.length > 0 && categories.length === 0);
 
+  const focusedNominee = focusedNomineeId ? nominees.find((n) => n.id === focusedNomineeId) : null;
+  const focusedCategory = focusedNominee ? categories.find((c) => c.id === focusedNominee.category_id) : null;
+  const focusedImageUrl = focusedNominee ? imageUrlByPath.get(focusedNominee.image_path ?? "") : null;
+  const focusedUsed = focusedNominee
+    ? event.voting_rule === "per_nominee_limit"
+      ? usedByNominee.get(focusedNominee.id) ?? 0
+      : usedByCategory.get(focusedNominee.category_id) ?? 0
+    : 0;
+  const focusedRemaining = Math.max(0, Math.min(voteCap - focusedUsed, rosterRemaining ?? voteCap));
+  const siblingNominees = focusedNominee
+    ? nominees.filter((n) => n.category_id === focusedNominee.category_id && n.id !== focusedNominee.id)
+    : [];
+
   return (
     <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900 transition-colors dark:bg-[#080b09] dark:text-stone-100">
       <SiteHeader />
@@ -294,402 +312,602 @@ export default async function PublicEventPage({ params }: Props) {
       <EventViewTracker eventId={event.id} />
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 space-y-8">
-        {/* Navigation & Share Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/events"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
-          >
-            <Icon name="arrowLeft" size={13} />
-            <span>All events</span>
-          </Link>
-
-          <ShareButton
-            title={event.name}
-            text={isTicketOnly ? `Get tickets for ${event.name}` : `${presentation.cta} — ${event.name}`}
-            url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
-            flyer={isTicketOnly ? undefined : {
-              ussd: ussdInfo ?? undefined,
-              eventName: event.name,
-              imageUrl: eventImageUrl,
-              startsAt: event.starts_at,
-              endsAt: event.ends_at,
-              status: event.status,
-              votingMode: event.voting_mode,
-              unitPriceMinor: event.unit_price_minor,
-              eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
-            }}
-          />
-        </div>
-
-        {/* Hero Section */}
-        <section className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-          {eventImageUrl ? (
-            <div
-              className="relative h-56 sm:h-80 w-full bg-cover bg-center"
-              style={{ backgroundImage: `url("${eventImageUrl}")` }}
-              role="img"
-              aria-label={`${event.name} cover image`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            </div>
-          ) : (
-            <div className="h-28 sm:h-36 bg-gradient-to-r from-emerald-950 via-emerald-900 to-stone-900" />
-          )}
-
-          <div className="p-6 sm:p-8 space-y-5">
-            {/* Status Pill & Header */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
-                  isOpen
-                    ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800"
-                    : "bg-stone-100 text-stone-600 border border-stone-200 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300"
-                }`}
+        {/* ============================================================== */}
+        {/* 1. DEDICATED MINIMAL VOTING TERMINAL (When Nominee Is Selected) */}
+        {/* ============================================================== */}
+        {focusedNominee && focusedCategory ? (
+          <div className="mx-auto max-w-xl space-y-6 pt-2">
+            {/* Top Navigation Row */}
+            <div className="flex items-center justify-between">
+              <Link
+                href={`/events/${slug}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:underline dark:text-emerald-400"
               >
-                {isOpen && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
-                <span>{status}</span>
-              </span>
-              <span className="text-xs text-stone-400 font-medium dark:text-stone-400">
-                · {isTicketOnly ? "Official Event Tickets" : "Official Voting Ballot"}
+                <span>← View all categories in {event.name}</span>
+              </Link>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+                Direct Ballot
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight dark:text-white">
-              {event.name}
-            </h1>
-
-            <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed dark:text-stone-300">
-              {event.description || (isTicketOnly ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
-            </p>
-
-            {/* Venue & Date Details for Ticketed Events */}
-            {event.venue_name && (
-              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-stone-700 bg-stone-50 p-3 rounded-2xl border border-stone-200/80 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
-                <span>📍 <strong>Venue:</strong> {event.venue_name} {event.venue_address ? `(${event.venue_address})` : ""}</span>
-                {event.doors_open_time && <span>⏰ <strong>Doors open:</strong> {event.doors_open_time}</span>}
-              </div>
-            )}
-
-            {/* Voting Schedule & Mode Info Cards (Only if voting event) */}
-            {!isTicketOnly && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100 dark:border-[#1c2721]">
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.starts_at)}</p>
+            {/* Focused Nominee Spotlight Ballot Card */}
+            <div className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-sm dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <div className="flex flex-col items-center text-center">
+                {/* Nominee Photo */}
+                <div className="relative h-28 w-28 sm:h-32 sm:w-32 overflow-hidden rounded-2xl border-2 border-emerald-500 shadow-md">
+                  {focusedImageUrl ? (
+                    <div
+                      className="h-full w-full bg-cover bg-center"
+                      style={{ backgroundImage: `url("${focusedImageUrl}")` }}
+                      role="img"
+                      aria-label={`${focusedNominee.name} photo`}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-emerald-950 font-serif text-3xl font-bold text-emerald-300">
+                      {focusedNominee.name.trim().slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shadow">
+                    ✓
+                  </span>
                 </div>
 
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Closes</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.ends_at)}</p>
-                </div>
-
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Ballot Type</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900 dark:text-stone-100">
-                    {event.voting_mode === "free"
-                      ? "Free voting"
-                      : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} per vote`}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Rules and Disclaimers */}
-            {event.voting_mode === "free" && !isTicketOnly && (
-              <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                <p className="font-semibold text-emerald-950 dark:text-emerald-300">
-                  Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
+                {/* Category & Title */}
+                <p className="mt-4 text-xs font-bold uppercase tracking-widest text-emerald-800 dark:text-emerald-400">
+                  {focusedCategory.name}
                 </p>
-                {event.voting_rules && (
-                  <p className="text-stone-600 leading-relaxed dark:text-stone-300">
-                    <strong>Organizer Instructions:</strong> {event.voting_rules}
+                <h1 className="mt-1 font-serif text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-white">
+                  {focusedNominee.name}
+                </h1>
+
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  {focusedNominee.public_code && (
+                    <span className="rounded-md border border-stone-200 bg-stone-100 px-2.5 py-0.5 font-mono text-xs font-bold text-stone-800 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200">
+                      Code: {focusedNominee.public_code}
+                    </span>
+                  )}
+                  <span className="rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
+                    {event.voting_mode === "free" ? "Free Public Voting" : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} / vote`}
+                  </span>
+                </div>
+
+                {focusedNominee.biography && (
+                  <p className="mt-3 max-w-md text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                    {focusedNominee.biography}
                   </p>
                 )}
               </div>
-            )}
 
-            {event.voting_mode === "paid" && event.voting_rules && !isTicketOnly && (
-              <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
-                <p className="font-semibold text-stone-900 dark:text-stone-100">Event Notice</p>
-                <p className="mt-1 text-stone-600 leading-relaxed dark:text-stone-300">{event.voting_rules}</p>
+              {/* Direct Voting Terminal */}
+              <div className="mt-6 border-t border-stone-100 pt-6 dark:border-[#1c2721]">
+                {event.voting_mode === "paid" && status === "Voting open" ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl bg-emerald-50/70 p-3 text-xs text-emerald-900 border border-emerald-200/60 dark:bg-emerald-950/40 dark:border-emerald-800/40 dark:text-emerald-200">
+                      ⚡ <strong>Instant Checkout:</strong> Select your vote quantity and complete payment securely via Mobile Money (MTN, Telecel, AT) or Card.
+                    </div>
+                    <PaidVoteForm
+                      eventId={event.id}
+                      categoryId={focusedCategory.id}
+                      nomineeId={focusedNominee.id}
+                      nomineeName={focusedNominee.name}
+                      unitPriceMinor={event.unit_price_minor}
+                    />
+                  </div>
+                ) : event.voting_mode === "free" && votingOpen ? (
+                  voterVerified ? (
+                    focusedRemaining > 0 ? (
+                      <div className="space-y-4">
+                        <div className="rounded-xl bg-emerald-50/70 p-3 text-xs text-emerald-900 border border-emerald-200/60 dark:bg-emerald-950/40 dark:border-emerald-800/40 dark:text-emerald-200">
+                          ✓ <strong>You are verified:</strong> You have {focusedRemaining} free votes remaining for this nominee.
+                        </div>
+                        <FreeVoteForm
+                          eventId={event.id}
+                          categoryId={focusedCategory.id}
+                          nomineeId={focusedNominee.id}
+                          nomineeName={focusedNominee.name}
+                          nextPath={votePath}
+                          maxQuantity={focusedRemaining}
+                          requestKey={randomUUID()}
+                          phoneVerified={true}
+                          verificationMethod={event.verification_method ?? "phone"}
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-amber-50 p-4 text-center text-xs text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
+                        You have reached your vote limit {event.voting_rule === "per_nominee_limit" ? "for this nominee" : "in this category"}.
+                      </div>
+                    )
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-xl bg-emerald-50/80 p-3.5 text-xs text-emerald-950 border border-emerald-200/80 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-200">
+                        <strong>1-Step Voter Verification:</strong> Verify your details once below to cast your free ballot for <strong>{focusedNominee.name}</strong>.
+                      </div>
+                      <EventVoterVerification
+                        eventId={event.id}
+                        method={event.verification_method ?? "phone"}
+                        isVerified={voterVerified}
+                        hasRedeemed={voterAuthStatus.hasVoterList}
+                        available={votingOpen}
+                        inputTypes={voterInputTypes}
+                      />
+                    </div>
+                  )
+                ) : (
+                  <p className="rounded-xl bg-stone-100 p-4 text-center text-xs text-stone-600 dark:bg-stone-900 dark:text-stone-300">
+                    Voting is currently closed or paused for this event.
+                  </p>
+                )}
+              </div>
+
+              {/* WhatsApp voting option */}
+              {focusedNominee.public_code && (
+                <div className="mt-5 border-t border-stone-100 pt-4 text-center dark:border-[#1c2721]">
+                  <a
+                    href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${focusedNominee.public_code}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-emerald-800 hover:underline dark:text-emerald-400"
+                  >
+                    <span>💬 Prefer WhatsApp? Vote for {focusedNominee.name} on WhatsApp bot →</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Sibling Contenders in Same Category (Horizontal Rail) */}
+            {siblingNominees.length > 0 && (
+              <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+                <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                  Other Contenders in {focusedCategory.name}:
+                </p>
+                <div className="flex gap-2.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                  {siblingNominees.map((sib) => {
+                    const sibImage = imageUrlByPath.get(sib.image_path ?? "");
+                    return (
+                      <Link
+                        key={sib.id}
+                        href={`/events/${slug}?nominee=${sib.id}`}
+                        className="group flex shrink-0 items-center gap-2 rounded-xl border border-stone-200/80 bg-stone-50/60 p-2 text-left transition hover:border-emerald-500 hover:bg-white dark:border-[#1c2721] dark:bg-[#121914] dark:hover:border-emerald-600"
+                      >
+                        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-stone-100 dark:bg-[#1a251f]">
+                          {sibImage ? (
+                            <div
+                              className="h-full w-full bg-cover bg-center"
+                              style={{ backgroundImage: `url("${sibImage}")` }}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-serif text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                              {sib.name.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 pr-1">
+                          <p className="truncate text-xs font-bold text-stone-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400 max-w-[120px]">
+                            {sib.name}
+                          </p>
+                          <p className="font-mono text-[10px] text-stone-500 dark:text-stone-400">
+                            {sib.public_code || "Contender"}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Notices and Results Banners (Voting events only) */}
-            {!isTicketOnly && (
-              <>
-                <EventNotices eventId={event.id} />
-                <VotingNotice
-                  event={event}
-                  resultsVisibility={event.results_visibility}
-                  resultsReleased={event.results_released}
-                />
-              </>
-            )}
+            {/* Link to view full event announcements */}
+            <div className="text-center pt-2">
+              <Link
+                href={`/events/${slug}`}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-xs font-semibold text-stone-700 shadow-2xs hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-300"
+              >
+                View Full Event Announcements &amp; Other Categories
+              </Link>
+            </div>
+          </div>
+        ) : (
+          /* ============================================================== */
+          /* 2. FULL GENERAL EVENT OVERVIEW (When No Specific Nominee Is Focused) */
+          /* ============================================================== */
+          <>
+            {/* Navigation & Share Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link
+                href="/events"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+              >
+                <Icon name="arrowLeft" size={13} />
+                <span>All events</span>
+              </Link>
 
-            {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
-            {(isTicketOnly || ticketTiers.length > 0) && (
-              <div className="pt-2">
-                <PublicTicketWidget
-                  eventId={event.id}
-                  eventName={event.name}
-                  eventImageUrl={eventImageUrl}
-                  venueName={event.venue_name}
-                  venueAddress={event.venue_address}
-                  doorsOpenTime={event.doors_open_time}
-                  tiers={ticketTiers}
-                />
-              </div>
-            )}
+              <ShareButton
+                title={event.name}
+                text={isTicketOnly ? `Get tickets for ${event.name}` : `${presentation.cta} — ${event.name}`}
+                url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
+                flyer={isTicketOnly ? undefined : {
+                  ussd: ussdInfo ?? undefined,
+                  eventName: event.name,
+                  imageUrl: eventImageUrl,
+                  startsAt: event.starts_at,
+                  endsAt: event.ends_at,
+                  status: event.status,
+                  votingMode: event.voting_mode,
+                  unitPriceMinor: event.unit_price_minor,
+                  eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
+                }}
+              />
+            </div>
 
-            {/* Voter Verification Section (Only shown if voting is enabled) */}
-            {!isTicketOnly && (
-              <>
-                <UssdInstructions eventId={event.id} />
-                <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
-                <div id="voter-verification" className="space-y-3">
-                  <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
-                        <Icon name="shield" size={15} />
-                      </div>
-                      <div>
-                        <strong className="text-stone-900 font-semibold block">
-                          {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
-                        </strong>
-                        <span className="text-stone-500 text-[11px]">
-                          {event.voting_mode === "free"
-                            ? event.verification_method === "email"
-                              ? "Verify your email once, then cast your votes."
-                              : event.verification_method === "invite_code"
-                              ? "Enter your event access code once, then vote."
-                              : event.verification_method === "voter_list"
-                              ? "Verify the details provided by your organizer, then vote."
-                              : "Verify your Ghana phone number once with SMS, then vote."
-                            : "Payments processed securely via Mobile Money & Cards with Paystack."}
-                        </span>
-                      </div>
+            {/* Hero Section */}
+            <section className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              {eventImageUrl ? (
+                <div
+                  className="relative h-56 sm:h-80 w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url("${eventImageUrl}")` }}
+                  role="img"
+                  aria-label={`${event.name} cover image`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                </div>
+              ) : (
+                <div className="h-28 sm:h-36 bg-gradient-to-r from-emerald-950 via-emerald-900 to-stone-900" />
+              )}
+
+              <div className="p-6 sm:p-8 space-y-5">
+                {/* Status Pill & Header */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${isOpen
+                        ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800"
+                        : "bg-stone-100 text-stone-600 border border-stone-200 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300"
+                      }`}
+                  >
+                    {isOpen && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
+                    <span>{status}</span>
+                  </span>
+                  <span className="text-xs text-stone-400 font-medium dark:text-stone-400">
+                    · {isTicketOnly ? "Official Event Tickets" : "Official Voting Ballot"}
+                  </span>
+                </div>
+
+                <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight dark:text-white">
+                  {event.name}
+                </h1>
+
+                <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed dark:text-stone-300">
+                  {event.description || (isTicketOnly ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
+                </p>
+
+                {/* Venue & Date Details for Ticketed Events */}
+                {event.venue_name && (
+                  <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-stone-700 bg-stone-50 p-3 rounded-2xl border border-stone-200/80 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
+                    <span>📍 <strong>Venue:</strong> {event.venue_name} {event.venue_address ? `(${event.venue_address})` : ""}</span>
+                    {event.doors_open_time && <span>⏰ <strong>Doors open:</strong> {event.doors_open_time}</span>}
+                  </div>
+                )}
+
+                {/* Voting Schedule & Mode Info Cards (Only if voting event) */}
+                {!isTicketOnly && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100 dark:border-[#1c2721]">
+                    <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
+                      <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
+                      <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.starts_at)}</p>
                     </div>
 
-                    {voterVerified && event.voting_mode === "free" && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
-                        <Icon name="check" size={12} />
-                        <span>Verified</span>
-                      </span>
+                    <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
+                      <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Closes</span>
+                      <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.ends_at)}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
+                      <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Ballot Type</span>
+                      <p className="mt-0.5 text-xs font-semibold text-stone-900 dark:text-stone-100">
+                        {event.voting_mode === "free"
+                          ? "Free voting"
+                          : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} per vote`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rules and Disclaimers */}
+                {event.voting_mode === "free" && !isTicketOnly && (
+                  <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                    <p className="font-semibold text-emerald-950 dark:text-emerald-300">
+                      Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
+                    </p>
+                    {event.voting_rules && (
+                      <p className="text-stone-600 leading-relaxed dark:text-stone-300">
+                        <strong>Organizer Instructions:</strong> {event.voting_rules}
+                      </p>
                     )}
                   </div>
-                  {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
-                  {event.voting_mode === "free" && (
-                    <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
-                  )}
+                )}
 
-                  <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
-                  {/* Open instructions note */}
-                  {isOpen && (
-                    <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
-                      {event.voting_mode === "free"
-                        ? voterVerified
-                          ? "Select a nominee below. Your remaining votes are shown on each candidate card."
-                          : "Voting is free. Complete verification above, then select your nominees below."
-                        : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+                {event.voting_mode === "paid" && event.voting_rules && !isTicketOnly && (
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
+                    <p className="font-semibold text-stone-900 dark:text-stone-100">Event Notice</p>
+                    <p className="mt-1 text-stone-600 leading-relaxed dark:text-stone-300">{event.voting_rules}</p>
+                  </div>
+                )}
 
-        {/* Categories & Nominees Section (Voting / Hybrid events only) */}
-        {!isTicketOnly && (
-        <section className="space-y-8">
-          <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 dark:border-[#1c2721]">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">The Ballot</span>
-              <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight dark:text-white">Categories & Nominees</h2>
-            </div>
-            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
-              {categories.length} {categories.length === 1 ? "Category" : "Categories"}
-            </span>
-          </div>
+                {/* Notices and Results Banners (Voting events only) */}
+                {!isTicketOnly && (
+                  <>
+                    <EventNotices eventId={event.id} />
+                    <VotingNotice
+                      event={event}
+                      resultsVisibility={event.results_visibility}
+                      resultsReleased={event.results_released}
+                    />
+                  </>
+                )}
 
-          {categories.length ? (
-            categories.map((category) => {
-              const categoryNominees = nomineesByCategory.get(category.id) ?? [];
-              return (
-                <section
-                  key={category.id}
-                  className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6 dark:border-[#1c2721] dark:bg-[#0c120e]"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
-                    <div>
-                      <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white">{category.name}</h3>
-                      {category.description && (
-                        <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-2xl dark:text-stone-400">
-                          {category.description}
-                        </p>
+                {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
+                {(isTicketOnly || ticketTiers.length > 0) && (
+                  <div className="pt-2">
+                    <PublicTicketWidget
+                      eventId={event.id}
+                      eventName={event.name}
+                      eventImageUrl={eventImageUrl}
+                      venueName={event.venue_name}
+                      venueAddress={event.venue_address}
+                      doorsOpenTime={event.doors_open_time}
+                      tiers={ticketTiers}
+                    />
+                  </div>
+                )}
+
+                {/* Voter Verification Section (Only shown if voting is enabled) */}
+                {!isTicketOnly && (
+                  <>
+                    <UssdInstructions eventId={event.id} />
+                    <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
+                    <div id="voter-verification" className="space-y-3">
+                      <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
+                            <Icon name="shield" size={15} />
+                          </div>
+                          <div>
+                            <strong className="text-stone-900 font-semibold block">
+                              {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
+                            </strong>
+                            <span className="text-stone-500 text-[11px]">
+                              {event.voting_mode === "free"
+                                ? event.verification_method === "email"
+                                  ? "Verify your email once, then cast your votes."
+                                  : event.verification_method === "invite_code"
+                                    ? "Enter your event access code once, then vote."
+                                    : event.verification_method === "voter_list"
+                                      ? "Verify the details provided by your organizer, then vote."
+                                      : "Verify your Ghana phone number once with SMS, then vote."
+                                : "Payments processed securely via Mobile Money & Cards with Paystack."}
+                            </span>
+                          </div>
+                        </div>
+
+                        {voterVerified && event.voting_mode === "free" && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                            <Icon name="check" size={12} />
+                            <span>Verified</span>
+                          </span>
+                        )}
+                      </div>
+                      {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
+                      {event.voting_mode === "free" && (
+                        <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
+                      )}
+
+                      <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
+                      {/* Open instructions note */}
+                      {isOpen && (
+                        <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
+                          {event.voting_mode === "free"
+                            ? voterVerified
+                              ? "Select a nominee below. Your remaining votes are shown on each candidate card."
+                              : "Voting is free. Complete verification above, then select your nominees below."
+                            : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
+                        </div>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-stone-400 dark:text-stone-400">
-                      {categoryNominees.length} {categoryNominees.length === 1 ? "Nominee" : "Nominees"}
-                    </span>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {/* Categories & Nominees Section (Voting / Hybrid events only) */}
+            {!isTicketOnly && (
+              <section className="space-y-8">
+                <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 dark:border-[#1c2721]">
+                  <div>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">The Ballot</span>
+                    <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight dark:text-white">Categories & Nominees</h2>
                   </div>
+                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
+                    {categories.length} {categories.length === 1 ? "Category" : "Categories"}
+                  </span>
+                </div>
 
-                  {/* Nominees Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categoryNominees.map((nominee) => {
-                      const used =
-                        event.voting_rule === "per_nominee_limit"
-                          ? usedByNominee.get(nominee.id) ?? 0
-                          : usedByCategory.get(category.id) ?? 0;
-                      const remaining = Math.max(0, Math.min(voteCap - used, rosterRemaining ?? voteCap));
-                      const imageUrl = imageUrlByPath.get(nominee.image_path ?? "");
-
-                      return (
-                        <article
-                          key={nominee.id}
-                          className="flex flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-4 shadow-2xs hover:shadow-xs transition-all dark:border-[#1c2721] dark:bg-[#0a0d0b]"
-                        >
-                          <div className="space-y-3">
-                            <Link
-                              href={`/events/${slug}/nominees/${nominee.id}`}
-                              className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#1c2721] dark:bg-[#121914] dark:hover:border-emerald-600 dark:hover:bg-[#15221b]"
-                            >
-                              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform dark:border-[#223028] dark:bg-[#141b16]">
-                                {imageUrl ? (
-                                  <div
-                                    className="h-full w-full bg-cover bg-center"
-                                    style={{ backgroundImage: `url("${imageUrl}")` }}
-                                    role="img"
-                                    aria-label={`${nominee.name} photo`}
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300">
-                                    {nominee.name.trim().slice(0, 1).toUpperCase()}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-stone-900 text-sm leading-tight group-hover:text-emerald-900 transition-colors dark:text-white dark:group-hover:text-emerald-400">
-                                  {nominee.name}
-                                </h4>
-                                {nominee.public_code && (
-                                  <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700 dark:bg-[#18221b] dark:text-emerald-400">
-                                    {nominee.public_code}
-                                  </span>
-                                )}
-                              </div>
-
-                              <span className="text-stone-300 group-hover:text-stone-600 transition-colors text-xs dark:text-stone-400">
-                                ↗
-                              </span>
-                            </Link>
-
-                            {/* Public Results (if released) */}
-                            {resultsByNominee.has(nominee.id) && (
-                              <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs dark:bg-[#141b16]">
-                                <span className="text-stone-500 font-medium text-[11px] dark:text-stone-400">Recorded Votes</span>
-                                <strong className="font-mono text-stone-900 font-bold dark:text-white">
-                                  {resultsByNominee.get(nominee.id)?.toLocaleString("en-GH")}
-                                </strong>
-                              </div>
+                {categories.length ? (
+                  categories.map((category) => {
+                    const categoryNominees = nomineesByCategory.get(category.id) ?? [];
+                    return (
+                      <section
+                        key={category.id}
+                        className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6 dark:border-[#1c2721] dark:bg-[#0c120e]"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
+                          <div>
+                            <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white">{category.name}</h3>
+                            {category.description && (
+                              <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-2xl dark:text-stone-400">
+                                {category.description}
+                              </p>
                             )}
                           </div>
+                          <span className="text-xs font-semibold text-stone-400 dark:text-stone-400">
+                            {categoryNominees.length} {categoryNominees.length === 1 ? "Nominee" : "Nominees"}
+                          </span>
+                        </div>
 
-                          {/* Voting Action Section */}
-                          <div className="mt-4 pt-3 border-t border-stone-100 space-y-3">
-                            {event.voting_mode === "paid" && status === "Voting open" ? (
-                              <PaidVoteForm
-                                eventId={event.id}
-                                categoryId={category.id}
-                                nomineeId={nominee.id}
-                                nomineeName={nominee.name}
-                                unitPriceMinor={event.unit_price_minor}
-                              />
-                            ) : event.voting_mode === "free" && votingOpen ? (
-                              voterVerified ? (
-                                remaining > 0 ? (
-                                  <FreeVoteForm
-                                    eventId={event.id}
-                                    categoryId={category.id}
-                                    nomineeId={nominee.id}
-                                    nomineeName={nominee.name}
-                                    nextPath={votePath}
-                                    maxQuantity={remaining}
-                                    requestKey={randomUUID()}
-                                    phoneVerified={true}
-                                    verificationMethod={event.verification_method ?? "phone"}
-                                  />
-                                ) : (
-                                  <p className="rounded-xl bg-stone-100 p-2 text-center text-[11px] font-medium text-stone-500">
-                                    Limit reached {event.voting_rule === "per_nominee_limit" ? "for this nominee" : "in this category"}.
-                                  </p>
-                                )
-                              ) : (
-                                <FreeVoteForm
-                                  eventId={event.id}
-                                  categoryId={category.id}
-                                  nomineeId={nominee.id}
-                                  nomineeName={nominee.name}
-                                  nextPath={votePath}
-                                  maxQuantity={voterAuthStatus.hasVoterList && rosterRemaining === 0 ? 0 : voteCap}
-                                  requestKey={randomUUID()}
-                                  phoneVerified={false}
-                                  verificationMethod={event.verification_method ?? "phone"}
-                                />
-                              )
-                            ) : null}
+                        {/* Nominees Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {categoryNominees.map((nominee) => {
+                            const used =
+                              event.voting_rule === "per_nominee_limit"
+                                ? usedByNominee.get(nominee.id) ?? 0
+                                : usedByCategory.get(category.id) ?? 0;
+                            const remaining = Math.max(0, Math.min(voteCap - used, rosterRemaining ?? voteCap));
+                            const imageUrl = imageUrlByPath.get(nominee.image_path ?? "");
 
-                            {/* Candidate Flyer Share & WhatsApp Vote Buttons */}
-                            <div className="flex items-center justify-between pt-1 gap-2">
-                              {nominee.public_code ? (
-                                <a
-                                  href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${nominee.public_code}`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                  title={`Vote for ${nominee.name} on WhatsApp`}
-                                >
-                                  <span>💬</span>
-                                  <span>Vote on WhatsApp</span>
-                                </a>
-                              ) : <div />}
-                              <ShareButton
-                                title={nominee.name}
-                                text={`${nominee.name} — ${event.name}`}
-                                url={`/events/${slug}/nominees/${nominee.id}`}
-                                flyer={{
-                                  nominee: nominee.name,
-                                  eventName: event.name,
-                                  category: category.name,
-                                  code: nominee.public_code,
-                                  imageUrl: imageUrlByPath.get(nominee.image_path ?? ""),
-                                  startsAt: event.starts_at,
-                                  endsAt: event.ends_at,
-                                  status: event.status,
-                                  votingMode: event.voting_mode,
-                                  unitPriceMinor: event.unit_price_minor,
-                                  eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
+                            return (
+                              <article
+                                key={nominee.id}
+                                className="flex flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-4 shadow-2xs hover:shadow-xs transition-all dark:border-[#1c2721] dark:bg-[#0a0d0b]"
+                              >
+                                <div className="space-y-3">
+                                  <Link
+                                    href={`/events/${slug}/nominees/${nominee.id}`}
+                                    className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#1c2721] dark:bg-[#121914] dark:hover:border-emerald-600 dark:hover:bg-[#15221b]"
+                                  >
+                                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform dark:border-[#223028] dark:bg-[#141b16]">
+                                      {imageUrl ? (
+                                        <div
+                                          className="h-full w-full bg-cover bg-center"
+                                          style={{ backgroundImage: `url("${imageUrl}")` }}
+                                          role="img"
+                                          aria-label={`${nominee.name} photo`}
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300">
+                                          {nominee.name.trim().slice(0, 1).toUpperCase()}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <h4 className="font-semibold text-stone-900 text-sm leading-tight group-hover:text-emerald-900 transition-colors dark:text-white dark:group-hover:text-emerald-400">
+                                        {nominee.name}
+                                      </h4>
+                                      {nominee.public_code && (
+                                        <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700 dark:bg-[#18221b] dark:text-emerald-400">
+                                          {nominee.public_code}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <span className="text-stone-300 group-hover:text-stone-600 transition-colors text-xs dark:text-stone-400">
+                                      ↗
+                                    </span>
+                                  </Link>
+
+                                  {/* Public Results (if released) */}
+                                  {resultsByNominee.has(nominee.id) && (
+                                    <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs dark:bg-[#141b16]">
+                                      <span className="text-stone-500 font-medium text-[11px] dark:text-stone-400">Recorded Votes</span>
+                                      <strong className="font-mono text-stone-900 font-bold dark:text-white">
+                                        {resultsByNominee.get(nominee.id)?.toLocaleString("en-GH")}
+                                      </strong>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Voting Action Section */}
+                                <div className="mt-4 pt-3 border-t border-stone-100 space-y-3">
+                                  {event.voting_mode === "paid" && status === "Voting open" ? (
+                                    <PaidVoteForm
+                                      eventId={event.id}
+                                      categoryId={category.id}
+                                      nomineeId={nominee.id}
+                                      nomineeName={nominee.name}
+                                      unitPriceMinor={event.unit_price_minor}
+                                    />
+                                  ) : event.voting_mode === "free" && votingOpen ? (
+                                    voterVerified ? (
+                                      remaining > 0 ? (
+                                        <FreeVoteForm
+                                          eventId={event.id}
+                                          categoryId={category.id}
+                                          nomineeId={nominee.id}
+                                          nomineeName={nominee.name}
+                                          nextPath={votePath}
+                                          maxQuantity={remaining}
+                                          requestKey={randomUUID()}
+                                          phoneVerified={true}
+                                          verificationMethod={event.verification_method ?? "phone"}
+                                        />
+                                      ) : (
+                                        <p className="rounded-xl bg-stone-100 p-2 text-center text-[11px] font-medium text-stone-500">
+                                          Limit reached {event.voting_rule === "per_nominee_limit" ? "for this nominee" : "in this category"}.
+                                        </p>
+                                      )
+                                    ) : (
+                                      <FreeVoteForm
+                                        eventId={event.id}
+                                        categoryId={category.id}
+                                        nomineeId={nominee.id}
+                                        nomineeName={nominee.name}
+                                        nextPath={votePath}
+                                        maxQuantity={voterAuthStatus.hasVoterList && rosterRemaining === 0 ? 0 : voteCap}
+                                        requestKey={randomUUID()}
+                                        phoneVerified={false}
+                                        verificationMethod={event.verification_method ?? "phone"}
+                                      />
+                                    )
+                                  ) : null}
+
+                                  {/* Candidate Flyer Share & WhatsApp Vote Buttons */}
+                                  <div className="flex items-center justify-between pt-1 gap-2">
+                                    {nominee.public_code ? (
+                                      <a
+                                        href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${nominee.public_code}`)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                        title={`Vote for ${nominee.name} on WhatsApp`}
+                                      >
+                                        <span>💬</span>
+                                        <span>Vote on WhatsApp</span>
+                                      </a>
+                                    ) : <div />}
+                                    <ShareButton
+                                      title={nominee.name}
+                                      text={`${nominee.name} — ${event.name}`}
+                                      url={`/events/${slug}/nominees/${nominee.id}`}
+                                      flyer={{
+                                        nominee: nominee.name,
+                                        eventName: event.name,
+                                        category: category.name,
+                                        code: nominee.public_code,
+                                        imageUrl: imageUrlByPath.get(nominee.image_path ?? ""),
+                                        startsAt: event.starts_at,
+                                        endsAt: event.ends_at,
+                                        status: event.status,
+                                        votingMode: event.voting_mode,
+                                        unitPriceMinor: event.unit_price_minor,
+                                        eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500">
+                    <h3 className="font-serif font-semibold text-stone-900 text-base">Nominees are being prepared.</h3>
+                    <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
                   </div>
-                </section>
-              );
-            })
-          ) : (
-            <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500">
-              <h3 className="font-serif font-semibold text-stone-900 text-base">Nominees are being prepared.</h3>
-              <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
-            </div>
-          )}
-        </section>
+                )}
+              </section>
+            )}
+          </>
         )}
       </div>
 
