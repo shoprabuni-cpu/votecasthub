@@ -48,3 +48,8 @@ alter table public.telegram_sessions add constraint telegram_sessions_state_chec
 
 alter table public.telegram_sessions add column if not exists tier_id uuid references public.event_ticket_tiers(id) on delete set null;
 alter table public.telegram_sessions add column if not exists customer_name text;
+
+-- 3. Ensure both sort_order and display_order columns exist on event_ticket_tiers for maximum compatibility
+alter table public.event_ticket_tiers add column if not exists sort_order integer not null default 0;
+alter table public.event_ticket_tiers add column if not exists display_order integer not null default 0;
+

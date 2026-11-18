@@ -371,7 +371,7 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
       .select("id, name, price_minor, capacity, sold_count")
       .eq("event_id", activeSession.event_id)
       .eq("is_active", true)
-      .order("display_order", { ascending: true })
+      .order("sort_order", { ascending: true })
       .order("price_minor", { ascending: true });
 
     if (rawTiers && rawTiers.length > 0) {
@@ -2131,7 +2131,7 @@ async function presentEventTicketTiers(params: { chatId: number; eventIdentifier
     .select("id, name, description, price_minor, capacity, sold_count, is_active")
     .eq("event_id", event.id)
     .eq("is_active", true)
-    .order("display_order", { ascending: true })
+    .order("sort_order", { ascending: true })
     .order("price_minor", { ascending: true });
 
   if (tiersErr || !tiers || tiers.length === 0) {
