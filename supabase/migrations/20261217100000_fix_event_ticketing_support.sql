@@ -257,9 +257,58 @@ end $$;
 alter table public.event_tickets drop constraint if exists event_tickets_status_check;
 alter table public.event_tickets add constraint event_tickets_status_check check (status in ('pending', 'valid', 'checked_in', 'cancelled'));
 
--- Drop old overloads of purchase_event_ticket
+-- Drop old overloads of purchase_event_ticket & generate_pax_code
 drop function if exists public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text);
 drop function if exists public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text, text);
+drop function if exists public.generate_pax_code();
+drop function if exists public.generate_pax_code(text);
+
+-- Recreate generate_pax_code with event title abbreviation support (e.g. "BEST STUDENTS PERSONALITY" -> "BSP-1025")
+create or replace function public.generate_pax_code(p_event_name text default null)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  v_num bigint;
+  v_clean text;
+  v_words text[];
+  v_prefix text := '';
+  i int;
+begin
+  v_num := nextval('public.pax_code_seq');
+
+  if p_event_name is not null and length(trim(p_event_name)) > 0 then
+    -- Remove non-alphanumeric characters except spaces
+    v_clean := regexp_replace(upper(trim(p_event_name)), '[^A-Z0-9\s]', '', 'g');
+    -- Normalize multiple spaces into single space and split into words
+    v_words := string_to_array(regexp_replace(v_clean, '\s+', ' ', 'g'), ' ');
+
+    if array_length(v_words, 1) >= 3 then
+      -- 3+ words: take first letter of each word up to 4 words (e.g. "BEST STUDENTS PERSONALITY" -> "BSP")
+      for i in 1..least(4, array_length(v_words, 1)) loop
+        if length(v_words[i]) > 0 then
+          v_prefix := v_prefix || substr(v_words[i], 1, 1);
+        end if;
+      end loop;
+    elsif array_length(v_words, 1) = 2 then
+      -- 2 words: e.g. "ACCRA GALA" -> "ACG"
+      if length(v_words[1]) >= 2 and length(v_words[2]) >= 1 then
+        v_prefix := substr(v_words[1], 1, 2) || substr(v_words[2], 1, 1);
+      else
+        v_prefix := substr(v_words[1], 1, 1) || substr(v_words[2], 1, 1);
+      end if;
+    elsif array_length(v_words, 1) = 1 then
+      -- 1 word: e.g. "AFROCHELLA" -> "AFR"
+      v_prefix := substr(v_words[1], 1, 3);
+    end if;
+  end if;
+
+  -- Fallback if prefix is too short or empty
+  if length(v_prefix) < 2 then
+    v_prefix := 'PAX';
+  end if;
+
+  return v_prefix || '-' || lpad(v_num::text, 4, '0');
+end;
+$$;
 
 -- Recreate canonical purchase_event_ticket RPC
 create or replace function public.purchase_event_ticket(
@@ -315,8 +364,8 @@ begin
       updated_at = now()
   where id = p_tier_id;
 
-  -- 4. Generate unique Pax Code and Order Reference
-  v_pax_code := public.generate_pax_code();
+  -- 4. Generate unique Pax Code (derived from event title, e.g. "BSP-1025") and Order Reference
+  v_pax_code := public.generate_pax_code(v_event.name);
   v_order_ref := coalesce(p_order_reference, 'ORD-' || upper(substr(gen_random_uuid()::text, 1, 8)));
 
   -- 5. Insert Ticket Record
@@ -364,5 +413,5 @@ $$;
 
 grant execute on function public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text, text) to anon, authenticated;
 grant usage, select on sequence public.pax_code_seq to anon, authenticated;
-grant execute on function public.generate_pax_code() to anon, authenticated;
+grant execute on function public.generate_pax_code(text) to anon, authenticated;
 
