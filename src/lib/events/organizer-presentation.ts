@@ -2,10 +2,41 @@ import { eventPresentation, type EventTiming } from "./presentation";
 
 export type EventWorkspaceState = { event_id: string; has_activity: boolean; review_feedback: string | null; last_review_kind: string | null };
 export function organizerEventPresentation(event: EventTiming & { last_review_kind?: string | null }, now: number) {
+  const isTicketing = event.event_type === "ticketing";
   const expired = Date.parse(event.ends_at) <= now;
   const returned = event.status === "draft" && event.last_review_kind === "returned";
-  const label = returned ? "Changes requested" : event.status === "draft" ? "Not published" : event.status === "pending_review" ? "Awaiting approval" : event.status === "archived" ? "Closed" : event.status === "closed" ? "Closed" : expired ? "Voting ended" : event.status === "paused" ? "Paused" : Date.parse(event.starts_at) > now ? "Scheduled" : eventPresentation(event, now).label;
-  const warning = ["draft", "pending_review"].includes(event.status) && expired ? "Voting dates expired—update the dates before resubmitting." : returned ? "Read the review feedback, edit the event, and resubmit." : event.status === "pending_review" ? "Private while awaiting platform approval." : "";
-  const action = returned ? "View feedback & edit" : event.status === "draft" ? "Edit event" : event.status === "pending_review" ? "View review status" : "Manage voting & details";
+  const label = returned
+    ? "Changes requested"
+    : event.status === "draft"
+    ? "Not published"
+    : event.status === "pending_review"
+    ? "Awaiting approval"
+    : event.status === "archived"
+    ? "Closed"
+    : event.status === "closed"
+    ? "Closed"
+    : expired
+    ? (isTicketing ? "Ticket sales ended" : "Voting ended")
+    : event.status === "paused"
+    ? "Paused"
+    : (!isTicketing && Date.parse(event.starts_at) > now)
+    ? "Scheduled"
+    : eventPresentation(event, now).label;
+  const warning = ["draft", "pending_review"].includes(event.status) && expired
+    ? (isTicketing ? "Event dates expired—update the dates before resubmitting." : "Voting dates expired—update the dates before resubmitting.")
+    : returned
+    ? "Read the review feedback, edit the event, and resubmit."
+    : event.status === "pending_review"
+    ? "Private while awaiting platform approval."
+    : "";
+  const action = returned
+    ? "View feedback & edit"
+    : event.status === "draft"
+    ? "Edit event"
+    : event.status === "pending_review"
+    ? "View review status"
+    : isTicketing
+    ? "Manage tickets & attendees"
+    : "Manage voting & details";
   return { label, warning, action };
 }
