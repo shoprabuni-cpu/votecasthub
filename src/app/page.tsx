@@ -31,8 +31,19 @@ export default async function HomePage() {
           <h1 id="hero-title" className="mb-4 font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-stone-900 leading-[1.08] dark:text-white">Fair voting & seamless <em className="italic text-emerald-800 dark:text-emerald-400 font-serif">event ticketing.</em></h1>
           <p className="max-w-lg text-base sm:text-lg leading-relaxed text-stone-600 dark:text-stone-300">The all-in-one platform for Ghanaian awards, contests, conferences, and parties. Sell event tickets with auto-generated PAX codes or run credible nominee voting with instant Mobile Money.</p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link className="inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500" href="/events">Explore events & tickets <span aria-hidden="true">↗</span></Link>
-            <Link className="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-800 shadow-2xs transition hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141d18]" href="/sign-up">Host an event</Link>
+            <Link
+              className="group inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-950/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-900/30 active:scale-[0.98] dark:from-emerald-600 dark:via-emerald-500 dark:to-emerald-600"
+              href="/events"
+            >
+              <span>Explore events &amp; tickets</span>
+              <span className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true">↗</span>
+            </Link>
+            <Link
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-800 shadow-2xs transition-all duration-200 hover:border-stone-400 hover:bg-stone-50 active:scale-[0.98] dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:border-stone-700 dark:hover:bg-[#141d18]"
+              href="/sign-up"
+            >
+              Host an event
+            </Link>
           </div>
           <p className="mt-6 text-xs text-stone-500 dark:text-stone-400 leading-relaxed">Vote or buy tickets via Web, WhatsApp (+233 59 299 2566), Telegram (@VotecastHubGH_bot), or USSD (*920#). <Link href="#chat-voting" className="font-semibold text-emerald-800 underline underline-offset-4 dark:text-emerald-400">Explore Chat Voting</Link></p>
         </div>
@@ -72,7 +83,7 @@ export default async function HomePage() {
       <footer className="mx-auto mt-16 max-w-6xl border-t border-stone-200 px-4 py-8 sm:px-6 text-xs text-stone-600 dark:border-[#1c2721] dark:text-stone-400">
         <div className="flex flex-wrap items-center justify-between gap-4 w-full">
           <div className="flex items-center gap-3">
-            <Link className="inline-flex items-center" href="/"><BrandLogo height={38} /></Link>
+            <Link className="inline-flex items-center transition-transform hover:scale-105" href="/"><BrandLogo height={44} /></Link>
             <span className="text-xs text-stone-500 dark:text-stone-400">Voting for events and awards in Ghana.</span>
           </div>
           <SegmentedThemeSwitch />

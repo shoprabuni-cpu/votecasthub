@@ -33,7 +33,7 @@ export function MobileNavDrawer() {
         socialItems={socialItems}
         displaySocials={true}
         displayItemNumbering={false}
-        logoComponent={<BrandLogo height={32} />}
+        logoComponent={<BrandLogo height={38} />}
         closeOnClickAway={true}
       />
     </div>
