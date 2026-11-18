@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PublicEventCard } from "./public-event-card";
 import { directoryFilters, type DirectoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 const defaults = directoryFilters.parse({});
 const control = "min-h-12 w-full min-w-0 rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-800 shadow-sm transition placeholder:text-stone-400 hover:border-stone-300 focus:border-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-700/10 dark:border-[#1e2a22] dark:bg-[#030504] dark:text-stone-100 dark:placeholder:text-stone-500 dark:hover:border-stone-700 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20";
@@ -100,24 +101,26 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
           <button
             type="button"
             onClick={() => update("event_type", "ticketing")}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
               filters.event_type === "ticketing"
                 ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
                 : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
             }`}
           >
-            🎟️ Tickets
+            <TicketIcon size={14} />
+            <span>Tickets</span>
           </button>
           <button
             type="button"
             onClick={() => update("event_type", "voting")}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
               filters.event_type === "voting"
                 ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
                 : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
             }`}
           >
-            🗳️ Contests
+            <VoteIcon size={14} />
+            <span>Contests</span>
           </button>
         </div>
         <p className="text-sm text-stone-600 dark:text-stone-400 ml-2" role="status" aria-live="polite">
@@ -136,7 +139,7 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
         <div id="event-extra-filters" hidden={!showFilters} className="col-span-2 lg:col-span-12">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Category</span><select className={control} value={filters.event_type} onChange={event => update("event_type", event.target.value)}>
-          <option value="all">All Events</option><option value="ticketing">🎟️ Tickets Only</option><option value="voting">🗳️ Voting Contests</option>
+          <option value="all">All Events</option><option value="ticketing">Tickets Only</option><option value="voting">Voting Contests</option>
         </select></label>
         <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Event status</span><select className={control} value={filters.status} onChange={event => update("status", event.target.value)}>
           <option value="active">Live & upcoming</option><option value="all">All events</option><option value="open">Open now</option><option value="upcoming">Upcoming</option><option value="ending">Ends within 48 hours</option><option value="paused">Paused</option><option value="closed">Closed</option>

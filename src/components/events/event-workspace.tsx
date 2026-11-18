@@ -7,14 +7,9 @@ import type { EventNextStep } from "@/lib/events/next-step";
 import { GuidedEventWorkspace } from "./guided-event-workspace";
 import type { SetupSection } from "./event-setup-context";
 import { EventLeaveGuard } from "./event-save-feedback";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
-const baseSections = [
-  { id: "details", label: "Event details" },
-  { id: "tickets", label: "🎟️ Tickets" },
-  { id: "nominees", label: "Categories & nominees" },
-  { id: "voting", label: "Voting settings" },
-] as const;
-type Section = typeof baseSections[number]["id"] | "review";
+type Section = "details" | "tickets" | "nominees" | "voting" | "review";
 
 export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false }: {
   details: ReactNode; tickets?: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
@@ -22,15 +17,19 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
   isTicketOnly?: boolean;
 }) {
-  const sections: { id: Section; label: string }[] = isTicketOnly
+  const sections: { id: Section; label: ReactNode }[] = isTicketOnly
     ? [
-        { id: "tickets", label: "🎟️ Tickets & Attendees" },
+        { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets & Attendees</span> },
         { id: "details", label: "Event details" },
         ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
       ]
-    : review
-    ? [...baseSections, { id: "review", label: "Review & Submit" }]
-    : [...baseSections];
+    : [
+        { id: "details", label: "Event details" },
+        { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> },
+        { id: "nominees", label: "Categories & nominees" },
+        { id: "voting", label: <span className="inline-flex items-center gap-1.5"><VoteIcon size={14} /> Voting settings</span> },
+        ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
+      ];
 
   const [section, setSection] = useState<Section>(isTicketOnly ? "tickets" : "details");
   const [editing, setEditing] = useState(false);

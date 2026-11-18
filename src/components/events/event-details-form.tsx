@@ -7,6 +7,7 @@ import { EventSaveFeedback, useEventSaveFeedback } from "./event-save-feedback";
 import { votingRuleOptions, type VotingRule } from "@/lib/voting-rules";
 import { useEventSetup } from "./event-setup-context";
 import { Icon } from "@/components/icon";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 type EventValues = {
   name: string;
@@ -436,8 +437,9 @@ export function EventDetailsForm({
                       className="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600 dark:border-[#223028] dark:bg-[#080b09]"
                     />
                     <div className="text-xs">
-                      <span className="font-semibold text-stone-800 dark:text-stone-200">
-                        🎟️ Also sell gala passes / attendee tickets (Hybrid Event)
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-stone-800 dark:text-stone-200">
+                        <TicketIcon size={14} />
+                        <span>Also sell gala passes / attendee tickets (Hybrid Event)</span>
                       </span>
                       <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                         Enable if this voting contest includes an in-person awards night or gala ceremony with ticketed admission.
@@ -798,7 +800,7 @@ export function EventDetailsForm({
                               }`}
                             >
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-base">🎟️</span>
+                                <TicketIcon size={16} />
                                 {verificationMethod === "invite_code" && <span className="text-emerald-800 dark:text-emerald-400 font-bold text-xs">✓</span>}
                               </div>
                               <h4 className="text-xs font-bold text-stone-900 dark:text-stone-100">VIP / Delegate Codes</h4>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { findPublicTicketsAction, type FoundTicket } from "@/lib/tickets/actions";
 import { VisualTicketPass } from "@/components/tickets/visual-ticket-pass";
+import { TicketIcon } from "@/components/brand-icons";
 
 export function TicketLookupClient({ initialQuery = "" }: { initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
@@ -44,7 +45,8 @@ export function TicketLookupClient({ initialQuery = "" }: { initialQuery?: strin
       {/* Search Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3.5 py-1 text-xs font-bold text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
-          <span>🎟️</span> Self-Service Ticket Retrieval
+          <TicketIcon size={14} />
+          <span>Self-Service Ticket Retrieval</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-serif font-bold text-stone-900 dark:text-white tracking-tight">
           Find Your Event Passes

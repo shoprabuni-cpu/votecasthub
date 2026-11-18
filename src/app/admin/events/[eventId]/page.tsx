@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { EventReviewConversation } from "@/components/events/review-conversation";
 import { Icon } from "@/components/icon";
+import { TicketIcon } from "@/components/brand-icons";
 import { DataDeletionPanel } from "@/components/admin/data-deletion-panel";
 
 type AdminEventRow = {
@@ -112,8 +113,9 @@ export default async function AdminEventDetail({
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-stone-500">{event.organization_name}</span>
             {isTicketOnly && (
-              <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                🎟️ Ticketed Event
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                <TicketIcon size={12} />
+                <span>Ticketed Event</span>
               </span>
             )}
             <span
@@ -239,7 +241,10 @@ export default async function AdminEventDetail({
       {isTicketOnly ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-serif font-bold text-stone-900">🎟️ Event Ticket Tiers & Capacity</h2>
+            <h2 className="flex items-center gap-1.5 text-base font-serif font-bold text-stone-900">
+              <TicketIcon size={16} />
+              <span>Event Ticket Tiers & Capacity</span>
+            </h2>
             <span className="text-xs font-mono text-stone-500">{totalCapacity} Total Capacity</span>
           </div>
 

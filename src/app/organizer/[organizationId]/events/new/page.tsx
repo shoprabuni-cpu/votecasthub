@@ -7,6 +7,7 @@ import { EventDetailsForm } from "@/components/events/event-details-form";
 import { CreateTicketEventForm } from "@/components/tickets/create-ticket-event-form";
 import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { Icon } from "@/components/icon";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 export const metadata: Metadata = { title: "Create an event — VotecastHub" };
 type Props = {
@@ -100,7 +101,7 @@ export default async function NewEventPage({ params, searchParams }: Props) {
             >
               <div>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md mb-4 group-hover:scale-105 transition-transform">
-                  <span className="text-3xl">🎟️</span>
+                  <TicketIcon size={34} />
                 </div>
                 <h3 className="font-bold text-xl text-stone-900 dark:text-white group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                   Ticketed Event
@@ -141,7 +142,7 @@ export default async function NewEventPage({ params, searchParams }: Props) {
             >
               <div>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-800 text-white shadow-md mb-4 group-hover:scale-105 transition-transform">
-                  <span className="text-3xl">🗳️</span>
+                  <VoteIcon size={34} />
                 </div>
                 <h3 className="font-bold text-xl text-stone-900 dark:text-white group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                   Voting Contest & Awards

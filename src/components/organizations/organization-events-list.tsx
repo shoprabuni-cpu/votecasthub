@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { organizerEventPresentation } from "@/lib/events/organizer-presentation";
 import { Icon } from "@/components/icon";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 export type EventItem = {
   id: string;
@@ -220,16 +221,20 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                       </span>
 
                       {event.event_type === "ticketing" ? (
-                        <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
-                          🎟️ Tickets
+                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                          <TicketIcon size={12} />
+                          <span>Tickets</span>
                         </span>
                       ) : event.event_type === "hybrid" ? (
-                        <span className="rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
-                          🎟️ + 🗳️ Hybrid
+                        <span className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
+                          <TicketIcon size={12} />
+                          <VoteIcon size={12} />
+                          <span>Hybrid</span>
                         </span>
                       ) : event.voting_mode ? (
-                        <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-500">
-                          {event.voting_mode.replaceAll("_", " ")}
+                        <span className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-500">
+                          <VoteIcon size={11} />
+                          <span>{event.voting_mode.replaceAll("_", " ")}</span>
                         </span>
                       ) : null}
                     </div>
@@ -263,15 +268,20 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                     </div>
 
                     {event.event_type === "ticketing" ? (
-                      <span className="font-mono text-emerald-700 font-semibold text-[11px]">
-                        🎟️ Gate Pass / Tickets
+                      <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold text-[11px] dark:text-emerald-400">
+                        <TicketIcon size={13} />
+                        <span>Gate Pass / Tickets</span>
                       </span>
                     ) : event.unit_price_minor ? (
-                      <span className="font-mono text-emerald-700 font-semibold">
-                        ₵{(event.unit_price_minor / 100).toFixed(2)}/vote
+                      <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold dark:text-emerald-400">
+                        <VoteIcon size={12} />
+                        <span>₵{(event.unit_price_minor / 100).toFixed(2)}/vote</span>
                       </span>
                     ) : (
-                      <span className="text-stone-400">Free votes</span>
+                      <span className="inline-flex items-center gap-1 text-stone-400">
+                        <VoteIcon size={12} />
+                        <span>Free votes</span>
+                      </span>
                     )}
                   </div>
                 </div>

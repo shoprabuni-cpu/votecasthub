@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 type Props = {
   organizationId: string;
@@ -77,7 +78,7 @@ export function CreateEventModal({ organizationId, trigger, className }: Props) 
           >
             <div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-xs mb-3">
-                <span className="text-xl">🎟️</span>
+                <TicketIcon size={22} />
               </div>
               <h3 className="text-sm font-bold text-stone-900 dark:text-white group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                 Ticketed Event
@@ -115,7 +116,7 @@ export function CreateEventModal({ organizationId, trigger, className }: Props) 
           >
             <div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-stone-800 text-white shadow-xs mb-3">
-                <span className="text-xl">🗳️</span>
+                <VoteIcon size={22} />
               </div>
               <h3 className="text-sm font-bold text-stone-900 dark:text-white group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                 Voting Contest & Awards

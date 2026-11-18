@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useMemo } from "react";
 import { AppModal } from "@/components/ui/app-modal";
 import { Icon } from "@/components/icon";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 type EventRow = {
   id: string;
@@ -126,12 +127,14 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {e.event_type === "ticketing" ? (
-                      <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                        🎟️ Tickets
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                        <TicketIcon size={11} />
+                        <span>Tickets</span>
                       </span>
                     ) : (
-                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-stone-700">
-                        {e.voting_mode}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-stone-700">
+                        <VoteIcon size={11} />
+                        <span>{e.voting_mode}</span>
                       </span>
                     )}
                     <span

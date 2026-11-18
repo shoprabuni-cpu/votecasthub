@@ -4,6 +4,7 @@ import { useState } from "react";
 import { purchaseTicketAction, type ActionState } from "@/lib/tickets/actions";
 import type { TicketTier } from "@/lib/tickets/types";
 import { VisualTicketPass, type TicketPassData } from "./visual-ticket-pass";
+import { TicketIcon } from "@/components/brand-icons";
 
 export function PublicTicketWidget({
   eventId,
@@ -173,7 +174,8 @@ export function PublicTicketWidget({
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
-                🎟️ OFFICIAL TICKETS
+                <TicketIcon size={12} />
+                <span>OFFICIAL TICKETS</span>
               </span>
               <h3 className="mt-1 text-lg font-bold text-stone-900 dark:text-white sm:text-xl">
                 Get Your Entry Ticket

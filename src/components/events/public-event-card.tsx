@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { eventPresentation } from "@/lib/events/presentation";
+import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
 export type PublicEventCardData = {
   id: string;
@@ -38,7 +39,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
           />
         ) : (
           <span className="flex h-full items-center justify-center bg-gradient-to-br from-emerald-900 to-emerald-700 text-5xl font-semibold text-white/60">
-            {isTicketing ? "🎟️" : "V"}
+            {isTicketing ? <TicketIcon size={48} /> : <VoteIcon size={48} />}
           </span>
         )}
         <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
@@ -46,8 +47,9 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
             {presentation.label}
           </span>
           {isTicketing && (
-            <span className="rounded-md bg-emerald-900/90 backdrop-blur-xs px-2 py-1 text-[10px] font-bold text-amber-300">
-              🎟️ Tickets
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-900/90 backdrop-blur-xs px-2 py-1 text-[10px] font-bold text-amber-300">
+              <TicketIcon size={11} />
+              <span>Tickets</span>
             </span>
           )}
         </div>
@@ -66,8 +68,9 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
         
         {isTicketing ? (
           <div className="space-y-0.5">
-            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-              <span>🎟️</span> Event Tickets On Sale
+            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <TicketIcon size={14} />
+              <span>Event Tickets On Sale</span>
             </p>
             {event.venue_name && (
               <p className="truncate text-[11px] text-stone-600 dark:text-stone-300">
@@ -106,13 +109,23 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
           href={`/events/${event.slug}`}
           className="mt-auto inline-flex min-h-11 items-center justify-between gap-2 rounded-xl border border-emerald-800 bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-900 dark:border-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
         >
-          {isTicketing
-            ? presentation.key === "open"
-              ? "Get Tickets 🎟️"
-              : "View Event"
-            : presentation.key === "open"
-            ? "Vote now"
-            : "Explore event"}
+          {isTicketing ? (
+            presentation.key === "open" ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span>Get Tickets</span>
+                <TicketIcon size={14} />
+              </span>
+            ) : (
+              "View Event"
+            )
+          ) : presentation.key === "open" ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>Vote now</span>
+              <VoteIcon size={14} />
+            </span>
+          ) : (
+            "Explore event"
+          )}
           <span aria-hidden="true">↗</span>
         </Link>
       </div>
