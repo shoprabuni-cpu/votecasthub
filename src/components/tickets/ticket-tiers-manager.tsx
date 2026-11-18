@@ -35,6 +35,8 @@ export function TicketTiersManager({
   venueAddress = "",
   doorsOpenTime = "",
   coverImage,
+  isPendingReview = false,
+  returnToDraftNode,
 }: {
   eventId: string;
   organizationId?: string;
@@ -47,6 +49,8 @@ export function TicketTiersManager({
   venueAddress?: string | null;
   doorsOpenTime?: string | null;
   coverImage?: React.ReactNode;
+  isPendingReview?: boolean;
+  returnToDraftNode?: React.ReactNode;
 }) {
   const [tiers, setTiers] = useState<TicketTier[]>(initialTiers);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -263,10 +267,11 @@ export function TicketTiersManager({
               <input
                 type="text"
                 required
+                disabled={isPendingReview}
                 value={name}
                 onChange={(e) => setEventName(e.target.value)}
                 placeholder="e.g. Best Students Personality, Accra Tech Gala"
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
 
@@ -276,10 +281,11 @@ export function TicketTiersManager({
               </label>
               <input
                 type="text"
+                disabled={isPendingReview}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief summary for ticket buyers (dress code, performers, what to expect)"
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
           </div>
@@ -292,9 +298,10 @@ export function TicketTiersManager({
               <input
                 type="datetime-local"
                 required
+                disabled={isPendingReview}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
 
@@ -305,9 +312,10 @@ export function TicketTiersManager({
               <input
                 type="datetime-local"
                 required
+                disabled={isPendingReview}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
           </div>
@@ -320,9 +328,10 @@ export function TicketTiersManager({
               <input
                 type="text"
                 placeholder="e.g. National Theatre, Grand Arena"
+                disabled={isPendingReview}
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
 
@@ -333,9 +342,10 @@ export function TicketTiersManager({
               <input
                 type="text"
                 placeholder="e.g. South Liberia Road, Accra"
+                disabled={isPendingReview}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
 
@@ -346,22 +356,37 @@ export function TicketTiersManager({
               <input
                 type="text"
                 placeholder="e.g. 5:00 PM Gate Open"
+                disabled={isPendingReview}
                 value={doorsTime}
                 onChange={(e) => setDoorsTime(e.target.value)}
-                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white"
+                className="w-full min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm font-medium text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none disabled:bg-stone-100 disabled:text-stone-600 disabled:cursor-not-allowed dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-white dark:disabled:bg-[#141b16] dark:disabled:text-stone-400"
               />
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={detailsSaving}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-6 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer transition-colors"
-            >
-              {detailsSaving ? "Saving..." : "Save Event Details"}
-            </button>
-          </div>
+          {isPendingReview ? (
+            <div className="space-y-4 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🔒</span>
+                  <span className="text-xs font-semibold text-amber-950 dark:text-amber-200">
+                    Event details are protected while awaiting approval.
+                  </span>
+                </div>
+              </div>
+              {returnToDraftNode}
+            </div>
+          ) : (
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={detailsSaving}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-6 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-800 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer transition-colors"
+              >
+                {detailsSaving ? "Saving..." : "Save Event Details"}
+              </button>
+            </div>
+          )}
         </form>
       </section>
 
@@ -377,14 +402,21 @@ export function TicketTiersManager({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-all dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
-          >
-            <span className="text-sm leading-none">＋</span>
-            <span>Add Ticket Tier</span>
-          </button>
+          {isPendingReview ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600 dark:border-[#223028] dark:bg-[#141b16] dark:text-stone-300">
+              <span>🔒</span>
+              <span>Tiers locked during review</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-all dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer"
+            >
+              <span className="text-sm leading-none">＋</span>
+              <span>Add Ticket Tier</span>
+            </button>
+          )}
         </div>
 
         {/* Existing Tiers Grid */}
@@ -439,7 +471,7 @@ export function TicketTiersManager({
                       <span className="text-[11px] font-semibold text-stone-500 dark:text-stone-400">
                         {total - sold} tickets left
                       </span>
-                      {sold === 0 && (
+                      {!isPendingReview && sold === 0 && (
                         <button
                           type="button"
                           onClick={() => handleDelete(tier.id)}

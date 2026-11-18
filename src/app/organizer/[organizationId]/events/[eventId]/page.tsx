@@ -254,7 +254,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         </div>
         <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 font-mono">{ghanaDate(event.starts_at)} → {ghanaDate(event.ends_at)} · Ghana GMT</p>
       </header>
-      {presentation.warning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
+      {presentation.warning && event.status !== "pending_review" && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{presentation.warning}</p>}
       {!canManage && <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-300">This workspace is read-only for your current access.</p>}
       {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200">Read feedback</a></div>}
       <EventWorkspace
@@ -271,6 +271,8 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
             venueName={eventMeta?.venue_name || event.venue_name}
             venueAddress={eventMeta?.venue_address}
             doorsOpenTime={eventMeta?.doors_open_time || event.doors_open_time}
+            isPendingReview={event.status === "pending_review"}
+            returnToDraftNode={returnToDraft}
             coverImage={
               permissions.editCover ? (
                 <EventImageForm
@@ -281,14 +283,42 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
                   backTo={pagePath}
                 />
               ) : eventImage?.signedUrl ? (
-                <div
-                  className="h-48 rounded-xl bg-cover bg-center"
-                  style={{ backgroundImage: `url("${eventImage.signedUrl}")` }}
-                  role="img"
-                  aria-label={`${event.name} cover`}
-                />
+                <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-xs aspect-21/9 min-h-[160px] sm:min-h-[220px] dark:border-[#1c2721] dark:bg-[#080b09]">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url("${eventImage.signedUrl}")` }}
+                    role="img"
+                    aria-label={`${event.name} cover`}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent flex items-end p-4 sm:p-6">
+                    <span className="text-white font-serif font-bold text-base sm:text-xl drop-shadow-sm truncate">
+                      {event.name}
+                    </span>
+                  </div>
+                </div>
               ) : (
-                <p className="text-sm text-stone-500">No cover image added.</p>
+                <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-stone-900 via-stone-850 to-emerald-950 p-6 text-white shadow-inner sm:p-8 dark:border-emerald-800/40">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="inline-block rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-mono font-bold tracking-widest text-amber-300 uppercase">
+                        Digital Ticket Pass Preview
+                      </span>
+                      <h4 className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-white drop-shadow-sm">
+                        {event.name}
+                      </h4>
+                      <p className="text-xs text-stone-300 font-mono">
+                        {eventMeta?.venue_name || event.venue_name ? `${eventMeta?.venue_name || event.venue_name} · ` : ""}
+                        {ghanaDate(event.starts_at)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3.5 py-2 text-xs font-semibold text-amber-300">
+                      <span>🎟 Default VoteCast Pass Artwork</span>
+                    </div>
+                  </div>
+                  <p className="mt-4 border-t border-white/10 pt-3 text-[11px] text-stone-400">
+                    No custom banner uploaded. Attendees receive this standard pass styling. {event.status === "pending_review" ? "Withdraw your event to make changes or upload custom artwork." : ""}
+                  </p>
+                </div>
               )
             }
           />
@@ -299,7 +329,21 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         canEdit={permissions.editDraft || permissions.editPublic || (canManage && event.status === "pending_review")}
         canManageVoting={canManage && event.status !== "archived"}
         viewLink={<div className="flex flex-wrap items-center gap-2">
-          {event.status === "draft" ? <Link href={`${pagePath}/preview`} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Preview event</Link> : ["published", "paused", "closed"].includes(event.status) ? <Link href={publicUrl} className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-stone-50 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">View event page ↗</Link> : null}
+          {["draft", "pending_review"].includes(event.status) ? (
+            <Link
+              href={`${pagePath}/preview`}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+            >
+              <span>Preview event</span> ↗
+            </Link>
+          ) : ["published", "paused", "closed"].includes(event.status) ? (
+            <Link
+              href={publicUrl}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+            >
+              <span>View event page</span> ↗
+            </Link>
+          ) : null}
           <Link href="/gate" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"><span>📱 Gate Scanner</span> ↗</Link>
         </div>}
         editor={<>
@@ -561,6 +605,12 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
 
         </>}
       />
+      {/* Review Feedback and Messages - placed before Danger Zone */}
+      {(event.status !== "draft" || workspace?.last_review_kind || workspace?.review_feedback) && (
+        <EventReviewConversation eventId={eventId} canReply={canManage && event.status !== "archived"} />
+      )}
+
+      {/* Danger Zone: Discard Draft / Close or Delete Event */}
       {canManage && (
         event.status === "draft" ? (
           <details className="group rounded-2xl border border-red-200/80 bg-red-50/40 p-4 transition-all dark:border-red-900/40 dark:bg-red-950/20">
@@ -616,9 +666,6 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
             </div>
           </section>
         )
-      )}
-      {(event.status !== "draft" || workspace?.last_review_kind || workspace?.review_feedback) && (
-        <EventReviewConversation eventId={eventId} canReply={canManage && event.status !== "archived"} />
       )}
     </div>
   </main>;
