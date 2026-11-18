@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useMemo } from "react";
 import { AppModal } from "@/components/ui/app-modal";
 import { Icon } from "@/components/icon";
@@ -15,6 +16,7 @@ type EventRow = {
   starts_at: string;
   ends_at: string;
   event_type?: string;
+  imageUrl?: string | null;
 };
 
 export function AdminEvents({ events }: { events: EventRow[] }) {
@@ -147,16 +149,30 @@ export function AdminEvents({ events }: { events: EventRow[] }) {
                   </div>
                 </div>
 
-                <h3 className="mt-3 text-base font-serif font-bold text-stone-900 leading-snug">
-                  <Link href={`/admin/events/${e.id}`} className="hover:text-emerald-800 transition-colors">
-                    {e.name}
-                  </Link>
-                </h3>
-
-                <p className="mt-1 text-[11px] text-stone-400 font-mono">
-                  {new Date(e.starts_at).toLocaleDateString("en-GH")} →{" "}
-                  {new Date(e.ends_at).toLocaleDateString("en-GH")}
-                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  {e.imageUrl ? (
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100 shadow-2xs">
+                      <Image
+                        src={e.imageUrl}
+                        alt={e.name}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-serif font-bold text-stone-900 leading-snug">
+                      <Link href={`/admin/events/${e.id}`} className="hover:text-emerald-800 transition-colors">
+                        {e.name}
+                      </Link>
+                    </h3>
+                    <p className="mt-1 text-[11px] text-stone-400 font-mono">
+                      {new Date(e.starts_at).toLocaleDateString("en-GH")} →{" "}
+                      {new Date(e.ends_at).toLocaleDateString("en-GH")}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Action Bar */}

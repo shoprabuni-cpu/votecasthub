@@ -54,7 +54,7 @@ export default async function OrganizationEventsPage({ params }: Props) {
   ] = await Promise.all([
     supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId }),
     eventIds.length
-      ? supabase.from("events").select("id, event_type, venue_name, doors_open_time").in("id", eventIds)
+      ? supabase.from("events").select("id, event_type, venue_name, doors_open_time, image_path").in("id", eventIds)
       : Promise.resolve({ data: [] }),
     eventIds.length
       ? supabase.from("event_ticket_tiers").select("event_id").in("event_id", eventIds)
@@ -68,6 +68,15 @@ export default async function OrganizationEventsPage({ params }: Props) {
   const typeMap = new Map((eventMetas ?? []).map((row) => [row.id, row]));
   const ticketEventIdSet = new Set((ticketTiersData ?? []).map((t: any) => t.event_id));
   const categoryEventIdSet = new Set((categoriesData ?? []).map((c: any) => c.event_id));
+
+  // Resolve signed URLs for event cover images
+  const imagePaths = [...new Set((eventMetas ?? []).map((m: any) => m.image_path).filter(Boolean))] as string[];
+  const { data: signedImages } = imagePaths.length
+    ? await supabase.storage.from("nominee-images").createSignedUrls(imagePaths, 3600)
+    : { data: [] };
+  const imageUrlMap = new Map(
+    (signedImages ?? []).flatMap((img) => (img.path && img.signedUrl ? [[img.path, img.signedUrl] as const] : []))
+  );
 
   const eventRows = (events ?? []).map((event: EventItem) => {
     const meta = typeMap.get(event.id);
@@ -86,11 +95,15 @@ export default async function OrganizationEventsPage({ params }: Props) {
       resolvedType = "voting";
     }
 
+    const imagePath = meta?.image_path ?? (event as any).image_path;
+    const imageUrl = imagePath ? imageUrlMap.get(imagePath) ?? null : null;
+
     return {
       ...event,
       event_type: resolvedType,
       venue_name: meta?.venue_name ?? (event as any).venue_name,
       doors_open_time: meta?.doors_open_time ?? (event as any).doors_open_time,
+      imageUrl,
       ...states.get(event.id),
     };
   }) as EventItem[];

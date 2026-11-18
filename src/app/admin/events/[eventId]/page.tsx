@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { requirePlatformAdmin } from "@/lib/auth/require-platform-admin";
 import { EventReviewConversation } from "@/components/events/review-conversation";
 import { Icon } from "@/components/icon";
@@ -57,6 +58,11 @@ export default async function AdminEventDetail({
   }
 
   const event = rows[0];
+  let coverImageUrl: string | null = null;
+  if (eventMeta?.image_path) {
+    const { data: imgData } = await supabase.storage.from("nominee-images").createSignedUrl(eventMeta.image_path, 3600);
+    coverImageUrl = imgData?.signedUrl ?? null;
+  }
   const hasTickets = (ticketTiers ?? []).length > 0;
   const hasNominees = rows.some((r) => r.category_id);
   const isTicketOnly = eventMeta?.event_type === "ticketing" || (hasTickets && !hasNominees);
@@ -111,26 +117,39 @@ export default async function AdminEventDetail({
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-stone-500">{event.organization_name}</span>
-            {isTicketOnly && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                <TicketIcon size={12} />
-                <span>Ticketed Event</span>
+        <div className="flex items-center gap-4">
+          {coverImageUrl ? (
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-sm">
+              <Image
+                src={coverImageUrl}
+                alt={event.event_name}
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            </div>
+          ) : null}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-stone-500">{event.organization_name}</span>
+              {isTicketOnly && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  <TicketIcon size={12} />
+                  <span>Ticketed Event</span>
+                </span>
+              )}
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  statusStyles[event.event_status] ?? statusStyles.draft
+                }`}
+              >
+                {event.event_status.replaceAll("_", " ")}
               </span>
-            )}
-            <span
-              className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                statusStyles[event.event_status] ?? statusStyles.draft
-              }`}
-            >
-              {event.event_status.replaceAll("_", " ")}
-            </span>
+            </div>
+            <h1 className="mt-1 text-2xl font-serif font-bold text-stone-900 sm:text-3xl">
+              {event.event_name}
+            </h1>
           </div>
-          <h1 className="mt-1 text-2xl font-serif font-bold text-stone-900 sm:text-3xl">
-            {event.event_name}
-          </h1>
         </div>
 
         <div className="flex items-center gap-2">
