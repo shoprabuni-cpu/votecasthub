@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { Icon } from "@/components/icon";
+import { saveTicketAsImage } from "@/lib/tickets/ticket-canvas";
 
 export interface TicketPassData {
   pax_code: string;
@@ -30,6 +31,20 @@ export function VisualTicketPass({
   showActions?: boolean;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSaveImage() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveTicketAsImage(ticket, qrDataUrl);
+    } catch (err) {
+      console.error("Failed to save ticket image:", err);
+      window.print();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     // Generate secure QR payload containing the PAX Code and order ref
@@ -187,14 +202,24 @@ export function VisualTicketPass({
 
         {/* 6. Action buttons */}
         {showActions && (
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 print:hidden">
             <button
               type="button"
-              onClick={() => window.print()}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-xs font-bold text-stone-800 shadow-xs hover:bg-stone-50 transition-all dark:border-[#1c2721] dark:bg-[#111713] dark:text-stone-200 dark:hover:bg-[#18221b] cursor-pointer"
+              disabled={saving}
+              onClick={handleSaveImage}
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-xs font-bold text-stone-800 shadow-xs hover:bg-stone-50 disabled:opacity-50 transition-all dark:border-[#1c2721] dark:bg-[#111713] dark:text-stone-200 dark:hover:bg-[#18221b] cursor-pointer"
             >
-              <Icon name="download" size={14} />
-              <span>Save / Print</span>
+              {saving ? (
+                <>
+                  <span className="size-3.5 animate-spin rounded-full border-2 border-stone-800 border-t-transparent dark:border-stone-200" />
+                  <span>Saving Image...</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="download" size={14} />
+                  <span>Save Ticket as Image</span>
+                </>
+              )}
             </button>
 
             <Link
