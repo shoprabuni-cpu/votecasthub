@@ -11,6 +11,7 @@ const links = [
   ["/about", "About"],
   ["/sign-in", "Organizer sign in"],
 ];
+
 function NavigationLinks() {
   return (
     <>
@@ -37,12 +38,14 @@ function NavigationLinks() {
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-stone-200 bg-white/95 px-4 py-2.5 backdrop-blur-md transition-colors sm:px-6 lg:px-10 dark:border-[#1a251f] dark:bg-black/90">
-      <Link className="inline-flex min-h-11 items-center" href="/" aria-label="VoteCastHub GH home">
-        <BrandLogo height={42} priority />
-      </Link>
+      <div className="flex items-center gap-2.5">
+        <MobileNavDrawer />
+        <Link className="inline-flex min-h-11 items-center" href="/" aria-label="VoteCastHub GH home">
+          <BrandLogo height={40} priority />
+        </Link>
+      </div>
       <div className="flex items-center gap-2 lg:hidden">
         <ThemeToggle />
-        <MobileNavDrawer />
       </div>
       <nav className="hidden items-center gap-5 lg:flex" aria-label="Main navigation">
         <NavigationLinks />

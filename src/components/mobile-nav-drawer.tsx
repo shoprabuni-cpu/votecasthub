@@ -23,7 +23,7 @@ export function MobileNavDrawer() {
   return (
     <div className="relative lg:hidden">
       <StaggeredMenu
-        position="right"
+        position="left"
         isFixed={true}
         colors={["#041a10", "#082f1d", "#10b981"]}
         accentColor="#10b981"
@@ -32,7 +32,7 @@ export function MobileNavDrawer() {
         items={menuItems}
         socialItems={socialItems}
         displaySocials={true}
-        displayItemNumbering={true}
+        displayItemNumbering={false}
         logoComponent={<BrandLogo height={32} />}
         closeOnClickAway={true}
       />

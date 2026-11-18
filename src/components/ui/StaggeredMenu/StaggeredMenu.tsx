@@ -392,6 +392,11 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
       data-position={position}
       data-open={open || undefined}
     >
+      <div
+        className="staggered-menu-backdrop"
+        onClick={() => closeMenu()}
+        aria-hidden="true"
+      />
       <div ref={preLayersRef} className="sm-prelayers" aria-hidden="true">
         {(() => {
           const raw = colors && colors.length ? colors.slice(0, 4) : ["#061a10", "#0c2c1c", "#10b981"];
@@ -444,13 +449,14 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
               items.map((it, idx) => (
                 <li className="sm-panel-itemWrap" key={it.label + idx}>
                   <Link
-                    className="sm-panel-item"
+                    className="sm-panel-item group"
                     href={it.link}
                     aria-label={it.ariaLabel}
                     data-index={idx + 1}
                     onClick={closeMenu}
                   >
                     <span className="sm-panel-itemLabel">{it.label}</span>
+                    <span className="text-xs opacity-40 transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
                   </Link>
                 </li>
               ))

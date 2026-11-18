@@ -216,6 +216,84 @@ const VOTER_CHANNEL_ITEMS: FolderItem[] = [
   }
 ];
 
+// Rich Color Trail metadata for each guide card
+const GUIDE_TRAILS: Record<
+  string,
+  {
+    category: string;
+    trailBar: string;
+    badgeBg: string;
+    badgeBorder: string;
+    textColor: string;
+    readTime: string;
+    stepTag: string;
+  }
+> = {
+  'how-to-vote-on-whatsapp': {
+    category: 'WhatsApp Bot',
+    trailBar: 'bg-emerald-500',
+    badgeBg: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+    badgeBorder: 'border-emerald-200 dark:border-emerald-800/60',
+    textColor: 'text-emerald-700 dark:text-emerald-400',
+    readTime: '3 min read',
+    stepTag: 'Official WhatsApp Flow'
+  },
+  'how-to-vote-on-telegram': {
+    category: 'Telegram Bot',
+    trailBar: 'bg-sky-500',
+    badgeBg: 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300',
+    badgeBorder: 'border-sky-200 dark:border-sky-800/60',
+    textColor: 'text-sky-700 dark:text-sky-400',
+    readTime: '3 min read',
+    stepTag: 'Telegram Photo Cards'
+  },
+  'vote-without-internet-ussd': {
+    category: 'Offline USSD',
+    trailBar: 'bg-amber-500',
+    badgeBg: 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+    badgeBorder: 'border-amber-200 dark:border-amber-800/60',
+    textColor: 'text-amber-700 dark:text-amber-400',
+    readTime: '2 min read',
+    stepTag: 'No Internet Needed'
+  },
+  'online-voting-for-awards-in-ghana': {
+    category: 'Awards Gala',
+    trailBar: 'bg-yellow-500',
+    badgeBg: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/60 dark:text-yellow-300',
+    badgeBorder: 'border-yellow-200 dark:border-yellow-800/60',
+    textColor: 'text-yellow-700 dark:text-yellow-400',
+    readTime: '5 min read',
+    stepTag: 'Award Categories'
+  },
+  'planning-a-school-or-association-election': {
+    category: 'Campus Elections',
+    trailBar: 'bg-indigo-500',
+    badgeBg: 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300',
+    badgeBorder: 'border-indigo-200 dark:border-indigo-800/60',
+    textColor: 'text-indigo-700 dark:text-indigo-400',
+    readTime: '4 min read',
+    stepTag: 'Voter Verification'
+  },
+  'voter-verification-and-voting-limits': {
+    category: 'Security & Caps',
+    trailBar: 'bg-red-500',
+    badgeBg: 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300',
+    badgeBorder: 'border-red-200 dark:border-red-800/60',
+    textColor: 'text-red-700 dark:text-red-400',
+    readTime: '4 min read',
+    stepTag: 'Anti-Fraud Controls'
+  },
+  'promote-your-event-and-nominees': {
+    category: 'Promote & Share',
+    trailBar: 'bg-rose-500',
+    badgeBg: 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300',
+    badgeBorder: 'border-rose-200 dark:border-rose-800/60',
+    textColor: 'text-rose-700 dark:text-rose-400',
+    readTime: '3 min read',
+    stepTag: '1-Tap Vote Badges'
+  }
+};
+
 export function GuidesFolderShowcase() {
   const router = useRouter();
 
@@ -284,35 +362,78 @@ export function GuidesFolderShowcase() {
         </div>
       </div>
 
-      {/* Tactile Quick-Access Guide Buttons */}
-      <div className="mt-8">
+      {/* Guide Cards with Color Trails (Red, Blue, Amber, Yellow, Purple, etc.) */}
+      <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-xs font-bold tracking-widest text-emerald-800 dark:text-emerald-400 uppercase">
-            Quick Guide Directory
+            All Guides &amp; Tutorials
           </p>
-          <span className="text-xs text-stone-500 dark:text-stone-400">7 guides available</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400">7 playbooks available</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {GUIDES.map((guide) => (
-            <Link
-              key={guide.slug}
-              href={`/guides/${guide.slug}`}
-              className="group flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:border-emerald-600 hover:shadow-md dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-emerald-500/80 dark:hover:bg-[#111a14]"
-            >
-              <div className="min-w-0 pr-3">
-                <p className="truncate text-xs font-semibold text-stone-900 group-hover:text-emerald-700 dark:text-stone-100 dark:group-hover:text-emerald-400 transition-colors">
-                  {guide.title}
-                </p>
-                <p className="mt-1 line-clamp-1 text-[11px] text-stone-500 dark:text-stone-400">
-                  {guide.description}
-                </p>
-              </div>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs font-bold text-stone-600 transition group-hover:border-emerald-500 group-hover:bg-emerald-600 group-hover:text-white dark:border-[#223329] dark:bg-[#141e18] dark:text-stone-300 dark:group-hover:bg-emerald-500 dark:group-hover:text-black">
-                →
-              </span>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {GUIDES.map((guide) => {
+            const trail = GUIDE_TRAILS[guide.slug] || {
+              category: 'Guide',
+              trailBar: 'bg-emerald-500',
+              badgeBg: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+              badgeBorder: 'border-emerald-200 dark:border-emerald-800/60',
+              textColor: 'text-emerald-700 dark:text-emerald-400',
+              readTime: '3 min read',
+              stepTag: 'Step-by-step'
+            };
+
+            return (
+              <Link
+                key={guide.slug}
+                href={`/guides/${guide.slug}`}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:shadow-lg dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-stone-700"
+              >
+                {/* Vertical Color Trail Bar */}
+                <div
+                  className={`absolute top-0 bottom-0 left-0 w-1.5 transition-all group-hover:w-2 ${trail.trailBar}`}
+                  aria-hidden="true"
+                />
+
+                <div>
+                  {/* Top Badge & Read Time */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold tracking-wider uppercase ${trail.badgeBg} ${trail.badgeBorder}`}
+                    >
+                      {trail.category}
+                    </span>
+                    <span className="text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                      {trail.readTime}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h4 className="mt-3 text-sm font-bold leading-snug text-stone-900 transition-colors group-hover:text-emerald-800 dark:text-stone-100 dark:group-hover:text-emerald-400">
+                    {guide.title}
+                  </h4>
+
+                  {/* Description */}
+                  <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                    {guide.description}
+                  </p>
+                </div>
+
+                {/* Footer with Step Tag and Action Pill */}
+                <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800/70">
+                  <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    {trail.stepTag}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-semibold ${trail.textColor}`}
+                  >
+                    Read Guide
+                    <span className="transition-transform group-hover:translate-x-1">→</span>
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
