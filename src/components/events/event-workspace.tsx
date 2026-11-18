@@ -8,6 +8,7 @@ import { GuidedEventWorkspace } from "./guided-event-workspace";
 import type { SetupSection } from "./event-setup-context";
 import { EventLeaveGuard } from "./event-save-feedback";
 import { TicketIcon, VoteIcon } from "@/components/brand-icons";
+import { LineSidebar } from "@/components/ui/LineSidebar";
 
 type Section = "details" | "tickets" | "nominees" | "voting" | "review";
 
@@ -59,8 +60,27 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       {viewLink}
     </div>
     {sections.length > 1 && (
-      <div role="tablist" aria-label="Event workspace" className={`grid ${isTicketOnly ? "grid-cols-2" : `grid-cols-2 sm:grid-cols-4 ${review ? "lg:grid-cols-5" : ""}`} gap-1 rounded-2xl border border-stone-200/70 bg-stone-100/80 p-1.5 dark:border-[#1c2721] dark:bg-[#0a0d0b]`}>
-        {sections.map((item, index) => <button key={item.id} ref={element => { buttons.current[index] = element; }} id={`workspace-tab-${item.id}`} type="button" role="tab" aria-selected={section === item.id} aria-controls={`workspace-${item.id}`} tabIndex={section === item.id ? 0 : -1} onClick={() => setSection(item.id)} onKeyDown={event => navigate(event, index)} className={`min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${section === item.id ? "bg-white text-emerald-900 shadow-xs dark:bg-[#121914] dark:text-emerald-300" : "text-stone-600 hover:bg-white/60 dark:text-stone-400 dark:hover:bg-[#121914]/50"}`}>{item.label}</button>)}
+      <div className="rounded-2xl border border-stone-200/80 bg-stone-50/70 p-3 sm:p-4 dark:border-[#1c2721] dark:bg-[#0a0d0b]">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-1 px-1">
+          WORKSPACE STAGES
+        </div>
+        <LineSidebar
+          items={sections.map(s => ({
+            id: s.id,
+            label: s.label,
+            isActive: section === s.id,
+            onClick: () => setSection(s.id),
+          }))}
+          showIndex={true}
+          showMarker={true}
+          markerLength={28}
+          markerGap={8}
+          maxShift={14}
+          proximityRadius={75}
+          itemGap={8}
+          fontSize={0.875}
+          className="w-full"
+        />
       </div>
     )}
     <section id="workspace-details" role="tabpanel" aria-labelledby="workspace-tab-details" hidden={section !== "details"} className="space-y-5">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import './LineSidebar.css';
 
 const FALLOFF_CURVES = {
@@ -26,22 +27,23 @@ const DEFAULT_ITEMS = [
 
 export const LineSidebar = ({
   items = DEFAULT_ITEMS,
-  accentColor = '#10b981',
-  textColor = '#a8a29e',
-  markerColor = '#57534e',
-  showIndex = true,
+  accentColor,
+  textColor,
+  markerColor,
+  showIndex = false,
   showMarker = true,
   proximityRadius = 100,
-  maxShift = 30,
+  maxShift = 16,
   falloff = 'smooth',
-  markerLength = 60,
-  markerGap = 0,
-  tickScale = 0.5,
+  markerLength = 36,
+  markerGap = 8,
+  tickScale = 0.4,
   scaleTick = true,
-  itemGap = 20,
-  fontSize = 1.1,
-  smoothing = 100,
+  itemGap = 12,
+  fontSize = 0.875,
+  smoothing = 90,
   defaultActive = null,
+  activeId,
   onItemClick,
   className = ''
 }) => {
@@ -51,20 +53,33 @@ export const LineSidebar = ({
   const currentRef = useRef([]);
   const rafRef = useRef(null);
   const lastRef = useRef(0);
-  const activeRef = useRef(defaultActive);
+
+  const computedActiveIndex = () => {
+    if (activeId !== undefined) {
+      const idx = items.findIndex((it, i) => {
+        if (typeof it === 'string') return it === activeId;
+        return it.id === activeId || (it.href && it.href === activeId);
+      });
+      if (idx !== -1) return idx;
+    }
+    const explicitActiveIdx = items.findIndex(it => typeof it !== 'string' && it?.isActive);
+    if (explicitActiveIdx !== -1) return explicitActiveIdx;
+    return defaultActive;
+  };
+
+  const [activeIndex, setActiveIndex] = useState(computedActiveIndex);
+  const activeRef = useRef(activeIndex);
   const smoothingRef = useRef(smoothing);
-  const [activeIndex, setActiveIndex] = useState(defaultActive);
+
+  useEffect(() => {
+    const nextIdx = computedActiveIndex();
+    setActiveIndex(nextIdx);
+    activeRef.current = nextIdx;
+  }, [activeId, defaultActive, items]);
 
   activeRef.current = activeIndex;
   smoothingRef.current = smoothing;
 
-  useEffect(() => {
-    setActiveIndex(defaultActive);
-  }, [defaultActive]);
-
-  // Single rAF loop that eases every item's --effect toward its target using
-  // frame-rate independent exponential smoothing, so color, shift and scale
-  // all move together without staggering CSS transitions.
   const runFrame = useCallback(now => {
     const dt = Math.min((now - lastRef.current) / 1000, 0.05);
     lastRef.current = now;
@@ -76,7 +91,8 @@ export const LineSidebar = ({
     for (let i = 0; i < currentItems.length; i++) {
       const el = currentItems[i];
       if (!el) continue;
-      const target = Math.max(targetsRef.current[i] || 0, activeRef.current === i ? 1 : 0);
+      const isItemActive = activeRef.current === i;
+      const target = Math.max(targetsRef.current[i] || 0, isItemActive ? 1 : 0);
       const cur = currentRef.current[i] || 0;
       const next = cur + (target - cur) * k;
       const settled = Math.abs(target - next) < 0.0015;
@@ -93,7 +109,6 @@ export const LineSidebar = ({
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
     }
-
     lastRef.current = performance.now();
     rafRef.current = requestAnimationFrame(runFrame);
   }, [runFrame]);
@@ -123,13 +138,32 @@ export const LineSidebar = ({
     startLoop();
   }, [startLoop]);
 
-  const handleClick = useCallback(
-    (index, label) => {
+  const handleItemSelect = useCallback(
+    (index, labelStr, itemObj) => {
       setActiveIndex(index);
-      onItemClick?.(index, label);
+      if (itemObj?.onClick) {
+        itemObj.onClick();
+      }
+      onItemClick?.(index, labelStr);
     },
     [onItemClick]
   );
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = (index + 1) % items.length;
+      itemRefs.current[next]?.focus();
+      const nextItem = items[next];
+      handleItemSelect(next, typeof nextItem === 'string' ? nextItem : String(nextItem.id || next), typeof nextItem === 'string' ? undefined : nextItem);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = (index - 1 + items.length) % items.length;
+      itemRefs.current[prev]?.focus();
+      const prevItem = items[prev];
+      handleItemSelect(prev, typeof prevItem === 'string' ? prevItem : String(prevItem.id || prev), typeof prevItem === 'string' ? undefined : prevItem);
+    }
+  };
 
   useEffect(() => {
     startLoop();
@@ -143,40 +177,86 @@ export const LineSidebar = ({
     []
   );
 
+  const styleObj = {
+    '--marker-length': `${markerLength}px`,
+    '--marker-gap': `${markerGap}px`,
+    '--tick-scale': tickScale,
+    '--max-shift': `${maxShift}px`,
+    '--item-gap': `${itemGap}px`,
+    '--font-size': `${fontSize}rem`,
+    '--smoothing': `${smoothing}ms`,
+    ...(accentColor ? { '--accent-color': accentColor } : {}),
+    ...(textColor ? { '--text-color': textColor } : {}),
+    ...(markerColor ? { '--marker-color': markerColor } : {})
+  };
+
   return (
     <nav
       className={`line-sidebar${showMarker ? ' line-sidebar--markers' : ''}${scaleTick ? ' line-sidebar--scale-tick' : ''}${className ? ` ${className}` : ''}`}
-      style={{
-        '--accent-color': accentColor,
-        '--text-color': textColor,
-        '--marker-color': markerColor,
-        '--marker-length': `${markerLength}px`,
-        '--marker-gap': `${markerGap}px`,
-        '--tick-scale': tickScale,
-        '--max-shift': `${maxShift}px`,
-        '--item-gap': `${itemGap}px`,
-        '--font-size': `${fontSize}rem`,
-        '--smoothing': `${smoothing}ms`
-      }}
+      style={styleObj}
     >
-      <ul ref={listRef} className="line-sidebar__list" onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}>
+      <ul
+        ref={listRef}
+        className="line-sidebar__list"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+      >
         {items.map((item, index) => {
-          const label = typeof item === 'string' ? item : item.label;
+          const isString = typeof item === 'string';
+          const label = isString ? item : item.label;
+          const labelStr = isString ? item : typeof item.label === 'string' ? item.label : String(item.id || index);
+          const href = !isString ? item.href : undefined;
+          const icon = !isString ? item.icon : undefined;
+          const badge = !isString ? item.badge : undefined;
+          const isItemActive = activeIndex === index;
+
+          const content = (
+            <>
+              {showIndex && (
+                <span className="line-sidebar__index">{String(index + 1).padStart(2, '0')}</span>
+              )}
+              {icon && <span className="line-sidebar__icon">{icon}</span>}
+              <span className="line-sidebar__text">{label}</span>
+              {badge && <span className="line-sidebar__badge">{badge}</span>}
+            </>
+          );
+
           return (
             <li
-              key={`${label}-${index}`}
+              key={isString ? `${item}-${index}` : item.id || item.href || index}
               ref={el => {
                 itemRefs.current[index] = el;
               }}
               className="line-sidebar__item"
-              aria-current={activeIndex === index ? 'true' : undefined}
-              onClick={() => handleClick(index, label)}
+              aria-current={isItemActive ? 'page' : undefined}
+              tabIndex={0}
+              onKeyDown={e => handleKeyDown(e, index)}
+              onClick={() => handleItemSelect(index, labelStr, isString ? undefined : item)}
             >
               {showMarker && <span className="line-sidebar__marker" aria-hidden="true" />}
-              <span className="line-sidebar__label">
-                {showIndex && <span className="line-sidebar__index">{String(index + 1).padStart(2, '0')}</span>}
-                <span className="line-sidebar__text">{label}</span>
-              </span>
+              {item && typeof item === 'object' && item.render ? (
+                item.render({
+                  isActive: isItemActive,
+                  className: 'line-sidebar__interactive',
+                  children: content
+                })
+              ) : href ? (
+                <Link
+                  href={href}
+                  className="line-sidebar__interactive"
+                  aria-current={isItemActive ? 'page' : undefined}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="line-sidebar__interactive"
+                  aria-current={isItemActive ? 'page' : undefined}
+                >
+                  {content}
+                </button>
+              )}
             </li>
           );
         })}

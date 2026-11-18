@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icon";
+import { LineSidebar, type LineSidebarItem } from "@/components/ui/LineSidebar";
 
 interface NavItem {
   name: string;
@@ -30,6 +31,29 @@ export function AdminSidebar() {
     if (href === "/admin") return pathname === "/admin";
     return pathname.startsWith(href);
   };
+
+  const sidebarItems: LineSidebarItem[] = navItems.map((item) => {
+    const active = isActive(item.href);
+    return {
+      id: item.href,
+      label: item.name,
+      href: item.href,
+      icon: <Icon name={item.icon} size={16} />,
+      isActive: active,
+      onClick: () => setMobileOpen(false),
+      badge: item.badge ? (
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+            active ? "bg-emerald-900 text-white" : "bg-stone-200 text-stone-700"
+          }`}
+        >
+          {item.badge}
+        </span>
+      ) : active ? (
+        <span className="size-1.5 rounded-full bg-emerald-600" />
+      ) : null,
+    };
+  });
 
   const navContent = (
     <div className="flex h-full flex-col justify-between p-4 sm:p-5">
@@ -62,35 +86,20 @@ export function AdminSidebar() {
         </div>
 
         {/* Navigation Links */}
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                  active
-                    ? "bg-emerald-900 text-white shadow-xs"
-                    : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
-                }`}
-              >
-                <Icon name={item.icon} size={16} />
-                <span className="flex-1">{item.name}</span>
-                {item.badge && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      active ? "bg-white/20 text-white" : "bg-stone-200 text-stone-700"
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="space-y-1">
+          <LineSidebar
+            items={sidebarItems}
+            showIndex={true}
+            showMarker={true}
+            markerLength={24}
+            markerGap={8}
+            maxShift={12}
+            proximityRadius={70}
+            itemGap={6}
+            fontSize={0.875}
+            className="w-full px-1"
+          />
+        </div>
       </div>
 
       {/* Bottom Switcher */}
