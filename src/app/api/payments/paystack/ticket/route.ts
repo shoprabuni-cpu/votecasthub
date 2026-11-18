@@ -73,6 +73,7 @@ export async function POST(request: Request) {
         p_customer_name: customerName,
         p_customer_phone: customerPhone,
         p_customer_email: customerEmail || null,
+        p_order_reference: null,
         p_channel: "web",
         p_initial_status: "valid",
       });

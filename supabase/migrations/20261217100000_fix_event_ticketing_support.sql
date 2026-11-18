@@ -252,3 +252,117 @@ begin
   update public.events set status = v_new_status, updated_at = now() where id = p_event_id;
   return v_new_status;
 end $$;
+
+-- 11. Fix event_tickets status constraint & purchase_event_ticket overload collision
+alter table public.event_tickets drop constraint if exists event_tickets_status_check;
+alter table public.event_tickets add constraint event_tickets_status_check check (status in ('pending', 'valid', 'checked_in', 'cancelled'));
+
+-- Drop old overloads of purchase_event_ticket
+drop function if exists public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text);
+drop function if exists public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text, text);
+
+-- Recreate canonical purchase_event_ticket RPC
+create or replace function public.purchase_event_ticket(
+  p_event_id uuid,
+  p_tier_id uuid,
+  p_quantity integer,
+  p_customer_name text,
+  p_customer_phone text,
+  p_customer_email text default null,
+  p_order_reference text default null,
+  p_channel text default 'web',
+  p_initial_status text default 'valid'
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_tier record;
+  v_event record;
+  v_pax_code text;
+  v_ticket_id uuid;
+  v_order_ref text;
+begin
+  if p_quantity is null or p_quantity < 1 or p_quantity > 20 then
+    raise exception 'Quantity must be between 1 and 20';
+  end if;
+
+  -- 1. Check Event status and type (allow published/paused, or draft/pending_review for organizers)
+  select * into v_event from public.events
+  where id = p_event_id and (
+    status in ('published', 'paused')
+    or (status in ('draft', 'pending_review') and private.can_manage_event(p_event_id))
+  );
+
+  if not found then
+    raise exception 'Event not found or not currently active';
+  end if;
+
+  -- 2. Check and lock Tier capacity atomically
+  select * into v_tier from public.event_ticket_tiers
+  where id = p_tier_id and event_id = p_event_id and is_active = true
+  for update;
+
+  if not found then
+    raise exception 'Ticket tier not found or no longer active';
+  end if;
+
+  if (v_tier.capacity - v_tier.sold_count) < p_quantity then
+    raise exception 'Sold out! Only % tickets remaining for %', (v_tier.capacity - v_tier.sold_count), v_tier.name;
+  end if;
+
+  -- 3. Increment sold count
+  update public.event_ticket_tiers
+  set sold_count = sold_count + p_quantity,
+      updated_at = now()
+  where id = p_tier_id;
+
+  -- 4. Generate unique Pax Code and Order Reference
+  v_pax_code := public.generate_pax_code();
+  v_order_ref := coalesce(p_order_reference, 'ORD-' || upper(substr(gen_random_uuid()::text, 1, 8)));
+
+  -- 5. Insert Ticket Record
+  insert into public.event_tickets (
+    event_id,
+    tier_id,
+    pax_code,
+    order_reference,
+    customer_name,
+    customer_phone,
+    customer_email,
+    price_minor,
+    quantity,
+    channel,
+    status
+  ) values (
+    p_event_id,
+    p_tier_id,
+    v_pax_code,
+    v_order_ref,
+    trim(p_customer_name),
+    trim(p_customer_phone),
+    nullif(trim(p_customer_email), ''),
+    v_tier.price_minor,
+    p_quantity,
+    p_channel,
+    coalesce(p_initial_status, 'valid')
+  )
+  returning id into v_ticket_id;
+
+  return jsonb_build_object(
+    'success', true,
+    'ticket_id', v_ticket_id,
+    'pax_code', v_pax_code,
+    'order_reference', v_order_ref,
+    'tier_name', v_tier.name,
+    'event_name', v_event.name,
+    'venue_name', v_event.venue_name,
+    'quantity', p_quantity,
+    'status', coalesce(p_initial_status, 'valid'),
+    'price_minor', v_tier.price_minor * p_quantity
+  );
+end;
+$$;
+
+grant execute on function public.purchase_event_ticket(uuid, uuid, integer, text, text, text, text, text, text) to anon, authenticated;
+grant usage, select on sequence public.pax_code_seq to anon, authenticated;
+grant execute on function public.generate_pax_code() to anon, authenticated;
+
