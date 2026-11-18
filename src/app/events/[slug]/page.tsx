@@ -288,7 +288,7 @@ export default async function PublicEventPage({ params }: Props) {
   const isTicketOnly = event.event_type === "ticketing" || (ticketTiers.length > 0 && categories.length === 0);
 
   return (
-    <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900">
+    <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900 transition-colors dark:bg-[#080b09] dark:text-stone-100">
       <SiteHeader />
       <StructuredData data={breadcrumbs([{ name: "Home", path: "/" }, { name: "Events", path: "/events" }, { name: event.name, path: `/events/${slug}` }])} />
       <EventViewTracker eventId={event.id} />
@@ -298,7 +298,7 @@ export default async function PublicEventPage({ params }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/events"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-xs hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
           >
             <Icon name="arrowLeft" size={13} />
             <span>All events</span>
@@ -306,9 +306,9 @@ export default async function PublicEventPage({ params }: Props) {
 
           <ShareButton
             title={event.name}
-            text={`${presentation.cta} — ${event.name}`}
+            text={isTicketOnly ? `Get tickets for ${event.name}` : `${presentation.cta} — ${event.name}`}
             url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
-            flyer={{
+            flyer={isTicketOnly ? undefined : {
               ussd: ussdInfo ?? undefined,
               eventName: event.name,
               imageUrl: eventImageUrl,
@@ -323,7 +323,7 @@ export default async function PublicEventPage({ params }: Props) {
         </div>
 
         {/* Hero Section */}
-        <section className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs">
+        <section className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
           {eventImageUrl ? (
             <div
               className="relative h-56 sm:h-80 w-full bg-cover bg-center"
@@ -343,29 +343,29 @@ export default async function PublicEventPage({ params }: Props) {
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
                   isOpen
-                    ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-600/20"
-                    : "bg-stone-100 text-stone-600 border border-stone-200"
+                    ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800"
+                    : "bg-stone-100 text-stone-600 border border-stone-200 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300"
                 }`}
               >
                 {isOpen && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />}
                 <span>{status}</span>
               </span>
-              <span className="text-xs text-stone-400 font-medium">
+              <span className="text-xs text-stone-400 font-medium dark:text-stone-400">
                 · {isTicketOnly ? "Official Event Tickets" : "Official Voting Ballot"}
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-900 tracking-tight leading-tight dark:text-white">
               {event.name}
             </h1>
 
-            <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed">
+            <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed dark:text-stone-300">
               {event.description || (isTicketOnly ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
             </p>
 
             {/* Venue & Date Details for Ticketed Events */}
             {event.venue_name && (
-              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-stone-700 bg-stone-50 p-3 rounded-2xl border border-stone-200/80">
+              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-stone-700 bg-stone-50 p-3 rounded-2xl border border-stone-200/80 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
                 <span>📍 <strong>Venue:</strong> {event.venue_name} {event.venue_address ? `(${event.venue_address})` : ""}</span>
                 {event.doors_open_time && <span>⏰ <strong>Doors open:</strong> {event.doors_open_time}</span>}
               </div>
@@ -373,20 +373,20 @@ export default async function PublicEventPage({ params }: Props) {
 
             {/* Voting Schedule & Mode Info Cards (Only if voting event) */}
             {!isTicketOnly && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100">
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100 dark:border-[#1c2721]">
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
                   <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.starts_at)}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.starts_at)}</p>
                 </div>
 
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
                   <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Closes</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono">{ghDate(event.ends_at)}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900 font-mono dark:text-stone-100">{ghDate(event.ends_at)}</p>
                 </div>
 
-                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
+                <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5 dark:border-[#1c2721] dark:bg-[#080b09]">
                   <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Ballot Type</span>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-900">
+                  <p className="mt-0.5 text-xs font-semibold text-stone-900 dark:text-stone-100">
                     {event.voting_mode === "free"
                       ? "Free voting"
                       : `GH₵ ${(event.unit_price_minor / 100).toFixed(2)} per vote`}
@@ -397,12 +397,12 @@ export default async function PublicEventPage({ params }: Props) {
 
             {/* Rules and Disclaimers */}
             {event.voting_mode === "free" && !isTicketOnly && (
-              <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1">
-                <p className="font-semibold text-emerald-950">
+              <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                <p className="font-semibold text-emerald-950 dark:text-emerald-300">
                   Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
                 </p>
                 {event.voting_rules && (
-                  <p className="text-stone-600 leading-relaxed">
+                  <p className="text-stone-600 leading-relaxed dark:text-stone-300">
                     <strong>Organizer Instructions:</strong> {event.voting_rules}
                   </p>
                 )}
@@ -410,19 +410,23 @@ export default async function PublicEventPage({ params }: Props) {
             )}
 
             {event.voting_mode === "paid" && event.voting_rules && !isTicketOnly && (
-              <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700">
-                <p className="font-semibold text-stone-900">Event Notice</p>
-                <p className="mt-1 text-stone-600 leading-relaxed">{event.voting_rules}</p>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
+                <p className="font-semibold text-stone-900 dark:text-stone-100">Event Notice</p>
+                <p className="mt-1 text-stone-600 leading-relaxed dark:text-stone-300">{event.voting_rules}</p>
               </div>
             )}
 
-            {/* Notices and Results Banners */}
-            <EventNotices eventId={event.id} />
-            <VotingNotice
-              event={event}
-              resultsVisibility={event.results_visibility}
-              resultsReleased={event.results_released}
-            />
+            {/* Notices and Results Banners (Voting events only) */}
+            {!isTicketOnly && (
+              <>
+                <EventNotices eventId={event.id} />
+                <VotingNotice
+                  event={event}
+                  resultsVisibility={event.results_visibility}
+                  resultsReleased={event.results_released}
+                />
+              </>
+            )}
 
             {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
             {(isTicketOnly || ticketTiers.length > 0) && (
@@ -500,12 +504,12 @@ export default async function PublicEventPage({ params }: Props) {
         {/* Categories & Nominees Section (Voting / Hybrid events only) */}
         {!isTicketOnly && (
         <section className="space-y-8">
-          <div className="flex items-center justify-between border-b border-stone-200/80 pb-4">
+          <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 dark:border-[#1c2721]">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">The Ballot</span>
-              <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">Categories & Nominees</h2>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">The Ballot</span>
+              <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight dark:text-white">Categories & Nominees</h2>
             </div>
-            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
               {categories.length} {categories.length === 1 ? "Category" : "Categories"}
             </span>
           </div>
@@ -516,18 +520,18 @@ export default async function PublicEventPage({ params }: Props) {
               return (
                 <section
                   key={category.id}
-                  className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6"
+                  className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6 dark:border-[#1c2721] dark:bg-[#0c120e]"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
                     <div>
-                      <h3 className="text-xl font-serif font-bold text-stone-900">{category.name}</h3>
+                      <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white">{category.name}</h3>
                       {category.description && (
-                        <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-2xl">
+                        <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-2xl dark:text-stone-400">
                           {category.description}
                         </p>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-stone-400">
+                    <span className="text-xs font-semibold text-stone-400 dark:text-stone-400">
                       {categoryNominees.length} {categoryNominees.length === 1 ? "Nominee" : "Nominees"}
                     </span>
                   </div>
@@ -545,14 +549,14 @@ export default async function PublicEventPage({ params }: Props) {
                       return (
                         <article
                           key={nominee.id}
-                          className="flex flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-4 shadow-2xs hover:shadow-xs transition-all"
+                          className="flex flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-4 shadow-2xs hover:shadow-xs transition-all dark:border-[#1c2721] dark:bg-[#0a0d0b]"
                         >
                           <div className="space-y-3">
                             <Link
                               href={`/events/${slug}/nominees/${nominee.id}`}
-                              className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+                              className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#1c2721] dark:bg-[#121914] dark:hover:border-emerald-600 dark:hover:bg-[#15221b]"
                             >
-                              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform">
+                              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform dark:border-[#223028] dark:bg-[#141b16]">
                                 {imageUrl ? (
                                   <div
                                     className="h-full w-full bg-cover bg-center"
@@ -561,33 +565,33 @@ export default async function PublicEventPage({ params }: Props) {
                                     aria-label={`${nominee.name} photo`}
                                   />
                                 ) : (
-                                  <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50">
+                                  <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300">
                                     {nominee.name.trim().slice(0, 1).toUpperCase()}
                                   </div>
                                 )}
                               </div>
 
                               <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-stone-900 text-sm leading-tight group-hover:text-emerald-900 transition-colors">
+                                <h4 className="font-semibold text-stone-900 text-sm leading-tight group-hover:text-emerald-900 transition-colors dark:text-white dark:group-hover:text-emerald-400">
                                   {nominee.name}
                                 </h4>
                                 {nominee.public_code && (
-                                  <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700">
+                                  <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700 dark:bg-[#18221b] dark:text-emerald-400">
                                     {nominee.public_code}
                                   </span>
                                 )}
                               </div>
 
-                              <span className="text-stone-300 group-hover:text-stone-600 transition-colors text-xs">
+                              <span className="text-stone-300 group-hover:text-stone-600 transition-colors text-xs dark:text-stone-400">
                                 ↗
                               </span>
                             </Link>
 
                             {/* Public Results (if released) */}
                             {resultsByNominee.has(nominee.id) && (
-                              <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs">
-                                <span className="text-stone-500 font-medium text-[11px]">Recorded Votes</span>
-                                <strong className="font-mono text-stone-900 font-bold">
+                              <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs dark:bg-[#141b16]">
+                                <span className="text-stone-500 font-medium text-[11px] dark:text-stone-400">Recorded Votes</span>
+                                <strong className="font-mono text-stone-900 font-bold dark:text-white">
                                   {resultsByNominee.get(nominee.id)?.toLocaleString("en-GH")}
                                 </strong>
                               </div>
@@ -645,7 +649,7 @@ export default async function PublicEventPage({ params }: Props) {
                                   href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${nominee.public_code}`)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs"
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                                   title={`Vote for ${nominee.name} on WhatsApp`}
                                 >
                                   <span>💬</span>
@@ -690,24 +694,24 @@ export default async function PublicEventPage({ params }: Props) {
       </div>
 
       {/* Footer */}
-      <footer className="mt-20 border-t border-stone-200 bg-white py-10">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-stone-500">
+      <footer className="mt-20 border-t border-stone-200 bg-white py-10 dark:border-[#1c2721] dark:bg-[#0c120e]">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-stone-500 dark:text-stone-400">
           <div className="flex items-center gap-3">
-            <Link href="/" className="font-serif font-bold text-stone-900 text-sm">
-              VotecastHub <span className="text-emerald-800">GH</span>
+            <Link href="/" className="font-serif font-bold text-stone-900 text-sm dark:text-white">
+              VotecastHub <span className="text-emerald-800 dark:text-emerald-400">GH</span>
             </Link>
             <span>· Trusted ballot verification for Ghana</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
             <span>© {new Date().getFullYear()} VotecastHub GH</span>
-            <Link href="/about" className="hover:text-stone-900">
+            <Link href="/about" className="hover:text-stone-900 dark:hover:text-stone-200">
               About
             </Link>
-            <Link href="/privacy" className="hover:text-stone-900">
+            <Link href="/privacy" className="hover:text-stone-900 dark:hover:text-stone-200">
               Privacy
             </Link>
-            <Link href="/terms" className="hover:text-stone-900">
+            <Link href="/terms" className="hover:text-stone-900 dark:hover:text-stone-200">
               Terms
             </Link>
           </div>
