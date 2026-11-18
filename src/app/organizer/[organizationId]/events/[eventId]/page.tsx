@@ -480,8 +480,12 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
                 backTo={pagePath}
                 label="Submit Event for Approval"
                 disabled={!publishReady}
-                disabledMessage="Please complete all required items in the checklist above."
-                confirmMessage={`Submit “${event.name}” for platform approval? It will remain private until approved, and voting will open automatically on your scheduled start date.`}
+                disabledMessage={
+                  isTicketOnly
+                    ? "Add at least one active ticket tier and venue in the Tickets tab to enable submission."
+                    : "Please complete all required items in the checklist above."
+                }
+                confirmMessage={`Submit “${event.name}” for platform approval? It will remain private until approved, and ${isTicketOnly ? "ticket sales" : "voting"} will open automatically on your scheduled start date.`}
               />
             </div>
           )}
@@ -559,19 +563,28 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       />
       {canManage && (
         event.status === "draft" ? (
-          <details className="group rounded-2xl border border-stone-200/60 bg-stone-50/40 p-4 transition-colors dark:border-[#1c2721]/60 dark:bg-[#0c120e]/40">
-            <summary className="flex cursor-pointer items-center justify-between text-xs font-mono font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">
-              <span>[ ADVANCED // DISCARD DRAFT EVENT ]</span>
-              <span className="text-[10px] text-stone-400 transition-transform group-open:rotate-180">▼</span>
+          <details className="group rounded-2xl border border-red-200/80 bg-red-50/40 p-4 transition-all dark:border-red-900/40 dark:bg-red-950/20">
+            <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-red-800 hover:text-red-950 dark:text-red-300 dark:hover:text-red-200">
+              <span className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-100 text-red-700 text-[11px] font-bold dark:bg-red-900/60 dark:text-red-300">
+                  ✕
+                </span>
+                <span>Discard Draft Event</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded-md transition-transform group-open:rotate-180 dark:bg-red-900/60 dark:text-red-300">
+                ▼
+              </span>
             </summary>
-            <div className="mt-4 border-t border-stone-200/50 pt-4 dark:border-[#1c2721]/60">
-              <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">
-                Delete this event draft to remove it completely. Payment records remain in Payments.
+            <div className="mt-4 border-t border-red-200/60 pt-4 dark:border-red-900/40 space-y-3">
+              <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
+                Permanently delete this draft event. This action cannot be undone.
               </p>
               {canRemove ? (
                 <DeleteEventForm eventId={eventId} name={event.name} />
               ) : (
-                <p className="text-xs text-stone-500">An organization owner or admin can delete this event.</p>
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400">
+                  Only an organization owner or admin can discard this event draft.
+                </p>
               )}
             </div>
           </details>
