@@ -317,6 +317,24 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   if (isCallback && text.startsWith("qty:")) {
     const cleanQty = parseInt(text.replace(/^qty:/, ""), 10);
     if (activeSession && activeSession.event_id && activeSession.nominee_id && activeSession.category_id && cleanQty >= 1) {
+      if (activeSession.metadata?.mode === "free") {
+        const { data: sessionEvent } = await db.from("events").select("id, name, free_vote_limit_per_phone").eq("id", activeSession.event_id).single();
+        const { data: sessionNominee } = await db.from("nominees").select("id, name, image_path").eq("id", activeSession.nominee_id).single();
+        const { data: sessionCategory } = await db.from("categories").select("id, name").eq("id", activeSession.category_id).single();
+        if (sessionEvent && sessionNominee && sessionCategory && activeSession.phone) {
+          await handleFreeTelegramVote({
+            chatId,
+            phone: activeSession.phone,
+            phoneHash: activeSession.phone_hash || createHash("sha256").update(activeSession.phone).digest("hex"),
+            event: sessionEvent,
+            category: sessionCategory,
+            nominee: sessionNominee,
+            quantity: cleanQty,
+          });
+          return;
+        }
+      }
+
       await handlePaidVoteCheckout({
         chatId,
         phone: activeSession.phone || `tg_${userId}`,
@@ -511,8 +529,45 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   // 6. If active session is awaiting quantity and user sends a number
   if (activeSession && activeSession.state === "awaiting_quantity" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
     const cleanQty = text.replace(/\D/g, "");
-    const qtyParsed = parseInt(cleanQty, 10);
-    if (!qtyParsed || qtyParsed < 1 || qtyParsed > 10000) {
+    let qtyParsed = parseInt(cleanQty, 10);
+    if (activeSession.metadata?.mode === "free" && upper === "ALL") {
+      qtyParsed = Number(activeSession.metadata?.max_votes) || 1;
+    }
+
+    if (!qtyParsed || qtyParsed < 1) {
+      await sendTelegramMessage(chatId, "Please enter a valid number of votes (or reply 0 to cancel):");
+      return;
+    }
+
+    // Check if free voting session
+    if (activeSession.metadata?.mode === "free") {
+      const maxFree = Number(activeSession.metadata?.max_votes) || 1;
+      if (qtyParsed > maxFree) {
+        await sendTelegramMessage(
+          chatId,
+          `⚠️ You have ${maxFree} free vote${maxFree === 1 ? "" : "s"} remaining. Please enter a number between 1 and ${maxFree} (or 0 to cancel):`,
+        );
+        return;
+      }
+
+      const { data: sessionEvent } = await db.from("events").select("id, name, free_vote_limit_per_phone").eq("id", activeSession.event_id).single();
+      const { data: sessionNominee } = await db.from("nominees").select("id, name, image_path").eq("id", activeSession.nominee_id).single();
+      const { data: sessionCategory } = await db.from("categories").select("id, name").eq("id", activeSession.category_id).single();
+      if (sessionEvent && sessionNominee && sessionCategory && activeSession.phone) {
+        await handleFreeTelegramVote({
+          chatId,
+          phone: activeSession.phone,
+          phoneHash: activeSession.phone_hash || createHash("sha256").update(activeSession.phone).digest("hex"),
+          event: sessionEvent,
+          category: sessionCategory,
+          nominee: sessionNominee,
+          quantity: qtyParsed,
+        });
+        return;
+      }
+    }
+
+    if (qtyParsed > 10000) {
       await sendTelegramMessage(chatId, "Please enter a valid number of votes between 1 and 10,000 (or reply 0 to cancel):");
       return;
     }
@@ -590,6 +645,7 @@ async function presentCompetitionsList(chatId: number): Promise<void> {
   const { data: events, error } = await db
     .from("events")
     .select("id, name, slug, voting_mode, unit_price_minor, image_path, ends_at")
+    .in("event_type", ["voting", "hybrid"])
     .eq("status", "published")
     .lte("starts_at", nowIso)
     .gt("ends_at", nowIso)
@@ -618,18 +674,11 @@ async function presentCompetitionsList(chatId: number): Promise<void> {
     },
   ]);
 
-  const welcomeText = `🏆 *Welcome to VoteCastHub!* 🗳️\n\nTap an ongoing competition below to view contestants and cast your ballot:`;
+  const welcomeText = `🏆 *Welcome to VoteCastHub!* 🗳️\n\nTap an ongoing competition below to view contestants and cast your ballot:\n\n_(Or reply with any contestant's code like *VOTE BSF-092* to vote directly)_`;
 
-  const coverUrl = await getSignedImageUrl(events[0]?.image_path);
-  if (coverUrl) {
-    await sendTelegramPhoto(chatId, coverUrl, welcomeText, {
-      reply_markup: { inline_keyboard: buttons },
-    });
-  } else {
-    await sendTelegramMessage(chatId, welcomeText, {
-      reply_markup: { inline_keyboard: buttons },
-    });
-  }
+  await sendTelegramMessage(chatId, welcomeText, {
+    reply_markup: { inline_keyboard: buttons },
+  });
 }
 
 async function presentEventBallot(params: {
@@ -654,9 +703,38 @@ async function presentEventBallot(params: {
   const { data: event, error: eventErr } = await query.maybeSingle();
 
   if (eventErr || !event) {
+    // Check if eventIdentifier is a direct candidate public code (e.g. "BSF-092")
+    const cleanNomCode = eventIdentifier.trim();
+    const { data: directNominee } = await db
+      .from("nominees")
+      .select(`
+        id, name, public_code, display_order, image_path, category_id,
+        categories!inner(
+          id, name, event_id, is_active,
+          events!inner(id, name, slug, event_type, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path)
+        )
+      `)
+      .ilike("public_code", cleanNomCode)
+      .eq("is_active", true)
+      .eq("categories.is_active", true)
+      .eq("categories.events.status", "published")
+      .gt("categories.events.ends_at", new Date().toISOString())
+      .limit(1)
+      .maybeSingle();
+
+    if (directNominee) {
+      const nomCat = directNominee.categories as any;
+      await selectCandidateForVoting({
+        chatId,
+        eventId: nomCat.event_id,
+        nomineeId: directNominee.id,
+      });
+      return;
+    }
+
     await sendTelegramMessage(
       chatId,
-      `❌ Event *${eventIdentifier}* was not found or has concluded.\nSend /events to see all ongoing competitions.`,
+      `❌ Contestant or event *${eventIdentifier}* was not found or has concluded.\nSend /events to see all ongoing competitions.`,
     );
     return;
   }
@@ -1109,15 +1187,112 @@ async function selectCandidateForVoting(params: {
       return;
     }
 
-    await handleFreeTelegramVote({
-      chatId,
-      phone,
-      phoneHash: phoneHash || createHash("sha256").update(phone).digest("hex"),
-      event,
-      category,
-      nominee,
-      quantity: 1,
-    });
+    const totalLimit = Number(event.free_vote_limit_per_phone) || 1;
+    let remaining = totalLimit;
+    const userId = await resolveTelegramVoterUserId(db, phone);
+    if (userId) {
+      const { data: batches } = await db
+        .from("vote_batches")
+        .select("quantity")
+        .eq("voter_user_id", userId)
+        .eq("event_id", event.id)
+        .is("payment_attempt_id", null);
+      const used = (batches || []).reduce((sum, b) => sum + (Number(b.quantity) || 1), 0);
+      remaining = Math.max(0, totalLimit - used);
+    }
+
+    if (remaining <= 0) {
+      await sendTelegramMessage(chatId, `⚠️ You have already reached your free vote limit of *${totalLimit} vote(s)* for *${event.name}*.`);
+      return;
+    }
+
+    if (remaining === 1) {
+      await handleFreeTelegramVote({
+        chatId,
+        phone,
+        phoneHash: phoneHash || createHash("sha256").update(phone).digest("hex"),
+        event,
+        category,
+        nominee,
+        quantity: 1,
+      });
+      return;
+    }
+
+    // Remaining > 1: Allow voter to choose how many free votes to cast
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    if (activeSessionId) {
+      await db
+        .from("telegram_sessions")
+        .update({
+          event_id: event.id,
+          category_id: category.id,
+          nominee_id: nominee.id,
+          state: "awaiting_quantity",
+          metadata: {
+            mode: "free",
+            max_votes: remaining,
+            event_name: event.name,
+            category_name: category.name,
+            nominee_name: nominee.name,
+            nominee_image_path: nominee.image_path,
+          },
+          expires_at: expiresAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", activeSessionId);
+    } else {
+      await db.from("telegram_sessions").delete().eq("chat_id", chatId).neq("state", "completed");
+      await db.from("telegram_sessions").insert({
+        chat_id: chatId,
+        telegram_user_id: chatId,
+        phone,
+        phone_hash: phoneHash,
+        event_id: event.id,
+        category_id: category.id,
+        nominee_id: nominee.id,
+        state: "awaiting_quantity",
+        metadata: {
+          mode: "free",
+          max_votes: remaining,
+          event_name: event.name,
+          category_name: category.name,
+          nominee_name: nominee.name,
+          nominee_image_path: nominee.image_path,
+        },
+        expires_at: expiresAt,
+      });
+    }
+
+    const freeButtons: { text: string; callback_data: string }[][] = [
+      [
+        { text: "1 Vote", callback_data: "qty:1" },
+        ...(remaining >= 2 ? [{ text: "2 Votes", callback_data: "qty:2" }] : []),
+        ...(remaining >= 3 ? [{ text: "3 Votes", callback_data: "qty:3" }] : []),
+      ],
+      [
+        { text: `✨ Cast All ${remaining} Votes`, callback_data: `qty:${remaining}` },
+        { text: "✏️ Other Qty", callback_data: "custom_qty" },
+      ],
+    ];
+
+    const freeText =
+      `🗳️ *Free Voting for ${nominee.name}*\n` +
+      `• Category: *${category.name}*\n` +
+      `• Event: *${event.name}*\n` +
+      `• Remaining Allowance: *${remaining} of ${totalLimit} free vote(s)*\n\n` +
+      `Select how many free votes to cast:`;
+
+    const nomPhoto = await getSignedImageUrl(nominee.image_path);
+    if (nomPhoto) {
+      await sendTelegramPhoto(chatId, nomPhoto, freeText, {
+        reply_markup: { inline_keyboard: freeButtons },
+      });
+    } else {
+      await sendTelegramMessage(chatId, freeText, {
+        reply_markup: { inline_keyboard: freeButtons },
+      });
+    }
     return;
   }
 

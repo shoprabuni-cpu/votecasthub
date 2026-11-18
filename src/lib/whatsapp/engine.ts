@@ -342,14 +342,75 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
 
             if (matchedNom) {
               if (sessionEvent.voting_mode === "free") {
-                await handleFreeVote({
-                  phone,
-                  phoneHash,
-                  event: sessionEvent,
-                  category: matchedNom.category,
-                  nominee: matchedNom,
-                  quantity: 1,
-                });
+                const totalLimit = Number(sessionEvent.free_vote_limit_per_phone) || 1;
+                let remaining = totalLimit;
+                const userId = await resolveWhatsAppVoterUserId(db, phone);
+                if (userId) {
+                  const { data: batches } = await db
+                    .from("vote_batches")
+                    .select("quantity")
+                    .eq("voter_user_id", userId)
+                    .eq("event_id", sessionEvent.id)
+                    .is("payment_attempt_id", null);
+                  const used = (batches || []).reduce((sum, b) => sum + (Number(b.quantity) || 1), 0);
+                  remaining = Math.max(0, totalLimit - used);
+                }
+
+                if (remaining <= 0) {
+                  await sendWhatsAppMessage(
+                    phone,
+                    `⚠️ You have already reached your free vote limit of *${totalLimit} vote(s)* for *${sessionEvent.name}*.`,
+                  );
+                  return;
+                }
+
+                if (remaining === 1) {
+                  await handleFreeVote({
+                    phone,
+                    phoneHash,
+                    event: sessionEvent,
+                    category: matchedNom.category,
+                    nominee: matchedNom,
+                    quantity: 1,
+                  });
+                  return;
+                }
+
+                // If remaining > 1, prompt voter how many free votes to cast!
+                const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                await db
+                  .from("whatsapp_sessions")
+                  .update({
+                    category_id: matchedNom.category.id,
+                    nominee_id: matchedNom.id,
+                    state: "awaiting_quantity",
+                    metadata: {
+                      mode: "free",
+                      max_votes: remaining,
+                      event_name: sessionEvent.name,
+                      category_name: matchedNom.category.name,
+                      nominee_name: matchedNom.name,
+                      nominee_image_path: matchedNom.image_path,
+                    },
+                    expires_at: expiresAt,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", activeSession.id);
+
+                const nomPhoto = await getSignedImageUrl(matchedNom.image_path);
+                const freePrompt =
+                  `🗳️ *Free Vote for ${matchedNom.name}*\n` +
+                  `• Category: *${matchedNom.category.name}*\n` +
+                  `• Event: *${sessionEvent.name}*\n` +
+                  `• Remaining Allowance: *${remaining} of ${totalLimit} free vote(s)*\n\n` +
+                  `How many free votes would you like to cast for *${matchedNom.name}*?\n` +
+                  `Reply with a number from *1 to ${remaining}* (or reply *ALL* to cast all ${remaining}):`;
+
+                if (nomPhoto) {
+                  await sendWhatsAppImage(phone, nomPhoto, freePrompt);
+                } else {
+                  await sendWhatsAppMessage(phone, freePrompt);
+                }
                 return;
               }
 
@@ -372,8 +433,61 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     // If active session is awaiting quantity and user sends a number or taps QTY button
     if (activeSession && activeSession.state === "awaiting_quantity" && activeSession.event_id && activeSession.nominee_id && activeSession.category_id) {
       const cleanQty = text.replace(/^(QTY\s*)/i, "").replace(/\D/g, "");
-      const qtyParsed = parseInt(cleanQty, 10);
-      if (!qtyParsed || qtyParsed < 1 || qtyParsed > 10000) {
+      let qtyParsed = parseInt(cleanQty, 10);
+
+      // If free vote quantity prompt and user replied "ALL"
+      if (activeSession.metadata?.mode === "free" && upperText === "ALL") {
+        qtyParsed = Number(activeSession.metadata?.max_votes) || 1;
+      }
+
+      if (!qtyParsed || qtyParsed < 1) {
+        await sendWhatsAppMessage(phone, "Please enter a valid number of votes (or reply 0 to cancel):");
+        return;
+      }
+
+      // Check if this is a free voting session
+      if (activeSession.metadata?.mode === "free") {
+        const maxFree = Number(activeSession.metadata?.max_votes) || 1;
+        if (qtyParsed > maxFree) {
+          await sendWhatsAppMessage(
+            phone,
+            `⚠️ You have ${maxFree} free vote${maxFree === 1 ? "" : "s"} remaining. Please reply with a number between 1 and ${maxFree} (or 0 to cancel):`,
+          );
+          return;
+        }
+
+        const { data: ev } = await db
+          .from("events")
+          .select("id, name, free_vote_limit_per_phone")
+          .eq("id", activeSession.event_id)
+          .single();
+
+        const { data: nom } = await db
+          .from("nominees")
+          .select("id, name, image_path")
+          .eq("id", activeSession.nominee_id)
+          .single();
+
+        const { data: cat } = await db
+          .from("categories")
+          .select("id, name")
+          .eq("id", activeSession.category_id)
+          .single();
+
+        if (ev && nom && cat) {
+          await handleFreeVote({
+            phone,
+            phoneHash,
+            event: ev,
+            category: cat,
+            nominee: nom,
+            quantity: qtyParsed,
+          });
+          return;
+        }
+      }
+
+      if (qtyParsed > 10000) {
         await sendWhatsAppMessage(phone, "Please enter a valid number of votes between 1 and 10,000 (or reply 0 to cancel):");
         return;
       }
@@ -494,6 +608,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     const { data: events } = await db
       .from("events")
       .select("id, name, slug, voting_mode, unit_price_minor, image_path, ends_at")
+      .in("event_type", ["voting", "hybrid"])
       .eq("status", "published")
       .gt("ends_at", new Date().toISOString())
       .order("created_at", { ascending: false })
@@ -506,14 +621,12 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
           title: ev.name.slice(0, 20),
         }));
 
-        const firstCover = await getSignedImageUrl(events[0]?.image_path);
         await sendWhatsAppInteractiveButtons(
           phone,
           "🗳️ VoteCastHub Competitions",
-          "Welcome to VoteCastHub! 🏆\n\nTap an ongoing competition below to view contestants and vote:",
+          "Welcome to VoteCastHub! 🏆\n\nTap an ongoing competition below to view categories and candidates:\n\n_(You can also reply with any contestant's code like *VOTE BSF-092* to vote directly)_",
           buttons,
           "VoteCastHub",
-          firstCover,
         );
         return;
       }
@@ -529,7 +642,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       await sendWhatsAppInteractiveList(
         phone,
         "🗳️ VoteCastHub Competitions",
-        "Welcome to VoteCastHub! 🏆\nTap the button below to browse all active voting events:",
+        "Welcome to VoteCastHub! 🏆\nTap below to explore active voting events.\n\n👉 Have a contestant code? Reply *VOTE [Code]* (e.g. *VOTE BSF-092*) to jump directly to their ballot!",
         "Browse Events 🏆",
         [{ title: "Live Competitions", rows }],
         "VoteCastHub",
@@ -539,20 +652,55 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
 
     await sendWhatsAppMessage(
       phone,
-      "👋 Welcome to *VoteCastHub*! 🗳️\n\nTo vote for your candidate, send:\n*VOTE [Event Code] [Nominee Code]*\n\n_Example:_\n*VOTE 1000 01*",
+      "👋 Welcome to *VoteCastHub*! 🗳️\n\nTo vote for your candidate, reply with their code:\n👉 *VOTE [Nominee Code]*\n\n_Example:_\n*VOTE BSF-092*",
     );
     return;
   }
 
-  // Parse command syntax: VOTE [EVENT_CODE] [NOMINEE_CODE] [OPTIONAL_QUANTITY]
+  // Parse command syntax: VOTE [NOMINEE_CODE or EVENT_CODE] [OPTIONAL_NOMINEE_CODE or QUANTITY]
   const cleaned = text.replace(/^(VOTE|VCH|BALLOT)\s+/i, "");
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
   if (parts.length === 0) {
     await sendWhatsAppMessage(
       phone,
-      "⚠️ Incomplete voting command.\nPlease use the format:\n*VOTE [Event Code] [Nominee Code]*\n\n_Example:_\n*VOTE 1000 01*",
+      "⚠️ Incomplete voting command.\nPlease use the format:\n*VOTE [Nominee Code]* (e.g. *VOTE BSF-092*)\nor *VOTE [Event Code] [Nominee Code]*",
     );
+    return;
+  }
+
+  // 1. Check if first parameter is a direct candidate public code (e.g. "VOTE BSF-092" or "BSF-092" or "VOTE BSF-092 10")
+  const potentialNomineeCode = parts[0].trim();
+  const { data: directNominee } = await db
+    .from("nominees")
+    .select(`
+      id, name, public_code, display_order, image_path, category_id,
+      categories!inner(
+        id, name, event_id, is_active,
+        events!inner(id, name, slug, event_type, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path)
+      )
+    `)
+    .ilike("public_code", potentialNomineeCode)
+    .eq("is_active", true)
+    .eq("categories.is_active", true)
+    .eq("categories.events.status", "published")
+    .gt("categories.events.ends_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (directNominee) {
+    const nomCat = directNominee.categories as any;
+    const nomEvent = nomCat.events as any;
+    // Check if parts[1] is quantity (e.g. "VOTE BSF-092 10")
+    const directQty = parts[1] && /^\d+$/.test(parts[1]) ? parseInt(parts[1], 10) : undefined;
+    await handleDirectNomineeVoteWhatsApp({
+      phone,
+      phoneHash,
+      nominee: directNominee,
+      category: nomCat,
+      event: nomEvent,
+      quantity: directQty,
+    });
     return;
   }
 
@@ -590,7 +738,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   if (!eventId) {
     await sendWhatsAppMessage(
       phone,
-      `❌ Event code *${eventIdentifier}* was not found.\nPlease double check the event flyer and try again.`,
+      `❌ Contestant or event code *${eventIdentifier}* was not found.\nPlease double check the event flyer and try again.`,
     );
     return;
   }
@@ -2253,6 +2401,151 @@ async function handleTicketCheckoutWhatsApp(params: {
     `👉 ${authUrl}\n\n` +
     `_After payment is approved, your CODE PAX and digital passes will be delivered right to this chat!_`
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Direct Nominee Voting Helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleDirectNomineeVoteWhatsApp(params: {
+  phone: string;
+  phoneHash: string;
+  nominee: { id: string; name: string; public_code: string | null; image_path: string | null };
+  category: { id: string; name: string };
+  event: {
+    id: string;
+    name: string;
+    slug: string;
+    voting_mode: string;
+    unit_price_minor: number;
+    free_vote_limit_per_phone: number | null;
+    image_path?: string | null;
+  };
+  quantity?: number;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, phoneHash, nominee, category, event, quantity } = params;
+
+  // Free voting mode
+  if (event.voting_mode === "free") {
+    const totalLimit = Number(event.free_vote_limit_per_phone) || 1;
+    let remaining = totalLimit;
+
+    const userId = await resolveWhatsAppVoterUserId(db, phone);
+    if (userId) {
+      const { data: batches } = await db
+        .from("vote_batches")
+        .select("quantity")
+        .eq("voter_user_id", userId)
+        .eq("event_id", event.id)
+        .is("payment_attempt_id", null);
+      const used = (batches || []).reduce((sum, b) => sum + (Number(b.quantity) || 1), 0);
+      remaining = Math.max(0, totalLimit - used);
+    }
+
+    if (remaining <= 0) {
+      await sendWhatsAppMessage(
+        phone,
+        `⚠️ You have already reached your free vote limit of *${totalLimit} vote(s)* for *${event.name}*.`,
+      );
+      return;
+    }
+
+    // If quantity was explicitly provided (e.g. VOTE BSF-092 3)
+    if (quantity && quantity >= 1) {
+      const votesToCast = Math.min(quantity, remaining);
+      await handleFreeVote({
+        phone,
+        phoneHash,
+        event,
+        category,
+        nominee,
+        quantity: votesToCast,
+      });
+      return;
+    }
+
+    // If only 1 vote remaining or total limit is 1, cast directly
+    if (remaining === 1) {
+      await handleFreeVote({
+        phone,
+        phoneHash,
+        event,
+        category,
+        nominee,
+        quantity: 1,
+      });
+      return;
+    }
+
+    // Otherwise, prompt voter how many of their remaining free votes to cast!
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await db.from("whatsapp_sessions").delete().eq("phone", phone).neq("state", "completed");
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: phoneHash,
+      event_id: event.id,
+      category_id: category.id,
+      nominee_id: nominee.id,
+      state: "awaiting_quantity",
+      metadata: {
+        mode: "free",
+        max_votes: remaining,
+        event_name: event.name,
+        category_name: category.name,
+        nominee_name: nominee.name,
+        nominee_image_path: nominee.image_path,
+      },
+      expires_at: expiresAt,
+    });
+
+    const nomPhotoUrl = await getSignedImageUrl(nominee.image_path);
+    const freePrompt =
+      `🗳️ *Free Vote for ${nominee.name}*\n` +
+      `• Category: *${category.name}*\n` +
+      `• Event: *${event.name}*\n` +
+      `• Remaining Allowance: *${remaining} of ${totalLimit} free vote(s)*\n\n` +
+      `How many free votes would you like to cast for *${nominee.name}*?\n` +
+      `Reply with a number from *1 to ${remaining}* (or reply *ALL* to cast all ${remaining}):`;
+
+    if (nomPhotoUrl) {
+      await sendWhatsAppImage(phone, nomPhotoUrl, freePrompt);
+    } else {
+      await sendWhatsAppMessage(phone, freePrompt);
+    }
+    return;
+  }
+
+  // Paid voting mode
+  if (quantity && quantity >= 1 && quantity <= 10000) {
+    await handlePaidVoteCheckout({
+      phone,
+      phoneHash,
+      eventId: event.id,
+      categoryId: category.id,
+      nomineeId: nominee.id,
+      quantity,
+    });
+    return;
+  }
+
+  // Prompt for paid vote quantity with nominee photo
+  await promptPaidVoteQuantity({
+    db,
+    phone,
+    phoneHash,
+    event,
+    matched: {
+      ...nominee,
+      category_id: category.id,
+      category: {
+        id: category.id,
+        name: category.name,
+        event_id: event.id,
+      },
+      display_order: 1,
+    },
+  });
 }
 
 
