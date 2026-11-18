@@ -1,6 +1,7 @@
 -- Migration: Fix Event Ticketing Differentiation and RPC Support
 -- Ensures ticketing events are cleanly distinguished from voting contests,
 -- provides an authorized RPC function to persist event_type and venue details,
+-- grants necessary execution rights to manage ticket tiers without 42501 errors,
 -- and updates get_organization_events to return event_type and venue columns.
 
 -- 1. Security Definer RPC function to update event_type and venue details
@@ -89,16 +90,57 @@ $$;
 revoke all on function public.get_organization_events(uuid) from public, anon;
 grant execute on function public.get_organization_events(uuid) to authenticated;
 
--- 3. Retroactively set event_type = 'ticketing' for events that have ticket tiers and no categories
+-- 3. Explicitly update your ticketed event
+update public.events
+set event_type = 'ticketing'
+where id = 'cd94c92d-84d5-4dae-8168-b4abe726503f';
+
+-- 4. Retroactively set event_type = 'ticketing' for events that have ticket tiers and no categories
 update public.events e
 set event_type = 'ticketing'
 where e.event_type = 'voting'
   and exists (select 1 from public.event_ticket_tiers t where t.event_id = e.id)
   and not exists (select 1 from public.categories c where c.event_id = e.id);
 
--- 4. Retroactively set event_type = 'hybrid' for events that have both ticket tiers and categories
+-- 5. Retroactively set event_type = 'hybrid' for events that have both ticket tiers and categories
 update public.events e
 set event_type = 'hybrid'
 where e.event_type = 'voting'
   and exists (select 1 from public.event_ticket_tiers t where t.event_id = e.id)
   and exists (select 1 from public.categories c where c.event_id = e.id);
+
+-- 6. Fix permissions on private.can_manage_org and private.can_manage_event
+grant execute on function private.can_manage_org(uuid) to authenticated;
+
+create or replace function private.can_manage_event(p_event_id uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select exists(
+    select 1 from public.events e
+    where e.id = p_event_id and private.can_manage_org(e.organization_id)
+  );
+$$;
+grant execute on function private.can_manage_event(uuid) to authenticated;
+
+-- 7. Fix RLS policies on event_ticket_tiers and event_tickets
+drop policy if exists "organizers_manage_ticket_tiers" on public.event_ticket_tiers;
+create policy "organizers_manage_ticket_tiers" on public.event_ticket_tiers
+  for all to authenticated
+  using (private.can_manage_event(event_id))
+  with check (private.can_manage_event(event_id));
+
+drop policy if exists "organizers_view_event_tickets" on public.event_tickets;
+create policy "organizers_view_event_tickets" on public.event_tickets
+  for select to authenticated
+  using (private.can_manage_event(event_id));
+
+-- 8. Grant column update privileges and RLS policy for ticketing details on public.events
+grant select, update (event_type, venue_name, venue_address, doors_open_time, updated_at) on public.events to authenticated;
+grant select (event_type, venue_name, venue_address, doors_open_time) on public.events to anon;
+
+drop policy if exists "organizers_can_update_event_ticketing" on public.events;
+create policy "organizers_can_update_event_ticketing"
+  on public.events
+  for update
+  to authenticated
+  using (private.can_manage_org(organization_id))
+  with check (private.can_manage_org(organization_id));
