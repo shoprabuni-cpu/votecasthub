@@ -1,125 +1,41 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Icon } from "@/components/icon";
+import { StaggeredMenu } from "@/components/ui/StaggeredMenu";
 import { BrandLogo } from "@/components/brand-logo";
-import { SegmentedThemeSwitch } from "@/components/theme-toggle";
-import { useEffect, useRef, useState } from "react";
 
-const links = [
-  ["/events", "Browse events", "vote"],
-  ["/tickets", "Find tickets", "ticket"],
-  ["/guides", "Guides", "mail"],
-  ["/pricing", "Pricing", "coin"],
-  ["/about", "About", "building"],
-  ["/sign-in", "Organizer sign in", "users"],
-] as const;
+const menuItems = [
+  { label: "Browse Events", link: "/events", ariaLabel: "Browse all voting and ticketed events" },
+  { label: "Official Tickets", link: "/tickets", ariaLabel: "Find and buy event tickets" },
+  { label: "Guides & Docs", link: "/guides", ariaLabel: "Organizer and voting guides" },
+  { label: "Pricing", link: "/pricing", ariaLabel: "Platform pricing and rates" },
+  { label: "About Us", link: "/about", ariaLabel: "About VoteCastHub GH" },
+  { label: "Sign In", link: "/sign-in", ariaLabel: "Organizer sign in" },
+  { label: "Host Event", link: "/sign-up", ariaLabel: "Create your own event" },
+];
+
+const socialItems = [
+  { label: "WhatsApp (+233 59 299 2566)", link: "https://wa.me/233592992566" },
+  { label: "Telegram (@VoteCastHubGH_bot)", link: "https://t.me/VoteCastHubGH_bot" },
+  { label: "USSD *920#", link: "/#ussd" },
+];
 
 export function MobileNavDrawer() {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        dialog.firstElementChild?.animate?.([{ transform: "translateX(-100%)" }, { transform: "translateX(0)" }], { duration: 260, easing: "ease-out" });
-      }
-    }
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
-  function close() {
-    setOpen(false);
-  }
-
-  return <>
-    <button
-      type="button"
-      aria-label="Open navigation menu"
-      aria-haspopup="dialog"
-      aria-expanded={open}
-      onClick={() => setOpen(true)}
-      className="inline-flex size-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-800 shadow-sm transition hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 lg:hidden dark:border-[#1c2721] dark:bg-[#0a0c0b] dark:text-stone-200 dark:hover:bg-[#131b16]"
-    >
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
-    </button>
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="mobile-menu-title"
-      onCancel={event => { event.preventDefault(); close(); }}
-      onClick={event => { if (event.target === dialogRef.current) close(); }}
-      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-stone-900 dark:text-stone-100 backdrop:bg-stone-950/45 dark:backdrop:bg-black/85"
-    >
-      <div className={`mr-auto flex h-full w-[min(22rem,calc(100vw-1rem))] flex-col rounded-r-3xl border-r border-stone-200 bg-stone-50 shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none dark:border-[#1c2721] dark:bg-[#000000] ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center justify-between border-b border-emerald-800 bg-emerald-950 px-5 pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] text-white rounded-tr-3xl dark:border-[#173b27] dark:bg-[#06140d]">
-          <div>
-            <div className="bg-white px-2.5 py-1 rounded-xl inline-block shadow-xs">
-              <BrandLogo height={32} />
-            </div>
-            <h2 id="mobile-menu-title" className="mt-2 text-xl font-semibold text-white">Explore &amp; vote</h2>
-          </div>
-          <button type="button" aria-label="Close navigation menu" onClick={close} className="inline-flex size-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-emerald-500 cursor-pointer">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" /></svg>
-          </button>
-        </div>
-        <nav aria-label="Mobile navigation" className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-          <div className="mb-3 px-1">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500 dark:text-emerald-400">Display Theme</p>
-            <SegmentedThemeSwitch className="w-full justify-between" />
-          </div>
-
-          <p className="px-3 pb-2 pt-2 text-xs font-bold uppercase tracking-widest text-stone-500 dark:text-emerald-400">Discover VotecastHub</p>
-          {links.map(([href, label, icon]) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={close}
-                aria-current={active ? "page" : undefined}
-                className={`group flex min-h-14 items-center gap-3 rounded-2xl border px-3.5 text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${
-                  active
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-950 shadow-2xs dark:border-emerald-700/70 dark:bg-[#0d281a] dark:text-emerald-200"
-                    : "border-stone-200 bg-white text-stone-800 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-950 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200 dark:hover:border-emerald-800/80 dark:hover:bg-[#121c15] dark:hover:text-emerald-300"
-                }`}
-              >
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                    active
-                      ? "bg-emerald-200/80 text-emerald-950 dark:bg-emerald-500/25 dark:text-emerald-300 dark:border dark:border-emerald-500/30"
-                      : "bg-emerald-100/70 text-emerald-800 dark:bg-[#141e18] dark:text-emerald-400 dark:border dark:border-[#213025]"
-                  }`}
-                >
-                  <Icon name={icon} />
-                </span>
-                <span className="flex-1">{label}</span>
-                <Icon
-                  name="arrowRight"
-                  size={16}
-                  className={`transition-transform group-hover:translate-x-0.5 ${
-                    active ? "text-emerald-700 dark:text-emerald-400" : "text-stone-400 dark:text-stone-500"
-                  }`}
-                />
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t border-stone-200 bg-white p-5 rounded-br-3xl pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#1c2721] dark:bg-[#050706]">
-          <p className="mb-3 text-sm text-stone-600 dark:text-stone-300">Ready to create your own event?</p>
-          <Link
-            href="/sign-up"
-            onClick={close}
-            className="flex min-h-12 items-center justify-center rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-          >
-            Get started
-          </Link>
-        </div>
-      </div>
-    </dialog>
-  </>;
+  return (
+    <div className="relative lg:hidden">
+      <StaggeredMenu
+        position="right"
+        isFixed={true}
+        colors={["#041a10", "#082f1d", "#10b981"]}
+        accentColor="#10b981"
+        menuButtonColor="currentColor"
+        openMenuButtonColor="#ffffff"
+        items={menuItems}
+        socialItems={socialItems}
+        displaySocials={true}
+        displayItemNumbering={true}
+        logoComponent={<BrandLogo height={32} />}
+        closeOnClickAway={true}
+      />
+    </div>
+  );
 }

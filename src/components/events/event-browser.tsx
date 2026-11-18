@@ -150,9 +150,102 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
       </div>
     </div>
     {error && <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-sm text-amber-950 dark:text-amber-200">{error} <button type="button" className="min-h-11 px-3 font-semibold border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-xs rounded-xl py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
-    <div aria-busy={loading} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-      {page.events.map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
-    </div>
+
+    {filters.event_type === "all" ? (
+      <div className="space-y-12">
+        {/* 1. Official Event Tickets Section */}
+        {page.events.filter(e => e.event_type === "ticketing").length > 0 && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-end justify-between gap-2 border-b border-stone-200/80 pb-3 dark:border-[#1c2721]">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 shadow-xs">
+                  <TicketIcon size={18} />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                      TICKETING &amp; PASSES
+                    </span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                      {page.events.filter(e => e.event_type === "ticketing").length} Available
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
+                    Official Event Tickets &amp; VIP Passes
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Live summits, festivals, concerts, and parties with instant Mobile Money &amp; CODE PAX
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => update("event_type", "ticketing")}
+                className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+              >
+                <span>View all tickets</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div aria-busy={loading} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 items-stretch">
+              {page.events
+                .filter(e => e.event_type === "ticketing")
+                .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Nominee Voting & Awards Section */}
+        {page.events.filter(e => e.event_type !== "ticketing").length > 0 && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-end justify-between gap-2 border-b border-stone-200/80 pb-3 dark:border-[#1c2721]">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 shadow-xs">
+                  <VoteIcon size={18} />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                      AWARDS &amp; CONTESTS
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                      {page.events.filter(e => e.event_type !== "ticketing").length} Active
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
+                    Live Awards &amp; Nominee Voting
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Cast verified votes for your favourite student leaders, church honorees, and creative talents
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => update("event_type", "voting")}
+                className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+              >
+                <span>View all voting</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div aria-busy={loading} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 items-stretch">
+              {page.events
+                .filter(e => e.event_type !== "ticketing")
+                .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+            </div>
+          </div>
+        )}
+      </div>
+    ) : (
+      <div aria-busy={loading} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 items-stretch">
+        {page.events.map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+      </div>
+    )}
     {!page.events.length && !loading && !error && <div className="rounded-2xl border border-dashed border-stone-300 dark:border-[#1c2721] dark:bg-[#070a08] p-8 text-center"><h3 className="text-lg font-semibold text-stone-900 dark:text-white">No matching events</h3><p className="mt-2 text-sm text-stone-600 dark:text-stone-400">Try another search or clear the filters.</p><button type="button" className="mt-3 min-h-11 rounded-xl bg-emerald-800 dark:bg-emerald-600 hover:dark:bg-emerald-500 px-5 text-sm font-semibold text-white py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setFilters(defaults); setRetry(value => value + 1); }}>Clear filters</button></div>}
     {page.events.length < page.total && <div className="mt-6 text-center"><p className="mb-3 text-xs text-stone-600 dark:text-stone-400">Showing {page.events.length} of {page.total} events</p><button type="button" disabled={loading} onClick={loadMore} className="min-h-11 rounded-xl bg-emerald-800 dark:bg-emerald-600 hover:dark:bg-emerald-500 px-7 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed">{loading ? "Loading…" : "Load more events"}</button></div>}
   </section>;
