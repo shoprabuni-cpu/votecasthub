@@ -12,6 +12,7 @@ import { paymentAdmin } from "@/lib/payments/admin";
 import { createVoterAuth } from "@/lib/auth/voter-auth";
 import { normalizeGhanaPhone } from "@/lib/auth/phone";
 import { scheduleNotificationDelivery } from "@/lib/notifications/delivery";
+import { generateSmartNomineeCode } from "@/lib/nominees/code-generator";
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -792,16 +793,25 @@ export async function addCategoryNomineeAction(_previousState: AuthFormState, fo
     const supabase = await createClient();
     let publicCode = parsed.data.publicCode ? parsed.data.publicCode.trim().toUpperCase() : null;
     if (!publicCode) {
+      const { data: catData } = await supabase
+        .from("categories")
+        .select("name, events!inner(name)")
+        .eq("id", categoryId.data)
+        .maybeSingle();
+
       const { data: existingCodes } = await supabase
         .from("nominees")
         .select("public_code")
         .eq("category_id", categoryId.data);
-      const used = new Set((existingCodes ?? []).map((r) => r.public_code?.toUpperCase()));
-      let candidate = 1;
-      while (used.has(String(candidate).padStart(2, "0")) && candidate < 100) {
-        candidate++;
-      }
-      publicCode = String(candidate).padStart(2, "0");
+
+      const eventName = (catData?.events as any)?.name ?? null;
+      const categoryName = catData?.name ?? null;
+
+      publicCode = generateSmartNomineeCode({
+        eventName,
+        categoryName,
+        existingCodes: (existingCodes ?? []).map((r) => r.public_code),
+      });
     }
 
     const { error } = await supabase.rpc("add_category_nominee", {

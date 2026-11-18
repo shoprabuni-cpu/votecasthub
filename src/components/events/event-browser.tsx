@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { PublicEventCard } from "./public-event-card";
+import { FeaturedMarqueeShowcase } from "./featured-marquee-showcase";
 import { directoryFilters, type DirectoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
 import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 
@@ -79,76 +80,92 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
     setRetry(value => value + 1);
   }
 
-  return <section id="events" className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-6 lg:px-8 lg:py-12" aria-labelledby="event-directory-title">
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald-800 dark:text-emerald-400">Discover events</p>
-        <h2 id="event-directory-title" className="text-2xl font-semibold text-stone-900 dark:text-white sm:text-3xl">Find your event, vote, or grab tickets.</h2>
+  return <section id="events" className="mx-auto w-full max-w-[1800px] px-3 py-6 sm:px-6 lg:px-8 lg:py-8" aria-labelledby="event-directory-title">
+    {/* Featured Marquee Showcase & Quick Vote (Matching the Reference Showcase) */}
+    <FeaturedMarqueeShowcase events={page.events} />
+
+    {/* Filter & Category Switcher Bar */}
+    <div className="my-6 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200/80 pb-4 dark:border-[#1c2721]">
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-stone-100 dark:bg-[#0c120e] border border-stone-200/80 dark:border-[#1c2721]">
+        <button
+          type="button"
+          onClick={() => update("event_type", "all")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            filters.event_type === "all"
+              ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
+              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+          }`}
+        >
+          All Events
+        </button>
+        <button
+          type="button"
+          onClick={() => update("event_type", "ticketing")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            filters.event_type === "ticketing"
+              ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
+              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+          }`}
+        >
+          <TicketIcon size={14} />
+          <span>Official Tickets</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => update("event_type", "voting")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            filters.event_type === "voting"
+              ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
+              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+          }`}
+        >
+          <VoteIcon size={14} />
+          <span>Nominee Voting</span>
+        </button>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-[#0c120e] border border-stone-200/80 dark:border-[#1c2721]">
+
+      <div className="flex items-center gap-2">
+        {compact && (
           <button
             type="button"
-            onClick={() => update("event_type", "all")}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-              filters.event_type === "all"
-                ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
-            }`}
+            aria-expanded={showFilters}
+            aria-controls="event-extra-filters"
+            onClick={() => setShowFilters(value => !value)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 dark:border-[#1e2a22] dark:bg-[#0c120e] dark:text-stone-200 cursor-pointer"
           >
-            All
+            <span>{showFilters ? "Hide Search" : "Search & Filter"}</span>
+            {hasFilters && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
           </button>
+        )}
+        {hasFilters && (
           <button
             type="button"
-            onClick={() => update("event_type", "ticketing")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-              filters.event_type === "ticketing"
-                ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
-            }`}
+            onClick={resetFilters}
+            className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-400 hover:underline cursor-pointer"
           >
-            <TicketIcon size={14} />
-            <span>Tickets</span>
+            Clear
           </button>
-          <button
-            type="button"
-            onClick={() => update("event_type", "voting")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-              filters.event_type === "voting"
-                ? "bg-white text-stone-900 shadow-xs dark:bg-emerald-950 dark:text-emerald-300"
-                : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
-            }`}
-          >
-            <VoteIcon size={14} />
-            <span>Contests</span>
-          </button>
-        </div>
-        <p className="text-sm text-stone-600 dark:text-stone-400 ml-2" role="status" aria-live="polite">
-          {loading ? "Loading events…" : `${page.total} matching ${page.total === 1 ? "event" : "events"}`}
-        </p>
+        )}
+        <span className="text-xs text-stone-500 dark:text-stone-400 ml-1" role="status" aria-live="polite">
+          {loading ? "Loading…" : `${page.total} active`}
+        </span>
       </div>
     </div>
-    <div className="mb-7 rounded-2xl border border-stone-200 bg-stone-50/80 p-4 sm:p-5 lg:p-6 dark:border-[#1c2721] dark:bg-[#070a08]" role="group" aria-label="Filter events">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div><h3 className="text-sm font-semibold text-stone-900 dark:text-white">Search events</h3><p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Find an event by its name, venue, or organizer.</p></div>
-        {compact && <button type="button" aria-expanded={showFilters} aria-controls="event-extra-filters" onClick={() => setShowFilters(value => !value)} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#1e2a22] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#131c17] cursor-pointer">{showFilters ? "Hide filters" : `More filters${hasFilters ? " · Active" : ""}`}</button>}
-        {hasFilters && <button type="button" onClick={resetFilters} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-emerald-800 dark:text-emerald-400 transition hover:bg-emerald-50 dark:hover:bg-emerald-950/50 focus-visible:outline-2 focus-visible:outline-emerald-700 border border-stone-300 dark:border-[#1e2a22] bg-white dark:bg-[#0c120e] shadow-xs py-2.5 cursor-pointer focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Clear filters</button>}
+
+    {/* Expandable Search Input if toggled */}
+    {showFilters && (
+      <div id="event-extra-filters" className="mb-8 rounded-2xl border border-stone-200 bg-stone-50/80 p-4 dark:border-[#1c2721] dark:bg-[#070a08]">
+        <input
+          aria-label="Search events, venues, or organizers"
+          className={control}
+          type="search"
+          maxLength={120}
+          placeholder="Search event name, venue, or organizer..."
+          value={filters.search}
+          onChange={event => update("search", event.target.value)}
+        />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-12 lg:gap-4">
-        <label className="col-span-2 lg:col-span-12"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Search</span><input aria-label="Search events, venues, or organizers" className={control} type="search" maxLength={120} placeholder="Event name, venue, or organizer" value={filters.search} onChange={event => update("search", event.target.value)} /></label>
-        <div id="event-extra-filters" hidden={!showFilters} className="col-span-2 lg:col-span-12">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Category</span><select className={control} value={filters.event_type} onChange={event => update("event_type", event.target.value)}>
-          <option value="all">All Events</option><option value="ticketing">Tickets Only</option><option value="voting">Voting Contests</option>
-        </select></label>
-        <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Event status</span><select className={control} value={filters.status} onChange={event => update("status", event.target.value)}>
-          <option value="active">Live & upcoming</option><option value="all">All events</option><option value="open">Open now</option><option value="upcoming">Upcoming</option><option value="ending">Ends within 48 hours</option><option value="paused">Paused</option><option value="closed">Closed</option>
-        </select></label>
-        <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Pricing</span><select className={control} value={filters.mode} onChange={event => update("mode", event.target.value)}><option value="all">All prices</option><option value="free">Free</option><option value="paid">Paid</option></select></label>
-        <label className="col-span-1"><span className="mb-1.5 block text-xs font-semibold text-stone-700 dark:text-stone-300">Sort by</span><select className={control} value={filters.sort} onChange={event => update("sort", event.target.value)}><option value="soonest">Live & upcoming first</option><option value="newest">Newest events</option><option value="name">Name A–Z</option></select></label>
-        </div></div>
-      </div>
-    </div>
+    )}
     {error && <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-sm text-amber-950 dark:text-amber-200">{error} <button type="button" className="min-h-11 px-3 font-semibold border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-xs rounded-xl py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => setRetry(value => value + 1)}>Try again</button></div>}
 
     {filters.event_type === "all" ? (
