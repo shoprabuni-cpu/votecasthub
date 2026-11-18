@@ -1,8 +1,8 @@
 import "server-only";
 import { reconcileUssd } from "@/lib/ussd/reconcile";
 import { ussdConfiguration } from "@/lib/ussd/provider";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/sendazi";
-import { sendTelegramMessage } from "@/lib/telegram/api";
+import { sendWhatsAppMessage, sendWhatsAppImage } from "@/lib/whatsapp/sendazi";
+import { sendTelegramMessage, sendTelegramPhoto } from "@/lib/telegram/api";
 import { sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { z } from "zod";
 import { paymentAdmin } from "./admin";
@@ -40,12 +40,23 @@ async function applyTransaction(t:Transaction,allowReversed=false){
       const tgEvtId=tgSession?.event_id||(t.metadata?.channel==="telegram"?t.metadata.event_id:null);
       const tgQty=tgSession?.quantity??(t.metadata?.quantity?Number(t.metadata.quantity):1);
       if(tgChatId&&tgNomId&&tgEvtId){
-        const {data:nom}=await db.from("nominees").select("name").eq("id",tgNomId).maybeSingle();
+        const {data:nom}=await db.from("nominees").select("name, image_path").eq("id",tgNomId).maybeSingle();
         const {data:evt}=await db.from("events").select("name").eq("id",tgEvtId).maybeSingle();
         const safeNom=(nom?.name||"your candidate").replace(/[<>&]/g,"");
         const safeEvt=(evt?.name||"Competition").replace(/[<>&]/g,"");
         const receiptHtml=`🎉 <b>Payment Confirmed!</b> 🗳️\n\n<b>${tgQty} vote(s)</b> have been recorded for <b>${safeNom}</b> (${safeEvt}).\nReceipt Ref: <code>${t.reference}</code>.\n\nThank you for voting with VoteCastHub!`;
-        sendTelegramMessage(tgChatId,receiptHtml,{parse_mode:"HTML"}).catch(err=>console.error("[Telegram] Receipt push failed",err));
+        let nomPhoto: string | null = null;
+        if(nom?.image_path){
+          try{
+            const {data:imgData}=await db.storage.from("nominee-images").createSignedUrl(nom.image_path, 86400);
+            nomPhoto = imgData?.signedUrl || null;
+          }catch{}
+        }
+        if(nomPhoto){
+          sendTelegramPhoto(tgChatId, nomPhoto, receiptHtml, {parse_mode:"HTML"}).catch(err=>console.error("[Telegram] Receipt photo push failed",err));
+        }else{
+          sendTelegramMessage(tgChatId,receiptHtml,{parse_mode:"HTML"}).catch(err=>console.error("[Telegram] Receipt push failed",err));
+        }
       }
     }catch(err){console.error("[Telegram] Receipt lookup error",err);}
 
@@ -57,10 +68,21 @@ async function applyTransaction(t:Transaction,allowReversed=false){
       const waEvtId=waSession?.event_id||(t.metadata?.channel==="whatsapp"?t.metadata.event_id:null);
       const waQty=waSession?.quantity??(t.metadata?.quantity?Number(t.metadata.quantity):1);
       if(waPhone&&waNomId&&waEvtId){
-        const {data:nom}=await db.from("nominees").select("name").eq("id",waNomId).maybeSingle();
+        const {data:nom}=await db.from("nominees").select("name, image_path").eq("id",waNomId).maybeSingle();
         const {data:evt}=await db.from("events").select("name").eq("id",waEvtId).maybeSingle();
         const receiptText=`🎉 *Payment Confirmed!* 🗳️\n\n*${waQty} vote(s)* have been recorded for *${nom?.name || "your nominee"}* (${evt?.name || "Event"}).\nReceipt Ref: *${t.reference}*.\n\nThank you for voting with VoteCastHub!`;
-        sendWhatsAppMessage(waPhone,receiptText).catch(err=>console.error("[WhatsApp] Receipt push failed",err));
+        let nomPhoto: string | null = null;
+        if(nom?.image_path){
+          try{
+            const {data:imgData}=await db.storage.from("nominee-images").createSignedUrl(nom.image_path, 86400);
+            nomPhoto = imgData?.signedUrl || null;
+          }catch{}
+        }
+        if(nomPhoto){
+          sendWhatsAppImage(waPhone, nomPhoto, receiptText).catch(err=>console.error("[WhatsApp] Receipt photo push failed",err));
+        }else{
+          sendWhatsAppMessage(waPhone,receiptText).catch(err=>console.error("[WhatsApp] Receipt push failed",err));
+        }
       }
     }catch(err){console.error("[WhatsApp] Receipt lookup error",err);}
   }else if(t.reference.startsWith("VCH-ACCESS-")){
