@@ -279,12 +279,15 @@ export async function purchaseTicketAction(
 
     // Send instant SMS with CODE PAX to customer phone
     if (customerPhone && ticketData?.pax_code) {
+      const allCodes = Array.isArray(ticketData.pax_codes)
+        ? (ticketData.pax_codes as string[])
+        : [ticketData.pax_code as string];
       sendTicketConfirmationSms({
         phone: customerPhone,
         customerName,
         eventName: (ticketData.event_name as string) || "Event",
         tierName: (ticketData.tier_name as string) || "Standard",
-        paxCode: ticketData.pax_code as string,
+        paxCode: allCodes,
         venueName: (ticketData.venue_name as string) || null,
       }).catch((smsErr) => console.error("Ticket SMS async error:", smsErr));
     }

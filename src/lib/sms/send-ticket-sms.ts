@@ -5,7 +5,7 @@ type TicketSmsParams = {
   customerName: string;
   eventName: string;
   tierName: string;
-  paxCode: string;
+  paxCode: string | string[];
   venueName?: string | null;
 };
 
@@ -47,7 +47,12 @@ export async function sendTicketConfirmationSms({
   const firstName = customerName.split(" ")[0] || "Valued Guest";
   const venuePart = venueName ? ` Venue: ${venueName.length > 20 ? venueName.slice(0, 18) + "…" : venueName}.` : "";
 
-  const message = `VoteCastHub: Hi ${firstName}, your ${tierName} ticket for ${shortEvent} is confirmed! CODE PAX: #${paxCode}.${venuePart} Show this at the gate.`;
+  const codesArray = Array.isArray(paxCode) ? paxCode : [paxCode];
+  const codesText = codesArray.length === 1
+    ? `CODE: #${codesArray[0]}`
+    : `${codesArray.length} Passes (${codesArray.map(c => '#' + c).join(', ')})`;
+
+  const message = `VoteCastHub: Hi ${firstName}, your ${tierName} ticket for ${shortEvent} is confirmed! ${codesText}.${venuePart} Show at gate.`;
 
   if (!apiKey) {
     console.info(`[Ticket SMS Dev Mode] Simulated SMS to ${normalizedPhone}: "${message}"`);

@@ -31,7 +31,8 @@ export function PublicTicketWidget({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [purchasedTicket, setPurchasedTicket] = useState<TicketPassData | null>(null);
+  const [purchasedTickets, setPurchasedTickets] = useState<TicketPassData[]>([]);
+  const [activePassIndex, setActivePassIndex] = useState(0);
 
   const activeTiers = tiers.filter((t) => t.is_active);
   const selectedTier = activeTiers.find((t) => t.id === selectedTierId) ?? activeTiers[0];
@@ -87,8 +88,12 @@ export function PublicTicketWidget({
           setError(res.error);
         } else if (res.success && res.ticket) {
           const t = res.ticket;
-          setPurchasedTicket({
-            pax_code: String(t.pax_code ?? ""),
+          const rawTickets = Array.isArray(t.tickets) && t.tickets.length > 0
+            ? (t.tickets as Array<Record<string, unknown>>)
+            : [{ pax_code: t.pax_code, ticket_number: 1, total_tickets: 1 }];
+
+          const passes: TicketPassData[] = rawTickets.map((item, idx) => ({
+            pax_code: String(item.pax_code ?? t.pax_code ?? ""),
             customer_name: customerName,
             tier_name: selectedTier.name,
             event_name: eventName,
@@ -96,11 +101,16 @@ export function PublicTicketWidget({
             venue_address: venueAddress,
             doors_open_time: doorsOpenTime,
             event_image_url: eventImageUrl,
-            quantity,
+            quantity: 1,
             price_minor: 0,
             order_reference: String(t.order_reference ?? ""),
             status: "valid",
-          });
+            ticket_number: idx + 1,
+            total_tickets: rawTickets.length,
+          }));
+
+          setPurchasedTickets(passes);
+          setActivePassIndex(0);
         }
       } else {
         // Paid Ticket: Call Paystack checkout API
@@ -126,8 +136,12 @@ export function PublicTicketWidget({
           return;
         } else if (data.isFree && data.ticket) {
           const t = data.ticket;
-          setPurchasedTicket({
-            pax_code: String(t.pax_code ?? ""),
+          const rawTickets = Array.isArray(t.tickets) && t.tickets.length > 0
+            ? (t.tickets as Array<Record<string, unknown>>)
+            : [{ pax_code: t.pax_code, ticket_number: 1, total_tickets: 1 }];
+
+          const passes: TicketPassData[] = rawTickets.map((item, idx) => ({
+            pax_code: String(item.pax_code ?? t.pax_code ?? ""),
             customer_name: customerName,
             tier_name: selectedTier.name,
             event_name: eventName,
@@ -135,11 +149,16 @@ export function PublicTicketWidget({
             venue_address: venueAddress,
             doors_open_time: doorsOpenTime,
             event_image_url: eventImageUrl,
-            quantity,
-            price_minor: selectedTier.price_minor * quantity,
+            quantity: 1,
+            price_minor: selectedTier.price_minor,
             order_reference: String(t.order_reference ?? ""),
             status: "valid",
-          });
+            ticket_number: idx + 1,
+            total_tickets: rawTickets.length,
+          }));
+
+          setPurchasedTickets(passes);
+          setActivePassIndex(0);
         }
       }
     } catch (err) {
@@ -152,18 +171,82 @@ export function PublicTicketWidget({
   return (
     <div id="tickets-widget" className="w-full">
       {/* Success Modal / Confirmation Card */}
-      {purchasedTicket ? (
-        <div className="space-y-4">
+      {purchasedTickets.length > 0 ? (
+        <div className="space-y-5">
           <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center dark:border-emerald-700/60 dark:bg-[#0b1f14]">
-            <p className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
-              🎉 Congratulations! Your tickets have been confirmed.
+            <p className="text-base font-bold text-emerald-950 dark:text-emerald-200">
+              🎉 Congratulations! {purchasedTickets.length === 1 ? "Your ticket is confirmed." : `All ${purchasedTickets.length} tickets are confirmed.`}
             </p>
             <p className="mt-1 text-xs text-emerald-800 dark:text-emerald-300">
-              An SMS with your ticket code <strong>{purchasedTicket.pax_code}</strong> has been sent to {customerPhone}.
+              {purchasedTickets.length === 1 ? (
+                <>Confirmation code <strong>{purchasedTickets[0].pax_code}</strong> sent via SMS to {customerPhone}.</>
+              ) : (
+                <>Each pass has its own unique entry code. Codes: <strong>{purchasedTickets.map(t => t.pax_code).join(", ")}</strong> sent to {customerPhone}.</>
+              )}
             </p>
           </div>
 
-          <VisualTicketPass ticket={purchasedTicket} />
+          {/* Multiple Tickets Selector Tabs */}
+          {purchasedTickets.length > 1 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-stone-600 dark:text-stone-300 px-1">
+                <span>Select ticket to view &amp; share:</span>
+                <span className="font-mono text-emerald-700 dark:text-emerald-400">Pass {activePassIndex + 1} of {purchasedTickets.length}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-stone-100 dark:bg-[#0c120e] border border-stone-200 dark:border-[#1c2721]">
+                {purchasedTickets.map((t, i) => (
+                  <button
+                    key={t.pax_code}
+                    type="button"
+                    onClick={() => setActivePassIndex(i)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      activePassIndex === i
+                        ? "bg-emerald-900 text-white shadow-xs dark:bg-emerald-600"
+                        : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200"
+                    }`}
+                  >
+                    Pass #{i + 1}: {t.pax_code}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Ticket Card */}
+          <VisualTicketPass ticket={purchasedTickets[activePassIndex]} />
+
+          {/* Multi-ticket sharing controls */}
+          {purchasedTickets.length > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={activePassIndex === 0}
+                onClick={() => setActivePassIndex(i => Math.max(0, i - 1))}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 dark:border-[#1c2721] bg-white dark:bg-[#0c120e] px-4 text-xs font-semibold text-stone-700 dark:text-stone-200 hover:bg-stone-50 disabled:opacity-40 cursor-pointer"
+              >
+                ← Previous Pass
+              </button>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Hi, here is your official entry pass for ${eventName}!\n\n🎟️ CODE PAX: #${purchasedTickets[activePassIndex].pax_code}\nTier: ${purchasedTickets[activePassIndex].tier_name}\n${venueName ? `📍 Venue: ${venueName}\n` : ""}Doors open: ${doorsOpenTime || "Check schedule"}\n\nShow this code or QR at the gate:\n${typeof window !== "undefined" ? window.location.origin : ""}/tickets?q=${purchasedTickets[activePassIndex].pax_code}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/30 text-[#128C7E] dark:text-[#25D366] text-xs font-bold px-4 transition-all"
+              >
+                <span>Share Pass #{activePassIndex + 1} on WhatsApp</span>
+                <span>↗</span>
+              </a>
+
+              <button
+                type="button"
+                disabled={activePassIndex === purchasedTickets.length - 1}
+                onClick={() => setActivePassIndex(i => Math.min(purchasedTickets.length - 1, i + 1))}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stone-300 dark:border-[#1c2721] bg-white dark:bg-[#0c120e] px-4 text-xs font-semibold text-stone-700 dark:text-stone-200 hover:bg-stone-50 disabled:opacity-40 cursor-pointer"
+              >
+                Next Pass →
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         /* Purchase Form */

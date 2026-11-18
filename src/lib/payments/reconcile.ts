@@ -79,12 +79,15 @@ async function applyTransaction(t:Transaction,allowReversed=false){
 
     const res = confirmed as Record<string, unknown> | null;
     if (res?.success && !res?.already_confirmed && res?.customer_phone && res?.pax_code) {
+      const allCodes = Array.isArray(res.pax_codes)
+        ? (res.pax_codes as string[])
+        : [String(res.pax_code)];
       sendTicketConfirmationSms({
         phone: String(res.customer_phone),
         customerName: String(res.customer_name || "Guest"),
         eventName: String(res.event_name || "Event"),
         tierName: String(res.tier_name || "Ticket"),
-        paxCode: String(res.pax_code),
+        paxCode: allCodes,
         venueName: res.venue_name ? String(res.venue_name) : null,
       }).catch((err) => console.error("[Ticket Reconcile SMS] Error:", err));
     }

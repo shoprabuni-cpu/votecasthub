@@ -15,23 +15,32 @@ export default async function PaymentComplete({ searchParams }: { searchParams: 
   const access = reference?.startsWith("VCH-ACCESS-") ?? false;
   const sms = reference?.startsWith("VCH-SMS-") ?? false;
   const isTicket = reference?.startsWith("VCH-TIK-") ?? false;
-  let ticketPaxCode: string | null = null;
+  let ticketPaxCodes: string[] = [];
   let eventSlug: string | null = null;
 
   if (reference && /^(VCH-VOTE-[a-f0-9]{32}|VCH-SMS-[A-Z0-9-]{12,64}|VCH-ACCESS-[a-f0-9]{32}|VCH-TIK-[a-f0-9]{32})$/.test(reference)) {
     try {
       const db = paymentAdmin();
       if (isTicket) {
-        const { data: knownTicket } = await db.from("event_tickets").select("status, pax_code, event_id").eq("order_reference", reference).maybeSingle();
-        if (knownTicket) {
-          if (knownTicket.status === "pending" && await allow(`verify:${reference}`, 1, 15)) {
+        const { data: knownTickets } = await db
+          .from("event_tickets")
+          .select("status, pax_code, event_id")
+          .eq("order_reference", reference);
+
+        if (knownTickets && knownTickets.length > 0) {
+          if (knownTickets.some(t => t.status === "pending") && await allow(`verify:${reference}`, 1, 15)) {
             try { await reconcileReference(reference); } catch {}
           }
-          const { data: updated } = await db.from("event_tickets").select("status, pax_code, event_id").eq("order_reference", reference).maybeSingle();
-          status = updated?.status === "valid" ? "succeeded" : updated?.status || "unknown";
-          ticketPaxCode = updated?.pax_code || null;
-          if (updated?.event_id) {
-            const { data: ev } = await db.from("events").select("slug").eq("id", updated.event_id).maybeSingle();
+          const { data: updated } = await db
+            .from("event_tickets")
+            .select("status, pax_code, event_id")
+            .eq("order_reference", reference);
+
+          const allValid = updated && updated.length > 0 && updated.every(t => t.status === "valid");
+          status = allValid ? "succeeded" : updated?.[0]?.status || "unknown";
+          ticketPaxCodes = (updated ?? []).map(t => t.pax_code);
+          if (updated?.[0]?.event_id) {
+            const { data: ev } = await db.from("events").select("slug").eq("id", updated[0].event_id).maybeSingle();
             eventSlug = ev?.slug || null;
           }
         }
@@ -56,7 +65,17 @@ export default async function PaymentComplete({ searchParams }: { searchParams: 
 
   const pending = ["pending", "created"].includes(status);
   const success = ["succeeded", "paid"].includes(status);
-  const title = refunded > 0 ? "This payment has a refund or reversal." : success ? (isTicket ? `Ticket Confirmed! CODE PAX: #${ticketPaxCode}` : access ? "Your USSD access payment is confirmed." : sms ? "Your SMS credits are ready." : "Your votes are confirmed.") : pending ? "We are confirming your payment." : "Payment status is unavailable.";
+  const ticketCodesText = ticketPaxCodes.length > 1
+    ? `${ticketPaxCodes.length} Tickets Confirmed! Codes: ${ticketPaxCodes.map(c => '#' + c).join(", ")}`
+    : `Ticket Confirmed! CODE PAX: #${ticketPaxCodes[0] || ""}`;
+
+  const title = refunded > 0
+    ? "This payment has a refund or reversal."
+    : success
+    ? (isTicket ? ticketCodesText : access ? "Your USSD access payment is confirmed." : sms ? "Your SMS credits are ready." : "Your votes are confirmed.")
+    : pending
+    ? "We are confirming your payment."
+    : "Payment status is unavailable.";
 
   return (
     <main className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
@@ -65,11 +84,26 @@ export default async function PaymentComplete({ searchParams }: { searchParams: 
         <p className="flex items-center gap-2 text-xs font-bold tracking-widest text-emerald-800 uppercase dark:text-emerald-400">PAYSTACK CHECKOUT</p>
         <h1 className="mt-4 mb-3 font-serif text-3xl sm:text-4xl font-medium tracking-tight text-stone-900 dark:text-white">{title}</h1>
         <p className="max-w-md text-sm leading-relaxed text-stone-600 dark:text-stone-300">
-          {refunded > 0 ? "Your remaining votes or credits have been adjusted to match the confirmed refund." : pending ? "Please wait for payment confirmation. You do not need to pay again." : success ? (isTicket ? `Your ticket pass has been issued and confirmed. Your memorable gate code is #${ticketPaxCode}. An SMS confirmation has also been dispatched to your phone.` : access ? "Provider activation is still required before voters can dial a code." : sms ? "Your credit balance has been updated." : "Your payment and votes have been recorded.") : "If money was deducted, keep your Paystack receipt and contact support before retrying."}
+          {refunded > 0
+            ? "Your remaining votes or credits have been adjusted to match the confirmed refund."
+            : pending
+            ? "Please wait for payment confirmation. You do not need to pay again."
+            : success
+            ? (isTicket
+                ? `Your ${ticketPaxCodes.length > 1 ? `${ticketPaxCodes.length} digital passes have` : "ticket pass has"} been issued. Each attendee has a unique verification code. SMS confirmation has also been dispatched to your phone.`
+                : access
+                ? "Provider activation is still required before voters can dial a code."
+                : sms
+                ? "Your credit balance has been updated."
+                : "Your payment and votes have been recorded.")
+            : "If money was deducted, keep your Paystack receipt and contact support before retrying."}
         </p>
         {pending && <div className="mt-6"><PaymentStatusRefresh /></div>}
-        <Link className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition dark:bg-emerald-600 dark:hover:bg-emerald-500" href={isTicket && eventSlug ? `/events/${eventSlug}` : (sms || access) ? "/organizer" : "/events"}>
-          {isTicket ? "View Event & Tickets →" : (sms || access) ? "Return to workspace" : "Browse events →"}
+        <Link
+          className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-semibold text-white shadow-xs hover:bg-emerald-800 transition dark:bg-emerald-600 dark:hover:bg-emerald-500"
+          href={isTicket ? `/tickets?q=${reference}` : (sms || access) ? "/organizer" : "/events"}
+        >
+          {isTicket ? "View & Save All Ticket Passes →" : (sms || access) ? "Return to workspace" : "Browse events →"}
         </Link>
       </section>
     </main>

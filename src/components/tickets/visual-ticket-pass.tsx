@@ -21,6 +21,8 @@ export interface TicketPassData {
   order_reference?: string;
   status: "valid" | "checked_in" | "cancelled";
   checked_in_at?: string | null;
+  ticket_number?: number;
+  total_tickets?: number;
 }
 
 export function VisualTicketPass({
@@ -105,11 +107,16 @@ export function VisualTicketPass({
           </span>
         </div>
 
-        {/* Tier Chip */}
-        <div className="absolute bottom-3 left-3 z-10">
+        {/* Tier Chip & Ticket Counter */}
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2">
           <span className="rounded-xl bg-black/75 backdrop-blur-md px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-500/30">
             {ticket.tier_name}
           </span>
+          {ticket.total_tickets && ticket.total_tickets > 1 && (
+            <span className="rounded-xl bg-black/85 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white border border-white/20">
+              Pass {ticket.ticket_number || 1} of {ticket.total_tickets}
+            </span>
+          )}
         </div>
       </div>
 
@@ -160,7 +167,9 @@ export function VisualTicketPass({
               {ticket.customer_name}
             </p>
             <p className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold">
-              {ticket.quantity} {ticket.quantity === 1 ? "Person" : "Persons"} ({ticket.tier_name})
+              {ticket.total_tickets && ticket.total_tickets > 1
+                ? `Pass ${ticket.ticket_number || 1} of ${ticket.total_tickets} (${ticket.tier_name})`
+                : `${ticket.quantity} ${ticket.quantity === 1 ? "Person" : "Persons"} (${ticket.tier_name})`}
             </p>
           </div>
 
