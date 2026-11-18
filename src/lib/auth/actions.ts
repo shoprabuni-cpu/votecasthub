@@ -588,14 +588,23 @@ export async function createEventAction(_previousState: AuthFormState, formData:
     const venueName = formString(formData, "venue_name") || null;
     const doorsOpenTime = formString(formData, "doors_open_time") || null;
     if (eventType !== "voting" || venueName || doorsOpenTime) {
-      await supabase
-        .from("events")
-        .update({
-          event_type: eventType,
-          venue_name: venueName,
-          doors_open_time: doorsOpenTime,
-        })
-        .eq("id", data);
+      const { error: rpcErr } = await supabase.rpc("set_event_ticketing_details", {
+        p_event_id: data,
+        p_event_type: eventType,
+        p_venue_name: venueName,
+        p_venue_address: null,
+        p_doors_open_time: doorsOpenTime,
+      });
+      if (rpcErr) {
+        await supabase
+          .from("events")
+          .update({
+            event_type: eventType,
+            venue_name: venueName,
+            doors_open_time: doorsOpenTime,
+          })
+          .eq("id", data);
+      }
     }
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
@@ -642,11 +651,20 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
     const venueName = formString(formData, "venue_name");
     const doorsOpenTime = formString(formData, "doors_open_time");
     if (eventType || venueName || doorsOpenTime) {
-      const updates: Record<string, unknown> = {};
-      if (eventType) updates.event_type = eventType;
-      if (venueName) updates.venue_name = venueName;
-      if (doorsOpenTime) updates.doors_open_time = doorsOpenTime;
-      await supabase.from("events").update(updates).eq("id", eventId.data);
+      const { error: rpcErr } = await supabase.rpc("set_event_ticketing_details", {
+        p_event_id: eventId.data,
+        p_event_type: eventType || "voting",
+        p_venue_name: venueName || null,
+        p_venue_address: null,
+        p_doors_open_time: doorsOpenTime || null,
+      });
+      if (rpcErr) {
+        const updates: Record<string, unknown> = {};
+        if (eventType) updates.event_type = eventType;
+        if (venueName) updates.venue_name = venueName;
+        if (doorsOpenTime) updates.doors_open_time = doorsOpenTime;
+        await supabase.from("events").update(updates).eq("id", eventId.data);
+      }
     }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);

@@ -57,7 +57,9 @@ export default async function AdminEventDetail({
   }
 
   const event = rows[0];
-  const isTicketOnly = eventMeta?.event_type === "ticketing";
+  const hasTickets = (ticketTiers ?? []).length > 0;
+  const hasNominees = rows.some((r) => r.category_id);
+  const isTicketOnly = eventMeta?.event_type === "ticketing" || (hasTickets && !hasNominees);
   const categories = new Map<
     string,
     { name: string; active: boolean; nominees: { id: string; name: string; active: boolean }[] }

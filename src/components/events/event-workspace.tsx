@@ -19,17 +19,17 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
 }) {
   const sections: { id: Section; label: ReactNode }[] = isTicketOnly
     ? [
-        { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets & Attendees</span> },
-        { id: "details", label: "Event details" },
-        ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
-      ]
+      { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets & Attendees</span> },
+      { id: "details", label: "Event details" },
+      ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
+    ]
     : [
-        { id: "details", label: "Event details" },
-        { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> },
-        { id: "nominees", label: "Categories & nominees" },
-        { id: "voting", label: <span className="inline-flex items-center gap-1.5"><VoteIcon size={14} /> Voting settings</span> },
-        ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
-      ];
+      { id: "details", label: "Event details" },
+      { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> },
+      { id: "nominees", label: "Categories & nominees" },
+      { id: "voting", label: <span className="inline-flex items-center gap-1.5"><VoteIcon size={14} /> Voting settings</span> },
+      ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
+    ];
 
   const [section, setSection] = useState<Section>(isTicketOnly ? "tickets" : "details");
   const [editing, setEditing] = useState(false);

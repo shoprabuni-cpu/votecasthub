@@ -113,17 +113,30 @@ export async function updateTicketVenueAction(
 
     if (!eventId) return { error: "Event ID is required." };
 
-    const { error } = await supabase
-      .from("events")
-      .update({
-        venue_name: venueName,
-        venue_address: venueAddress,
-        doors_open_time: doorsOpenTime,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", eventId);
+    // Attempt RPC first, fallback to direct update
+    let saveError: string | null = null;
+    const { error: rpcError } = await supabase.rpc("set_event_ticketing_details", {
+      p_event_id: eventId,
+      p_event_type: "ticketing",
+      p_venue_name: venueName,
+      p_venue_address: venueAddress,
+      p_doors_open_time: doorsOpenTime,
+    });
 
-    if (error) return { error: error.message };
+    if (rpcError) {
+      const { error: updateErr } = await supabase
+        .from("events")
+        .update({
+          venue_name: venueName,
+          venue_address: venueAddress,
+          doors_open_time: doorsOpenTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", eventId);
+      if (updateErr) saveError = updateErr.message;
+    }
+
+    if (saveError) return { error: saveError };
 
     revalidatePath(`/organizer`, "layout");
     revalidatePath(`/events`, "layout");
@@ -440,16 +453,26 @@ export async function createTicketEventAction(
       return { error: createError?.message || "Failed to create ticketing event." };
     }
 
-    // Update event_type and venue details
-    await supabase
-      .from("events")
-      .update({
-        event_type: "ticketing",
-        venue_name: venueName,
-        venue_address: venueAddress,
-        doors_open_time: doorsOpenTime,
-      })
-      .eq("id", newEventId);
+    // Persist event_type and venue details via RPC with fallback
+    const { error: rpcUpdateErr } = await supabase.rpc("set_event_ticketing_details", {
+      p_event_id: newEventId,
+      p_event_type: "ticketing",
+      p_venue_name: venueName,
+      p_venue_address: venueAddress,
+      p_doors_open_time: doorsOpenTime,
+    });
+
+    if (rpcUpdateErr) {
+      await supabase
+        .from("events")
+        .update({
+          event_type: "ticketing",
+          venue_name: venueName,
+          venue_address: venueAddress,
+          doors_open_time: doorsOpenTime,
+        })
+        .eq("id", newEventId);
+    }
 
     // Create Initial Ticket Tier 1 (e.g. Regular / Standard)
     const tierName = formData.get("tierName")?.toString()?.trim() || "Regular";

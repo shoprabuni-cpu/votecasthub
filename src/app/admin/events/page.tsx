@@ -4,6 +4,15 @@ import { AdminEvents } from "@/components/admin/admin-events";
 export default async function AdminEventsPage() {
   const { supabase } = await requirePlatformAdmin();
   const { data, error } = await supabase.rpc("get_admin_events", { p_search: null });
+  const eventIds = (data ?? []).map((e: { id: string }) => e.id);
+  const { data: ticketTierRows } = eventIds.length
+    ? await supabase.from("event_ticket_tiers").select("event_id").in("event_id", eventIds)
+    : { data: [] };
+  const ticketEventSet = new Set((ticketTierRows ?? []).map((r: { event_id: string }) => r.event_id));
+  const events = (data ?? []).map((e: { id: string; event_type?: string }) => ({
+    ...e,
+    event_type: e.event_type === "ticketing" || ticketEventSet.has(e.id) ? "ticketing" : e.event_type,
+  }));
 
   return (
     <div className="space-y-6">
@@ -24,7 +33,7 @@ export default async function AdminEventsPage() {
           Events could not be loaded. Please refresh the page.
         </div>
       ) : (
-        <AdminEvents events={data ?? []} />
+        <AdminEvents events={events as any} />
       )}
     </div>
   );

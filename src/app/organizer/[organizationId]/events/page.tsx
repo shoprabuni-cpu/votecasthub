@@ -30,7 +30,6 @@ export default async function OrganizationEventsPage({ params }: Props) {
   const [
     { data: membership, error: membershipError },
     { data: events, error: eventsError },
-    { data: eventMetas },
   ] = await Promise.all([
     supabase
       .from("organization_members")
@@ -39,21 +38,62 @@ export default async function OrganizationEventsPage({ params }: Props) {
       .eq("user_id", userId)
       .maybeSingle(),
     supabase.rpc("get_organization_events", { p_organization_id: organizationId }),
-    supabase.from("events").select("id, event_type").eq("organization_id", organizationId),
   ]);
 
   if (!membership && !membershipError) notFound();
 
   const canCreateEvent = ["owner", "admin", "editor"].includes(membership?.role ?? "");
   const isManager = ["owner", "admin"].includes(membership?.role ?? "");
-  const { data: workspaceStates } = await supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId });
-  const states = new Map(((workspaceStates ?? []) as EventWorkspaceState[]).map(row => [row.event_id, row]));
-  const typeMap = new Map((eventMetas ?? []).map(row => [row.id, row.event_type]));
-  const eventRows = (events ?? []).map((event: EventItem) => ({
-    ...event,
-    event_type: typeMap.get(event.id) ?? "voting",
-    ...states.get(event.id),
-  })) as EventItem[];
+  const eventIds = (events ?? []).map((e: any) => e.id);
+
+  const [
+    { data: workspaceStates },
+    { data: eventMetas },
+    { data: ticketTiersData },
+    { data: categoriesData },
+  ] = await Promise.all([
+    supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId }),
+    eventIds.length
+      ? supabase.from("events").select("id, event_type, venue_name, doors_open_time").in("id", eventIds)
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? supabase.from("event_ticket_tiers").select("event_id").in("event_id", eventIds)
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? supabase.from("categories").select("event_id").in("event_id", eventIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const states = new Map(((workspaceStates ?? []) as EventWorkspaceState[]).map((row) => [row.event_id, row]));
+  const typeMap = new Map((eventMetas ?? []).map((row) => [row.id, row]));
+  const ticketEventIdSet = new Set((ticketTiersData ?? []).map((t: any) => t.event_id));
+  const categoryEventIdSet = new Set((categoriesData ?? []).map((c: any) => c.event_id));
+
+  const eventRows = (events ?? []).map((event: EventItem) => {
+    const meta = typeMap.get(event.id);
+    const explicitType = meta?.event_type ?? (event as any).event_type;
+    const hasTickets = ticketEventIdSet.has(event.id);
+    const hasCategories = categoryEventIdSet.has(event.id);
+
+    let resolvedType = explicitType;
+    if (explicitType === "ticketing") {
+      resolvedType = "ticketing";
+    } else if (explicitType === "hybrid" || (hasTickets && hasCategories)) {
+      resolvedType = "hybrid";
+    } else if (hasTickets && !hasCategories) {
+      resolvedType = "ticketing";
+    } else {
+      resolvedType = "voting";
+    }
+
+    return {
+      ...event,
+      event_type: resolvedType,
+      venue_name: meta?.venue_name ?? (event as any).venue_name,
+      doors_open_time: meta?.doors_open_time ?? (event as any).doors_open_time,
+      ...states.get(event.id),
+    };
+  }) as EventItem[];
   // eslint-disable-next-line react-hooks/purity -- Evaluate voting windows once in this async Server Component.
   const requestTime = Date.now();
 

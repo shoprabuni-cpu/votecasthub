@@ -164,12 +164,16 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const checkoutReady = event.voting_mode === "paid" ? paidCheckoutReady === true : votingRulesReady;
   const { data: verificationReadiness, error: verificationReadinessError } = await supabase.rpc("get_event_verification_readiness", { p_event_id: eventId });
   const verificationReady = !verificationReadinessError && verificationReadiness?.ready === true;
-  const isTicketOnly = (eventMeta?.event_type ?? event.event_type) === "ticketing";
   const activeTiers = (ticketTiers ?? []).filter((tier: any) => tier.is_active);
   const tiersReady = activeTiers.length > 0;
+  const hasTicketTiers = (ticketTiers ?? []).length > 0;
+  const hasNomineeCategories = activeCategories.length > 0;
+  const explicitType = eventMeta?.event_type ?? (event as any).event_type;
+  const isTicketOnly = explicitType === "ticketing" || (hasTicketTiers && !hasNomineeCategories);
+  const venueReady = Boolean(eventMeta?.venue_name || event.venue_name);
 
   const publishReady = isTicketOnly
-    ? datesReady && tiersReady && Boolean(eventMeta?.venue_name || event.venue_name)
+    ? datesReady && tiersReady && venueReady
     : datesReady &&
       activeCategories.length > 0 &&
       allCategoriesHaveNominees &&
@@ -181,7 +185,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const publishChecks = isTicketOnly
     ? [
         { label: "Event dates are valid and close in the future", complete: datesReady, section: "details", editor: true },
-        { label: "Venue is specified", complete: Boolean(eventMeta?.venue_name || event.venue_name), section: "details", editor: true },
+        { label: "Venue is specified", complete: venueReady, section: "details", editor: true },
         { label: "Add at least one active ticket tier", complete: tiersReady, section: "tickets" },
         { label: "Event poster / flyer image added (optional)", complete: Boolean(event.image_path), optional: true, section: "details" },
       ]
@@ -215,7 +219,22 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
     : { data: null };
 
   const requiredChecks = publishChecks.filter(check => !check.optional);
-  const nextStep = eventNextStep({ status: event.status, expired: permissions.expired, scheduled: Date.parse(event.starts_at) > requestTime, datesReady, categoryCount: activeCategories.length, nomineesReady: allCategoriesHaveNominees, checkoutReady, verificationReady, votingMode: event.voting_mode, canReopen: permissions.reopen, organizationId });
+  const nextStep = eventNextStep({
+    status: event.status,
+    expired: permissions.expired,
+    scheduled: Date.parse(event.starts_at) > requestTime,
+    datesReady,
+    categoryCount: activeCategories.length,
+    nomineesReady: allCategoriesHaveNominees,
+    checkoutReady,
+    verificationReady,
+    votingMode: event.voting_mode,
+    canReopen: permissions.reopen,
+    organizationId,
+    isTicketOnly,
+    tiersReady,
+    venueReady,
+  });
   const panel = "rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-100 sm:p-6";
   const whatsappConfigured = Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_BUSINESS_TOKEN);
   const returnToDraft = permissions.returnToDraft ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">

@@ -20,6 +20,8 @@ export type EventItem = {
   unit_price_minor?: number;
   voting_mode?: string;
   event_type?: string;
+  venue_name?: string | null;
+  doors_open_time?: string | null;
 };
 
 type Props = {
@@ -30,27 +32,46 @@ type Props = {
 
 export function OrganizationEventsList({ events, organizationId, now }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "voting" | "ticketing">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const publishedCount = useMemo(() => events.filter((e) => e.status === "published").length, [events]);
   const draftCount = useMemo(() => events.filter((e) => e.status === "draft").length, [events]);
   const closedCount = useMemo(() => events.filter((e) => e.status === "closed" || e.status === "archived").length, [events]);
 
+  const ticketCount = useMemo(
+    () => events.filter((e) => e.event_type === "ticketing" || e.event_type === "hybrid").length,
+    [events]
+  );
+  const votingCount = useMemo(
+    () => events.filter((e) => e.event_type !== "ticketing").length,
+    [events]
+  );
+
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      const matchesFilter =
+      const matchesStatus =
         statusFilter === "all"
           ? true
           : statusFilter === "closed"
           ? event.status === "closed" || event.status === "archived"
           : event.status === statusFilter;
+
+      const matchesType =
+        typeFilter === "all"
+          ? true
+          : typeFilter === "ticketing"
+          ? event.event_type === "ticketing" || event.event_type === "hybrid"
+          : event.event_type !== "ticketing";
+
       const matchesSearch =
         searchQuery.trim() === "" ||
         event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (event.slug && event.slug.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesFilter && matchesSearch;
+
+      return matchesStatus && matchesType && matchesSearch;
     });
-  }, [events, statusFilter, searchQuery]);
+  }, [events, statusFilter, typeFilter, searchQuery]);
 
   const dateFormatter = useMemo(
     () =>
@@ -146,7 +167,8 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-y border-stone-200 py-4 dark:border-[#1c2721]">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search box */}
           <div className="relative flex-1 sm:w-64">
             <input
               type="text"
@@ -167,13 +189,55 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
             )}
           </div>
 
-          {statusFilter !== "all" && (
+          {/* Event Type Filter Tabs */}
+          <div className="flex items-center rounded-xl border border-stone-200 bg-stone-100/80 p-1 dark:border-[#1c2721] dark:bg-[#0a0d0b]">
             <button
               type="button"
-              onClick={() => setStatusFilter("all")}
+              onClick={() => setTypeFilter("all")}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "all"
+                  ? "bg-white text-stone-900 shadow-2xs dark:bg-[#121914] dark:text-white"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+              }`}
+            >
+              All Types
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter("voting")}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "voting"
+                  ? "bg-white text-emerald-900 shadow-2xs dark:bg-[#121914] dark:text-emerald-300"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+              }`}
+            >
+              <VoteIcon size={12} />
+              <span>Voting ({votingCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter("ticketing")}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "ticketing"
+                  ? "bg-white text-amber-900 shadow-2xs dark:bg-[#121914] dark:text-amber-300"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+              }`}
+            >
+              <TicketIcon size={12} />
+              <span>Tickets ({ticketCount})</span>
+            </button>
+          </div>
+
+          {(statusFilter !== "all" || typeFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("all");
+                setTypeFilter("all");
+              }}
               className="rounded-lg border border-stone-200 bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-200 transition-colors dark:border-[#1c2721] dark:bg-[#121914] dark:text-stone-300 dark:hover:bg-[#18221c] cursor-pointer"
             >
-              Reset filter ✕
+              Reset filters ✕
             </button>
           )}
         </div>
@@ -195,6 +259,8 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
             const endDate = new Date(event.ends_at);
             const presentation = organizerEventPresentation(event, now);
             const isLiveNow = isPublished && now >= startDate.getTime() && now < endDate.getTime();
+            const isTicketing = event.event_type === "ticketing";
+            const isHybrid = event.event_type === "hybrid";
 
             return (
               <Link
@@ -220,23 +286,23 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                         {presentation.label}
                       </span>
 
-                      {event.event_type === "ticketing" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                      {isTicketing ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
                           <TicketIcon size={12} />
-                          <span>Tickets</span>
+                          <span>Ticketed Event</span>
                         </span>
-                      ) : event.event_type === "hybrid" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-purple-300 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
-                          <TicketIcon size={12} />
-                          <VoteIcon size={12} />
+                      ) : isHybrid ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-purple-900 dark:border-purple-900/60 dark:bg-purple-950/40 dark:text-purple-300">
+                          <TicketIcon size={11} />
+                          <VoteIcon size={11} />
                           <span>Hybrid</span>
                         </span>
-                      ) : event.voting_mode ? (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium uppercase text-stone-500 dark:border-[#1c2721] dark:bg-[#141d18] dark:text-stone-400">
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                           <VoteIcon size={11} />
-                          <span>{event.voting_mode.replaceAll("_", " ")}</span>
+                          <span>Voting Contest</span>
                         </span>
-                      ) : null}
+                      )}
                     </div>
 
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-400 transition-all group-hover:bg-emerald-700 group-hover:text-white group-hover:translate-x-0.5 dark:bg-[#141d18] dark:text-stone-500">
@@ -248,9 +314,16 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                     {event.name}
                   </h3>
 
+                  {event.venue_name && (
+                    <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1">
+                      <span>📍</span>
+                      <span className="truncate">{event.venue_name}</span>
+                    </p>
+                  )}
+
                   {event.slug && (
                     <p className="mt-1 text-xs text-stone-400 font-mono dark:text-stone-500">
-                      {event.event_type === "ticketing" ? `/tickets` : `/events/${event.slug}`}
+                      /events/{event.slug}
                     </p>
                   )}
                 </div>
@@ -267,10 +340,10 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                       </span>
                     </div>
 
-                    {event.event_type === "ticketing" ? (
+                    {isTicketing ? (
                       <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold text-[11px] dark:text-emerald-400">
                         <TicketIcon size={13} />
-                        <span>Gate Pass / Tickets</span>
+                        <span>Passes &amp; Tickets</span>
                       </span>
                     ) : event.unit_price_minor ? (
                       <span className="inline-flex items-center gap-1 font-mono text-emerald-700 font-semibold dark:text-emerald-400">
@@ -278,9 +351,9 @@ export function OrganizationEventsList({ events, organizationId, now }: Props) {
                         <span>₵{(event.unit_price_minor / 100).toFixed(2)}/vote</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-stone-400 dark:text-stone-500">
+                      <span className="inline-flex items-center gap-1 font-mono text-stone-500 dark:text-stone-400 text-[11px]">
                         <VoteIcon size={12} />
-                        <span>Free votes</span>
+                        <span>Free ballot</span>
                       </span>
                     )}
                   </div>

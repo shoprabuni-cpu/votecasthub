@@ -285,6 +285,7 @@ export default async function PublicEventPage({ params }: Props) {
   const voteCap = event.free_vote_limit_per_phone ?? 1;
 
   const isOpen = presentation.key === "open";
+  const isTicketOnly = event.event_type === "ticketing" || (ticketTiers.length > 0 && categories.length === 0);
 
   return (
     <main className="min-h-screen bg-stone-50/70 pb-28 text-stone-900">
@@ -350,7 +351,7 @@ export default async function PublicEventPage({ params }: Props) {
                 <span>{status}</span>
               </span>
               <span className="text-xs text-stone-400 font-medium">
-                · {event.event_type === "ticketing" ? "Official Event Tickets" : "Official Voting Ballot"}
+                · {isTicketOnly ? "Official Event Tickets" : "Official Voting Ballot"}
               </span>
             </div>
 
@@ -359,7 +360,7 @@ export default async function PublicEventPage({ params }: Props) {
             </h1>
 
             <p className="text-sm sm:text-base text-stone-600 max-w-3xl leading-relaxed">
-              {event.description || (event.event_type === "ticketing" ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
+              {event.description || (isTicketOnly ? "Get your official entry tickets below." : "Cast your vote for the nominees below.")}
             </p>
 
             {/* Venue & Date Details for Ticketed Events */}
@@ -371,7 +372,7 @@ export default async function PublicEventPage({ params }: Props) {
             )}
 
             {/* Voting Schedule & Mode Info Cards (Only if voting event) */}
-            {event.event_type !== "ticketing" && (
+            {!isTicketOnly && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-stone-100">
                 <div className="rounded-2xl border border-stone-200/80 bg-stone-50/50 p-3.5">
                   <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">Voting Opens</span>
@@ -395,7 +396,7 @@ export default async function PublicEventPage({ params }: Props) {
             )}
 
             {/* Rules and Disclaimers */}
-            {event.voting_mode === "free" && event.event_type !== "ticketing" && (
+            {event.voting_mode === "free" && !isTicketOnly && (
               <div className="rounded-2xl border border-emerald-950/10 bg-emerald-50/30 p-4 text-xs space-y-1">
                 <p className="font-semibold text-emerald-950">
                   Your voting limit: {votingRuleSummary(event.voting_rule, event.free_vote_limit_per_phone)}
@@ -408,7 +409,7 @@ export default async function PublicEventPage({ params }: Props) {
               </div>
             )}
 
-            {event.voting_mode === "paid" && event.voting_rules && event.event_type !== "ticketing" && (
+            {event.voting_mode === "paid" && event.voting_rules && !isTicketOnly && (
               <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700">
                 <p className="font-semibold text-stone-900">Event Notice</p>
                 <p className="mt-1 text-stone-600 leading-relaxed">{event.voting_rules}</p>
@@ -424,7 +425,7 @@ export default async function PublicEventPage({ params }: Props) {
             />
 
             {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
-            {(event.event_type === "ticketing" || ticketTiers.length > 0) && (
+            {(isTicketOnly || ticketTiers.length > 0) && (
               <div className="pt-2">
                 <PublicTicketWidget
                   eventId={event.id}
@@ -439,7 +440,7 @@ export default async function PublicEventPage({ params }: Props) {
             )}
 
             {/* Voter Verification Section (Only shown if voting is enabled) */}
-            {event.event_type !== "ticketing" && (
+            {!isTicketOnly && (
               <>
                 <UssdInstructions eventId={event.id} />
                 <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
@@ -497,7 +498,7 @@ export default async function PublicEventPage({ params }: Props) {
         </section>
 
         {/* Categories & Nominees Section (Voting / Hybrid events only) */}
-        {event.event_type !== "ticketing" && (
+        {!isTicketOnly && (
         <section className="space-y-8">
           <div className="flex items-center justify-between border-b border-stone-200/80 pb-4">
             <div>
