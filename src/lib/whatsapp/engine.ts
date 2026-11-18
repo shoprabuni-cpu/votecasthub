@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack, siteUrl } from "@/lib/payments/gateway";
+import { normalizeGhanaPhone, sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { sendWhatsAppMessage, sendWhatsAppInteractiveButtons, sendWhatsAppInteractiveList, sendWhatsAppImage } from "./sendazi";
 import type { NormalizedInboundMessage } from "./types";
 
@@ -86,6 +87,161 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // 0a. Ticketing Step A: Awaiting ticket tier selection or event selection
+    if (activeSession && activeSession.state === "awaiting_ticket_tier") {
+      if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(upperText)) {
+        // If voter was choosing an event from the ticket events list
+        if (activeSession.metadata?.step === "awaiting_ticket_event") {
+          const eventsList = (activeSession.metadata?.events as Array<{ id: string; name: string; slug: string }>) || [];
+          const num = parseInt(text.trim(), 10);
+          let matchedEvent = null;
+          if (!isNaN(num) && num >= 1 && num <= eventsList.length) {
+            matchedEvent = eventsList[num - 1];
+          } else {
+            matchedEvent = eventsList.find(
+              (e) =>
+                e.slug.toLowerCase() === text.trim().toLowerCase() ||
+                e.name.toLowerCase().includes(text.trim().toLowerCase())
+            );
+          }
+
+          if (matchedEvent) {
+            await presentWhatsAppEventTicketTiers(phone, matchedEvent.id);
+            return;
+          }
+        }
+
+        // Voter is choosing a ticket tier for an event
+        if (activeSession.event_id) {
+          const { data: rawTiers } = await db
+            .from("event_ticket_tiers")
+            .select("id, name, price_minor, capacity, sold_count, is_active")
+            .eq("event_id", activeSession.event_id)
+            .eq("is_active", true)
+            .order("display_order", { ascending: true })
+            .order("price_minor", { ascending: true });
+
+          if (rawTiers && rawTiers.length > 0) {
+            const tierInput = text.trim();
+            const tierNum = parseInt(tierInput, 10);
+            let matchedTier = null;
+            if (!isNaN(tierNum) && tierNum >= 1 && tierNum <= rawTiers.length) {
+              matchedTier = rawTiers[tierNum - 1];
+            } else {
+              matchedTier = rawTiers.find(
+                (t) =>
+                  t.name.toLowerCase().includes(tierInput.toLowerCase()) ||
+                  t.id.toLowerCase() === tierInput.toLowerCase()
+              );
+            }
+
+            if (matchedTier) {
+              const remaining = Math.max(0, matchedTier.capacity - matchedTier.sold_count);
+              if (remaining <= 0) {
+                await sendWhatsAppMessage(phone, `❌ Sorry, *${matchedTier.name}* is sold out. Please reply with another tier number:`);
+                return;
+              }
+
+              await db
+                .from("whatsapp_sessions")
+                .update({
+                  tier_id: matchedTier.id,
+                  state: "awaiting_ticket_quantity",
+                  metadata: { ...activeSession.metadata, step: "awaiting_ticket_quantity", tier_name: matchedTier.name },
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", activeSession.id);
+
+              const priceStr = matchedTier.price_minor === 0 ? "FREE" : `GH₵ ${(Number(matchedTier.price_minor) / 100).toFixed(2)}`;
+              await sendWhatsAppMessage(
+                phone,
+                `🎫 *${matchedTier.name}* (${priceStr} each)\n\n` +
+                `How many tickets would you like to purchase?\n` +
+                `Reply with the quantity (e.g. *1*, *2*, *4* up to 20):`
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // 0b. Ticketing Step B: Awaiting ticket quantity
+    if (activeSession && activeSession.state === "awaiting_ticket_quantity" && activeSession.event_id && activeSession.tier_id) {
+      if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(upperText)) {
+        const cleanQty = text.replace(/\D/g, "");
+        const qtyParsed = parseInt(cleanQty, 10);
+        if (!qtyParsed || qtyParsed < 1 || qtyParsed > 20) {
+          await sendWhatsAppMessage(phone, "⚠️ Please reply with a valid number of tickets between 1 and 20 (or 0 to cancel):");
+          return;
+        }
+
+        // Verify remaining capacity
+        const { data: tier } = await db
+          .from("event_ticket_tiers")
+          .select("capacity, sold_count, name")
+          .eq("id", activeSession.tier_id)
+          .single();
+
+        if (tier) {
+          const remaining = Math.max(0, tier.capacity - tier.sold_count);
+          if (qtyParsed > remaining) {
+            await sendWhatsAppMessage(
+              phone,
+              `⚠️ Only *${remaining}* ticket${remaining === 1 ? "" : "s"} remaining for *${tier.name}*. Please reply with ${remaining} or fewer:`,
+            );
+            return;
+          }
+        }
+
+        await db
+          .from("whatsapp_sessions")
+          .update({
+            quantity: qtyParsed,
+            state: "awaiting_ticket_name",
+            metadata: { ...activeSession.metadata, step: "awaiting_ticket_name" },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", activeSession.id);
+
+        await sendWhatsAppMessage(
+          phone,
+          `👤 *Attendee Information*\n\n` +
+          `Please reply with the *Full Name* of the ticket holder (to appear on the pass and check-in scanner):`
+        );
+        return;
+      }
+    }
+
+    // 0c. Ticketing Step C: Awaiting ticket attendee name
+    if (activeSession && activeSession.state === "awaiting_ticket_name" && activeSession.event_id && activeSession.tier_id && activeSession.quantity) {
+      if (!["0", "CANCEL", "RESET", "HELP", "MENU", "VOTE"].includes(upperText)) {
+        const nameInput = text.trim();
+        if (nameInput.length < 2) {
+          await sendWhatsAppMessage(phone, "⚠️ Please reply with a valid attendee name (at least 2 letters):");
+          return;
+        }
+
+        await db
+          .from("whatsapp_sessions")
+          .update({
+            customer_name: nameInput,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", activeSession.id);
+
+        await handleTicketCheckoutWhatsApp({
+          phone,
+          eventId: activeSession.event_id,
+          tierId: activeSession.tier_id,
+          quantity: activeSession.quantity,
+          customerName: nameInput,
+          existingSessionId: activeSession.id,
+        });
+        return;
+      }
+    }
 
     // 1. If active session is awaiting category selection and voter replies with category number or name
     if (activeSession && activeSession.metadata?.step === "awaiting_category" && activeSession.event_id) {
@@ -289,7 +445,20 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     }
   }
 
-  // 1. My Tickets prompt: Instant retrieval of passes for this WhatsApp phone
+  // 1. Ticket purchasing and pass retrieval
+  if (upperText.startsWith("TICKET ") || upperText.startsWith("TICKETS ") || upperText.startsWith("BUY TICKET ")) {
+    const eventParam = text.replace(/^(BUY\s+TICKET|TICKETS?)\s+/i, "").trim();
+    if (eventParam) {
+      await presentWhatsAppEventTicketTiers(phone, eventParam);
+      return;
+    }
+  }
+
+  if (["BUY TICKET", "BUY TICKETS"].includes(upperText)) {
+    await presentWhatsAppTicketsList(phone);
+    return;
+  }
+
   if (["MY TICKET", "MY TICKETS", "TICKETS", "TICKET"].includes(upperText)) {
     const { data: myTickets } = await db.rpc("find_public_tickets", { p_query: phone });
     const list = (myTickets ?? []) as Record<string, unknown>[];
@@ -305,26 +474,13 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
         reply += `🟢 Status: ${t.status === "checked_in" ? "✓ Checked In" : "Valid for Entry"}\n`;
         reply += `🔗 View Digital Pass: ${siteUrl()}/tickets?q=${t.pax_code}\n\n`;
       }
-      reply += `_Show your CODE PAX or QR code at the entrance for verification._`;
+      reply += `_Show your CODE PAX or QR code at the entrance for verification._\n\n`;
+      reply += `👉 *Want to buy passes for another event?* Reply *BUY TICKET*.`;
       await sendWhatsAppMessage(phone, reply);
       return;
     } else {
-      const { data: ticketEvents } = await db
-        .from("events")
-        .select("id, name, slug, venue_name, doors_open_time")
-        .in("event_type", ["ticketing", "hybrid"])
-        .eq("status", "published")
-        .gt("ends_at", new Date().toISOString())
-        .limit(5);
-
-      if (ticketEvents && ticketEvents.length > 0) {
-        let msg = `🎟️ *VoteCastHub Event Tickets*\n\nYou don't have any tickets yet. Explore upcoming live events below:\n\n`;
-        for (const ev of ticketEvents) {
-          msg += `• *${ev.name}*\n  📍 ${ev.venue_name || "Accra"} | 🚪 ${ev.doors_open_time || "Evening"}\n  👉 Buy: ${siteUrl()}/events/${ev.slug}\n\n`;
-        }
-        await sendWhatsAppMessage(phone, msg);
-        return;
-      }
+      await presentWhatsAppTicketsList(phone);
+      return;
     }
   }
 
@@ -442,12 +598,18 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   // Load event details
   const { data: event, error: eventErr } = await db
     .from("events")
-    .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path")
+    .select("id, name, slug, event_type, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path, venue_name, doors_open_time")
     .eq("id", eventId)
     .single();
 
   if (eventErr || !event) {
     await sendWhatsAppMessage(phone, "❌ Event details unavailable. Please try again later.");
+    return;
+  }
+
+  // If this is a dedicated ticketing event, jump straight to ticket tiers
+  if (event.event_type === "ticketing") {
+    await presentWhatsAppEventTicketTiers(phone, event.id);
     return;
   }
 
@@ -466,6 +628,18 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     .order("display_order");
 
   if (nomErr || !rawNominees || rawNominees.length === 0) {
+    // Check if event has ticket tiers instead
+    const { count: tierCount } = await db
+      .from("event_ticket_tiers")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("is_active", true);
+
+    if (tierCount && tierCount > 0) {
+      await presentWhatsAppEventTicketTiers(phone, event.id);
+      return;
+    }
+
     await sendWhatsAppMessage(phone, "❌ No active nominees found for this event.");
     return;
   }
@@ -1754,6 +1928,331 @@ async function presentWhatsAppCategoryBallot(params: {
   } else {
     await sendWhatsAppMessage(phone, rosterText);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WhatsApp Ticketing Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function presentWhatsAppTicketsList(phone: string): Promise<void> {
+  const db = paymentAdmin();
+  const nowIso = new Date().toISOString();
+
+  const { data: ticketEvents } = await db
+    .from("events")
+    .select("id, name, slug, venue_name, doors_open_time, image_path, ends_at")
+    .in("event_type", ["ticketing", "hybrid"])
+    .eq("status", "published")
+    .gt("ends_at", nowIso)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  if (!ticketEvents || ticketEvents.length === 0) {
+    await sendWhatsAppMessage(
+      phone,
+      `🎟️ *VoteCastHub Event Tickets*\n\nThere are currently no active ticketed events open for booking.\n\nReply *VOTE* or *EVENTS* to browse ongoing voting competitions.`
+    );
+    return;
+  }
+
+  // Create or refresh active session for choosing an event
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db.from("whatsapp_sessions").delete().eq("phone", phone).neq("state", "completed");
+  await db.from("whatsapp_sessions").insert({
+    phone,
+    phone_hash: hashPhone(phone),
+    state: "awaiting_ticket_tier",
+    metadata: {
+      step: "awaiting_ticket_event",
+      events: ticketEvents.map((e) => ({ id: e.id, name: e.name, slug: e.slug })),
+    },
+    expires_at: expiresAt,
+  });
+
+  let msg = `🎟️ *VoteCastHub Live Event Tickets* 🎫\n\nSelect an upcoming event below to buy passes or check in:\n\n`;
+  ticketEvents.forEach((ev, idx) => {
+    msg += `*${idx + 1}.* *${ev.name}*\n   📍 ${ev.venue_name || "Event Venue"}${ev.doors_open_time ? ` | 🚪 ${ev.doors_open_time}` : ""}\n\n`;
+  });
+  msg += `👉 Reply with the *Event Number* (e.g. *1*) or Event Name to choose ticket tiers.\n_(Reply 0 to cancel)_`;
+
+  const coverUrl = await getSignedImageUrl(ticketEvents[0]?.image_path);
+  if (coverUrl) {
+    await sendWhatsAppImage(phone, coverUrl, msg);
+  } else {
+    await sendWhatsAppMessage(phone, msg);
+  }
+}
+
+async function presentWhatsAppEventTicketTiers(phone: string, eventIdentifier: string): Promise<void> {
+  const db = paymentAdmin();
+
+  let query = db
+    .from("events")
+    .select("id, name, slug, venue_name, doors_open_time, status, image_path, ends_at");
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidPattern.test(eventIdentifier)) {
+    query = query.eq("id", eventIdentifier);
+  } else {
+    query = query.eq("slug", eventIdentifier.toLowerCase());
+  }
+
+  const { data: event, error: eventErr } = await query.maybeSingle();
+
+  if (eventErr || !event) {
+    await sendWhatsAppMessage(phone, `❌ Event *${eventIdentifier}* was not found or has concluded. Reply *TICKETS* to view upcoming events.`);
+    return;
+  }
+
+  const { data: tiers, error: tiersErr } = await db
+    .from("event_ticket_tiers")
+    .select("id, name, description, price_minor, capacity, sold_count, is_active")
+    .eq("event_id", event.id)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("price_minor", { ascending: true });
+
+  if (tiersErr || !tiers || tiers.length === 0) {
+    await sendWhatsAppMessage(phone, `❌ No active ticket tiers found for *${event.name}*.`);
+    return;
+  }
+
+  // Create or refresh session
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db.from("whatsapp_sessions").delete().eq("phone", phone).neq("state", "completed");
+  await db.from("whatsapp_sessions").insert({
+    phone,
+    phone_hash: hashPhone(phone),
+    event_id: event.id,
+    state: "awaiting_ticket_tier",
+    metadata: {
+      step: "awaiting_tier_number",
+      event_name: event.name,
+      tiers: tiers.map((t) => ({ id: t.id, name: t.name })),
+    },
+    expires_at: expiresAt,
+  });
+
+  let msg = `🎟️ *${event.name} — Admission Tickets*\n`;
+  if (event.venue_name) msg += `📍 Venue: ${event.venue_name}\n`;
+  if (event.doors_open_time) msg += `🚪 Doors: ${event.doors_open_time}\n`;
+  msg += `\n*Available Ticket Tiers:*\n`;
+
+  tiers.forEach((t, index) => {
+    const remaining = Math.max(0, t.capacity - t.sold_count);
+    const isSoldOut = remaining <= 0;
+    const priceStr = t.price_minor === 0 ? "FREE" : `GH₵ ${(Number(t.price_minor) / 100).toFixed(2)}`;
+    const statusNote = isSoldOut ? " [SOLD OUT]" : remaining <= 10 ? ` (${remaining} left)` : "";
+
+    msg += `\n*${index + 1}.* *${t.name}* — ${priceStr}${statusNote}`;
+    if (t.description) msg += `\n   _${t.description}_`;
+  });
+
+  msg += `\n\n👉 Reply with the *Tier Number* (e.g. *1*) to select your pass.\n_(Reply 0 to cancel)_`;
+
+  const coverUrl = await getSignedImageUrl(event.image_path);
+  if (coverUrl) {
+    await sendWhatsAppImage(phone, coverUrl, msg);
+  } else {
+    await sendWhatsAppMessage(phone, msg);
+  }
+}
+
+async function handleTicketCheckoutWhatsApp(params: {
+  phone: string;
+  eventId: string;
+  tierId: string;
+  quantity: number;
+  customerName: string;
+  existingSessionId?: string;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { phone, eventId, tierId, quantity, customerName, existingSessionId } = params;
+
+  // 1. Fetch Event
+  const { data: event, error: eventErr } = await db
+    .from("events")
+    .select("id, organization_id, name, venue_name, status, starts_at, ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventErr || !event || event.status === "closed") {
+    await sendWhatsAppMessage(phone, "❌ This event is currently closed or unavailable.");
+    return;
+  }
+
+  // 2. Fetch Tier
+  const { data: tier, error: tierErr } = await db
+    .from("event_ticket_tiers")
+    .select("id, name, price_minor, capacity, sold_count, is_active")
+    .eq("id", tierId)
+    .eq("event_id", eventId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (tierErr || !tier) {
+    await sendWhatsAppMessage(phone, "❌ This ticket tier is no longer active.");
+    return;
+  }
+
+  if (tier.sold_count + quantity > tier.capacity) {
+    const remaining = Math.max(0, tier.capacity - tier.sold_count);
+    await sendWhatsAppMessage(phone, `❌ Sold out! Only ${remaining} ticket${remaining === 1 ? "" : "s"} remaining in this tier.`);
+    return;
+  }
+
+  const totalMinor = Number(tier.price_minor) * quantity;
+  const buyerEmail = `${normalizeGhanaPhone(phone)}@tickets.votecasthub.com`;
+
+  // Free Ticket: issue immediately
+  if (totalMinor === 0) {
+    const { data: ticket, error: purchaseErr } = await db.rpc("purchase_event_ticket", {
+      p_event_id: eventId,
+      p_tier_id: tierId,
+      p_quantity: quantity,
+      p_customer_name: customerName,
+      p_customer_phone: phone,
+      p_customer_email: buyerEmail,
+      p_order_reference: null,
+      p_channel: "whatsapp",
+      p_initial_status: "valid",
+    });
+
+    if (purchaseErr) {
+      await sendWhatsAppMessage(phone, `❌ Error reserving pass: ${purchaseErr.message}`);
+      return;
+    }
+
+    if (existingSessionId) {
+      await db.from("whatsapp_sessions").update({ state: "completed", updated_at: new Date().toISOString() }).eq("id", existingSessionId);
+    }
+
+    const ticketObj = ticket as Record<string, unknown>;
+    const paxCode = String(ticketObj?.pax_code || "PAX");
+    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(paxCode)}`;
+
+    sendTicketConfirmationSms({
+      phone,
+      customerName,
+      eventName: event.name,
+      tierName: tier.name,
+      paxCode,
+      venueName: event.venue_name,
+    }).catch(() => {});
+
+    await sendWhatsAppMessage(
+      phone,
+      `🎉 *Your Free Ticket Is Confirmed!* 🎟️\n\n` +
+      `📌 *${event.name}*\n` +
+      `👤 *Attendee:* ${customerName}\n` +
+      `🎫 *Tier:* ${tier.name} (${quantity} Pass${quantity > 1 ? "es" : ""})\n` +
+      `🔑 *CODE PAX:* \`#${paxCode}\`\n` +
+      `📍 *Venue:* ${event.venue_name || "Event Venue"}\n\n` +
+      `🔗 *View Digital Pass & QR Code:*\n👉 ${passUrl}\n\n` +
+      `_Show your CODE PAX or QR code at the entrance for verification._`
+    );
+    return;
+  }
+
+  // Paid Ticket: Initialize Paystack
+  const { data: account } = await db
+    .from("organization_paystack_accounts")
+    .select("subaccount_code")
+    .eq("organization_id", event.organization_id)
+    .eq("status", "active")
+    .eq("paystack_verified", true)
+    .maybeSingle();
+
+  const orderRef = `VCH-TIK-${randomUUID().replaceAll("-", "")}`;
+
+  // Atomically reserve ticket with status 'pending'
+  const { error: reserveErr } = await db.rpc("purchase_event_ticket", {
+    p_event_id: eventId,
+    p_tier_id: tierId,
+    p_quantity: quantity,
+    p_customer_name: customerName,
+    p_customer_phone: phone,
+    p_customer_email: buyerEmail,
+    p_order_reference: orderRef,
+    p_channel: "whatsapp",
+    p_initial_status: "pending",
+  });
+
+  if (reserveErr) {
+    await sendWhatsAppMessage(phone, `❌ Could not reserve ticket: ${reserveErr.message}`);
+    return;
+  }
+
+  const origin = siteUrl();
+  const totalGhs = (totalMinor / 100).toFixed(2);
+  const subaccountParams = account?.subaccount_code
+    ? {
+        subaccount: account.subaccount_code,
+        bearer: "account" as const,
+        transaction_charge: Math.floor(totalMinor / 10), // 10% platform fee
+      }
+    : {};
+
+  let authUrl = "";
+  try {
+    const paystackRes = await paystack<{ authorization_url: string }>("/transaction/initialize", {
+      reference: orderRef,
+      email: buyerEmail,
+      amount: totalMinor,
+      currency: "GHS",
+      ...subaccountParams,
+      callback_url: `${origin}/payments/complete?reference=${orderRef}`,
+      metadata: {
+        kind: "paid_ticket",
+        channel: "whatsapp",
+        phone,
+        order_reference: orderRef,
+        event_id: eventId,
+        tier_id: tierId,
+        quantity,
+        customer_name: customerName,
+        customer_phone: phone,
+      },
+    });
+
+    const parsedUrl = new URL(paystackRes.authorization_url);
+    if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "checkout.paystack.com") {
+      throw new Error("Invalid checkout domain returned by Paystack");
+    }
+    authUrl = parsedUrl.href;
+  } catch (err) {
+    console.error("wa_ticket_paystack_init_failed:", err);
+    await sendWhatsAppMessage(phone, "❌ Failed to initiate Paystack checkout. Please try again shortly.");
+    return;
+  }
+
+  if (existingSessionId) {
+    await db
+      .from("whatsapp_sessions")
+      .update({
+        reference: orderRef,
+        payment_url: authUrl,
+        state: "awaiting_payment",
+        customer_name: customerName,
+        quantity,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingSessionId);
+  }
+
+  await sendWhatsAppMessage(
+    phone,
+    `🎟️ *Ticket Checkout — ${event.name}*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🎫 *Tier:* ${tier.name}\n` +
+    `👥 *Quantity:* ${quantity} Pass${quantity > 1 ? "es" : ""}\n` +
+    `👤 *Holder:* ${customerName}\n` +
+    `💰 *Total Amount:* GH₵ ${totalGhs}\n\n` +
+    `📱 *Pay with Mobile Money (MTN / Telecel / AT) or Card:*\n` +
+    `Tap the secure link below to complete payment:\n` +
+    `👉 ${authUrl}\n\n` +
+    `_After payment is approved, your CODE PAX and digital passes will be delivered right to this chat!_`
+  );
 }
 
 

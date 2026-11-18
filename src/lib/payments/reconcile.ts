@@ -6,7 +6,7 @@ import { sendTelegramMessage } from "@/lib/telegram/api";
 import { sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { z } from "zod";
 import { paymentAdmin } from "./admin";
-import { paystack } from "./gateway";
+import { paystack, siteUrl } from "./gateway";
 import { paystackSecret } from "./paystack";
 
 const txSchema=z.object({
@@ -82,6 +82,8 @@ async function applyTransaction(t:Transaction,allowReversed=false){
       const allCodes = Array.isArray(res.pax_codes)
         ? (res.pax_codes as string[])
         : [String(res.pax_code)];
+
+      // Send SMS confirmation
       sendTicketConfirmationSms({
         phone: String(res.customer_phone),
         customerName: String(res.customer_name || "Guest"),
@@ -90,6 +92,56 @@ async function applyTransaction(t:Transaction,allowReversed=false){
         paxCode: allCodes,
         venueName: res.venue_name ? String(res.venue_name) : null,
       }).catch((err) => console.error("[Ticket Reconcile SMS] Error:", err));
+
+      // 1. Dispatch Telegram Ticket Pass if purchased via Telegram
+      try {
+        const tgChatId = t.metadata?.channel === "telegram" ? Number(t.metadata.chat_id) : null;
+        if (tgChatId) {
+          const codesList = allCodes.map((c) => `🔑 <b>CODE PAX:</b> <code>#${c}</code>`).join("\n");
+          const venueLine = res.venue_name ? `📍 <b>Venue:</b> ${String(res.venue_name).replace(/[<>&]/g, "")}\n` : "";
+          const ticketUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
+          const tgTicketMsg =
+            `🎉 <b>Payment Confirmed! Your Tickets Are Ready</b> 🎟️\n\n` +
+            `📌 <b>${String(res.event_name || "Event").replace(/[<>&]/g, "")}</b>\n` +
+            `👤 <b>Attendee:</b> ${String(res.customer_name || "Guest").replace(/[<>&]/g, "")}\n` +
+            `🎫 <b>Tier:</b> ${String(res.tier_name || "Pass").replace(/[<>&]/g, "")} (${res.quantity || 1} Ticket${(Number(res.quantity) || 1) > 1 ? "s" : ""})\n` +
+            `${venueLine}\n` +
+            `${codesList}\n\n` +
+            `🔗 <b>Digital Pass & QR Codes:</b>\n<a href="${ticketUrl}">${ticketUrl}</a>\n\n` +
+            `<i>Show your CODE PAX or digital pass at the entrance gate for check-in.</i>`;
+
+          sendTelegramMessage(tgChatId, tgTicketMsg, { parse_mode: "HTML" }).catch((err) =>
+            console.error("[Telegram] Ticket push failed:", err)
+          );
+        }
+      } catch (err) {
+        console.error("[Telegram] Ticket push lookup error:", err);
+      }
+
+      // 2. Dispatch WhatsApp Ticket Pass if purchased via WhatsApp
+      try {
+        const waPhone = t.metadata?.channel === "whatsapp" ? String(t.metadata.phone || res.customer_phone) : null;
+        if (waPhone) {
+          const codesList = allCodes.map((c) => `🔑 *CODE PAX:* #${c}`).join("\n");
+          const venueLine = res.venue_name ? `📍 *Venue:* ${res.venue_name}\n` : "";
+          const ticketUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
+          const waTicketMsg =
+            `🎉 *Payment Confirmed! Your Tickets Are Ready* 🎟️\n\n` +
+            `📌 *${res.event_name || "Event"}*\n` +
+            `👤 *Attendee:* ${res.customer_name || "Guest"}\n` +
+            `🎫 *Tier:* ${res.tier_name || "Pass"} (${res.quantity || 1} Ticket${(Number(res.quantity) || 1) > 1 ? "s" : ""})\n` +
+            `${venueLine}\n` +
+            `${codesList}\n\n` +
+            `🔗 *View Digital Pass & QR Codes:*\n👉 ${ticketUrl}\n\n` +
+            `_Show your CODE PAX or QR pass at the entrance gate for check-in._`;
+
+          sendWhatsAppMessage(waPhone, waTicketMsg).catch((err) =>
+            console.error("[WhatsApp] Ticket push failed:", err)
+          );
+        }
+      } catch (err) {
+        console.error("[WhatsApp] Ticket push lookup error:", err);
+      }
     }
   }
 }

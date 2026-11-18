@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack, siteUrl } from "@/lib/payments/gateway";
+import { normalizeGhanaPhone, sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { createClient } from "@supabase/supabase-js";
 import {
   answerTelegramCallbackQuery,
@@ -133,32 +134,27 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   }
 
   if (["/TICKETS", "TICKETS", "/TICKET", "TICKET"].includes(upper)) {
-    const { data: ticketEvents } = await db
-      .from("events")
-      .select("id, name, slug, venue_name, doors_open_time")
-      .in("event_type", ["ticketing", "hybrid"])
-      .eq("status", "published")
-      .gt("ends_at", new Date().toISOString())
-      .limit(6);
-
-    if (ticketEvents && ticketEvents.length > 0) {
-      let msg = "🎟️ *VoteCastHub Event Tickets*\n\nExplore upcoming live events and buy your entrance passes:\n\n";
-      for (const ev of ticketEvents) {
-        msg += `• *${ev.name}*\n  📍 ${ev.venue_name || "Accra"} | 🚪 ${ev.doors_open_time || "Evening"}\n  👉 Buy: ${siteUrl()}/events/${ev.slug}\n\n`;
-      }
-      msg += `🔍 Have an existing ticket? Retrieve your pass:\n👉 ${siteUrl()}/tickets`;
-      await sendTelegramMessage(chatId, msg, { parse_mode: "Markdown" });
-      return;
-    } else {
-      await sendTelegramMessage(chatId, `🎟️ *VoteCastHub Event Tickets*\n\nBrowse upcoming events or look up your confirmed tickets:\n👉 ${siteUrl()}/tickets`, { parse_mode: "Markdown" });
-      return;
-    }
+    await presentTelegramTicketsList(chatId);
+    return;
   }
+
+  if (upper.startsWith("/TICKET ") || upper.startsWith("TICKET ")) {
+    const eventParam = text.replace(/^\/?ticket\s+/i, "").trim();
+    await presentEventTicketTiers({ chatId, eventIdentifier: eventParam });
+    return;
+  }
+
+  if (["/MYTICKETS", "MY TICKETS", "MYTICKETS", "/MYTICKET", "MY TICKET"].includes(upper)) {
+    await handleMyTicketsTelegram(chatId);
+    return;
+  }
+
+  const fromUser = inbound.raw.callback_query?.from || inbound.raw.message?.from;
 
   // 3. Fetch Active Session
   const { data: activeSession } = await db
     .from("telegram_sessions")
-    .select("id, chat_id, telegram_user_id, phone, phone_hash, event_id, category_id, nominee_id, quantity, state, reference, payment_url, metadata, expires_at")
+    .select("id, chat_id, telegram_user_id, phone, phone_hash, event_id, category_id, nominee_id, tier_id, customer_name, quantity, state, reference, payment_url, metadata, expires_at")
     .eq("chat_id", chatId)
     .gt("expires_at", new Date().toISOString())
     .neq("state", "completed")
@@ -232,6 +228,64 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   }
 
   // 4. Callback Query Router: Direct Actions
+  if (isCallback && (text === "browse_tickets" || text === "tickets")) {
+    await presentTelegramTicketsList(chatId);
+    return;
+  }
+
+  if (isCallback && text === "events") {
+    await presentCompetitionsList(chatId);
+    return;
+  }
+
+  if (isCallback && text === "mytickets") {
+    await handleMyTicketsTelegram(chatId, activeSession?.phone);
+    return;
+  }
+
+  if (isCallback && text === "cancel_ticket") {
+    if (activeSession) {
+      await db.from("telegram_sessions").delete().eq("id", activeSession.id);
+    }
+    await sendTelegramMessage(chatId, "👋 Ticket checkout cancelled. Send /tickets to browse upcoming passes.");
+    return;
+  }
+
+  if (isCallback && text.startsWith("ticket:")) {
+    const slugOrId = text.replace(/^ticket:/, "");
+    await presentEventTicketTiers({ chatId, eventIdentifier: slugOrId });
+    return;
+  }
+
+  if (isCallback && text.startsWith("tiktier:")) {
+    const tierId = text.replace(/^tiktier:/, "");
+    await selectTicketTierTelegram({ chatId, tierId, activeSession, userId, fromUser });
+    return;
+  }
+
+  if (isCallback && text.startsWith("tikqty:")) {
+    const cleanQty = parseInt(text.replace(/^tikqty:/, ""), 10);
+    await handleTicketQuantityTelegram({ chatId, quantity: cleanQty, activeSession, userId, fromUser });
+    return;
+  }
+
+  if (isCallback && text === "custom_tikqty") {
+    if (activeSession) {
+      await db
+        .from("telegram_sessions")
+        .update({ state: "awaiting_ticket_quantity", updated_at: new Date().toISOString() })
+        .eq("id", activeSession.id);
+      await sendTelegramMessage(chatId, "✏️ Please reply with the number of tickets you wish to purchase (e.g. *1*, *2*, *4* up to 20):");
+      return;
+    }
+  }
+
+  if (isCallback && text.startsWith("tikname:")) {
+    const nameChoice = text.replace(/^tikname:/, "");
+    await handleTicketNameTelegram({ chatId, name: nameChoice, activeSession, userId, fromUser });
+    return;
+  }
+
   if (isCallback && text.startsWith("event:")) {
     const slugOrId = text.replace(/^event:/, "");
     await presentEventBallot({ chatId, eventIdentifier: slugOrId });
@@ -290,6 +344,73 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
       );
       return;
     }
+  }
+
+  // 4b. If active session is awaiting ticket tier selection and voter replies with tier number or name
+  if (activeSession && activeSession.state === "awaiting_ticket_tier" && activeSession.event_id) {
+    const { data: rawTiers } = await db
+      .from("event_ticket_tiers")
+      .select("id, name, price_minor, capacity, sold_count")
+      .eq("event_id", activeSession.event_id)
+      .eq("is_active", true)
+      .order("display_order", { ascending: true })
+      .order("price_minor", { ascending: true });
+
+    if (rawTiers && rawTiers.length > 0) {
+      const tierInput = text.trim();
+      const tierNum = parseInt(tierInput, 10);
+      let matchedTier = null;
+      if (!isNaN(tierNum) && tierNum >= 1 && tierNum <= rawTiers.length) {
+        matchedTier = rawTiers[tierNum - 1];
+      } else {
+        matchedTier = rawTiers.find(
+          (t) =>
+            t.name.toLowerCase().includes(tierInput.toLowerCase()) ||
+            t.id.toLowerCase() === tierInput.toLowerCase()
+        );
+      }
+
+      if (matchedTier) {
+        await selectTicketTierTelegram({
+          chatId,
+          tierId: matchedTier.id,
+          activeSession,
+          userId,
+          fromUser,
+        });
+        return;
+      }
+    }
+  }
+
+  // 4c. If active session is awaiting ticket quantity and voter replies with a number
+  if (activeSession && activeSession.state === "awaiting_ticket_quantity" && activeSession.event_id && activeSession.tier_id) {
+    const cleanQty = text.replace(/\D/g, "");
+    const qtyParsed = parseInt(cleanQty, 10);
+    if (!qtyParsed || qtyParsed < 1 || qtyParsed > 20) {
+      await sendTelegramMessage(chatId, "⚠️ Please enter a valid quantity between 1 and 20 (or reply 0 to cancel):");
+      return;
+    }
+    await handleTicketQuantityTelegram({
+      chatId,
+      quantity: qtyParsed,
+      activeSession,
+      userId,
+      fromUser,
+    });
+    return;
+  }
+
+  // 4d. If active session is awaiting ticket name and voter replies with attendee name
+  if (activeSession && activeSession.state === "awaiting_ticket_name" && activeSession.event_id && activeSession.tier_id && activeSession.quantity) {
+    await handleTicketNameTelegram({
+      chatId,
+      name: text.trim(),
+      activeSession,
+      userId,
+      fromUser,
+    });
+    return;
   }
 
   // 5. If active session is awaiting category selection and voter replies with number or name
@@ -490,6 +611,13 @@ async function presentCompetitionsList(chatId: number): Promise<void> {
     },
   ]);
 
+  buttons.push([
+    {
+      text: "🎟️ Browse Event Tickets & Passes",
+      callback_data: "browse_tickets",
+    },
+  ]);
+
   const welcomeText = `🏆 *Welcome to VoteCastHub!* 🗳️\n\nTap an ongoing competition below to view contestants and cast your ballot:`;
 
   const coverUrl = await getSignedImageUrl(events[0]?.image_path);
@@ -514,7 +642,7 @@ async function presentEventBallot(params: {
 
   let query = db
     .from("events")
-    .select("id, name, slug, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path");
+    .select("id, name, slug, event_type, voting_mode, unit_price_minor, free_vote_limit_per_phone, verification_method, starts_at, ends_at, status, image_path, venue_name, doors_open_time");
 
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (uuidPattern.test(eventIdentifier)) {
@@ -528,8 +656,14 @@ async function presentEventBallot(params: {
   if (eventErr || !event) {
     await sendTelegramMessage(
       chatId,
-      `❌ Competition *${eventIdentifier}* was not found or has concluded.\nSend /events to see all ongoing competitions.`,
+      `❌ Event *${eventIdentifier}* was not found or has concluded.\nSend /events to see all ongoing competitions.`,
     );
+    return;
+  }
+
+  // If this is a dedicated ticketing event, jump straight to ticket tiers
+  if (event.event_type === "ticketing") {
+    await presentEventTicketTiers({ chatId, eventIdentifier: event.id });
     return;
   }
 
@@ -565,6 +699,18 @@ async function presentEventBallot(params: {
     .order("display_order");
 
   if (!rawCategories || rawCategories.length === 0) {
+    // Check if event has ticket tiers instead
+    const { count: tierCount } = await db
+      .from("event_ticket_tiers")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("is_active", true);
+
+    if (tierCount && tierCount > 0) {
+      await presentEventTicketTiers({ chatId, eventIdentifier: event.id });
+      return;
+    }
+
     await sendTelegramMessage(chatId, `❌ No active categories found for *${event.name}*.`);
     return;
   }
@@ -614,6 +760,15 @@ async function presentEventBallot(params: {
       callback_data: `cat:${c.id}`,
     },
   ]);
+
+  if (event.event_type === "hybrid") {
+    buttons.unshift([
+      {
+        text: "🎟️ Buy Event Passes / Tickets",
+        callback_data: `ticket:${event.id}`,
+      },
+    ]);
+  }
 
   buttons.push([
     {
@@ -1717,4 +1872,601 @@ async function handleEmailOtpVerification(params: {
   } else {
     await sendTelegramMessage(chatId, successText);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Telegram Ticketing Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function presentTelegramTicketsList(chatId: number): Promise<void> {
+  const db = paymentAdmin();
+  const nowIso = new Date().toISOString();
+
+  const { data: ticketEvents } = await db
+    .from("events")
+    .select("id, name, slug, venue_name, doors_open_time, image_path, ends_at")
+    .in("event_type", ["ticketing", "hybrid"])
+    .eq("status", "published")
+    .gt("ends_at", nowIso)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  if (!ticketEvents || ticketEvents.length === 0) {
+    await sendTelegramMessage(
+      chatId,
+      `🎟️ *VoteCastHub Event Tickets*\n\nThere are currently no active ticketed events open for booking.\n\nSend /events to browse ongoing voting competitions.`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: "🏆 View Competitions", callback_data: "events" }]],
+        },
+      }
+    );
+    return;
+  }
+
+  const buttons = ticketEvents.map((ev) => [
+    {
+      text: `🎟️ ${ev.name}`.slice(0, 36),
+      callback_data: `ticket:${ev.id}`,
+    },
+  ]);
+
+  buttons.push([{ text: "🔍 My Purchased Tickets", callback_data: "mytickets" }]);
+
+  const welcomeText =
+    `🎟️ *VoteCastHub Event Tickets & Passes* 🎫\n\n` +
+    `Explore upcoming live events, award dinners, and concerts below. Tap an event to select your pass:`;
+
+  const coverUrl = await getSignedImageUrl(ticketEvents[0]?.image_path);
+  if (coverUrl) {
+    await sendTelegramPhoto(chatId, coverUrl, welcomeText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  } else {
+    await sendTelegramMessage(chatId, welcomeText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  }
+}
+
+async function presentEventTicketTiers(params: { chatId: number; eventIdentifier: string }): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, eventIdentifier } = params;
+
+  let query = db
+    .from("events")
+    .select("id, name, slug, venue_name, doors_open_time, status, image_path, ends_at");
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidPattern.test(eventIdentifier)) {
+    query = query.eq("id", eventIdentifier);
+  } else {
+    query = query.eq("slug", eventIdentifier);
+  }
+
+  const { data: event, error: eventErr } = await query.maybeSingle();
+
+  if (eventErr || !event) {
+    await sendTelegramMessage(chatId, `❌ Event not found or expired. Send /tickets to view upcoming events.`);
+    return;
+  }
+
+  const { data: tiers, error: tiersErr } = await db
+    .from("event_ticket_tiers")
+    .select("id, name, description, price_minor, capacity, sold_count, is_active")
+    .eq("event_id", event.id)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("price_minor", { ascending: true });
+
+  if (tiersErr || !tiers || tiers.length === 0) {
+    await sendTelegramMessage(chatId, `❌ No active ticket tiers found for *${event.name}*.`);
+    return;
+  }
+
+  // Create or update active session
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await db
+    .from("telegram_sessions")
+    .delete()
+    .eq("chat_id", chatId)
+    .neq("state", "completed");
+
+  await db.from("telegram_sessions").insert({
+    chat_id: chatId,
+    telegram_user_id: chatId,
+    event_id: event.id,
+    state: "awaiting_ticket_tier",
+    metadata: { step: "awaiting_ticket_tier" },
+    expires_at: expiresAt,
+  });
+
+  const buttons: { text: string; callback_data: string }[][] = [];
+  let descriptionText = `🎟️ *${event.name} — Admission Tickets*\n`;
+  if (event.venue_name) descriptionText += `📍 *Venue:* ${event.venue_name}\n`;
+  if (event.doors_open_time) descriptionText += `🚪 *Doors Open:* ${event.doors_open_time}\n`;
+  descriptionText += `\n*Available Ticket Tiers:*\n`;
+
+  tiers.forEach((t, index) => {
+    const remaining = Math.max(0, t.capacity - t.sold_count);
+    const isSoldOut = remaining <= 0;
+    const priceStr = t.price_minor === 0 ? "FREE" : `GH₵ ${(Number(t.price_minor) / 100).toFixed(2)}`;
+    const statusNote = isSoldOut ? " [SOLD OUT]" : remaining <= 10 ? ` (${remaining} left)` : "";
+
+    descriptionText += `\n${index + 1}. *${t.name}* — ${priceStr}${statusNote}`;
+    if (t.description) descriptionText += `\n   _${t.description}_`;
+
+    if (!isSoldOut) {
+      buttons.push([
+        {
+          text: `🎫 ${t.name} — ${priceStr}${statusNote}`,
+          callback_data: `tiktier:${t.id}`,
+        },
+      ]);
+    }
+  });
+
+  descriptionText += `\n\nTap a tier above or reply with the tier number (e.g. *1*) to continue:`;
+
+  const coverUrl = await getSignedImageUrl(event.image_path);
+  if (coverUrl) {
+    await sendTelegramPhoto(chatId, coverUrl, descriptionText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  } else {
+    await sendTelegramMessage(chatId, descriptionText, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  }
+}
+
+async function selectTicketTierTelegram(params: {
+  chatId: number;
+  tierId: string;
+  activeSession: any;
+  userId: number;
+  fromUser?: { first_name?: string; last_name?: string; username?: string };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, tierId, activeSession, userId, fromUser } = params;
+
+  const { data: tier, error: tierErr } = await db
+    .from("event_ticket_tiers")
+    .select("id, event_id, name, description, price_minor, capacity, sold_count, is_active, events(id, name, venue_name)")
+    .eq("id", tierId)
+    .single();
+
+  if (tierErr || !tier) {
+    await sendTelegramMessage(chatId, "❌ Selected ticket tier not found. Send /tickets to restart.");
+    return;
+  }
+
+  const remaining = Math.max(0, tier.capacity - tier.sold_count);
+  if (remaining <= 0) {
+    await sendTelegramMessage(chatId, `❌ Sorry, *${tier.name}* is sold out. Please select another tier.`);
+    return;
+  }
+
+  const eventObj = tier.events as any;
+  const priceStr = tier.price_minor === 0 ? "FREE" : `GH₵ ${(Number(tier.price_minor) / 100).toFixed(2)}`;
+
+  let sessionId = activeSession?.id;
+  if (!sessionId) {
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const { data: created } = await db
+      .from("telegram_sessions")
+      .insert({
+        chat_id: chatId,
+        telegram_user_id: userId,
+        event_id: tier.event_id,
+        tier_id: tier.id,
+        state: "awaiting_ticket_quantity",
+        metadata: { step: "awaiting_ticket_quantity" },
+        expires_at: expiresAt,
+      })
+      .select("id")
+      .single();
+    sessionId = created?.id;
+  } else {
+    await db
+      .from("telegram_sessions")
+      .update({
+        tier_id: tier.id,
+        state: "awaiting_ticket_quantity",
+        metadata: { ...activeSession?.metadata, step: "awaiting_ticket_quantity" },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId);
+  }
+
+  const promptText =
+    `🎫 *${tier.name}* (${priceStr} each)\n` +
+    `📌 Event: *${eventObj?.name || "Event"}*\n\n` +
+    `How many tickets would you like to purchase?\n` +
+    `Select below or reply with a number (1-20):`;
+
+  const qtyButtons = [
+    [
+      { text: "1 Ticket", callback_data: "tikqty:1" },
+      { text: "2 Tickets", callback_data: "tikqty:2" },
+      { text: "3 Tickets", callback_data: "tikqty:3" },
+    ],
+    [
+      { text: "4 Tickets", callback_data: "tikqty:4" },
+      { text: "5 Tickets", callback_data: "tikqty:5" },
+      { text: "✏️ Other Qty", callback_data: "custom_tikqty" },
+    ],
+  ];
+
+  await sendTelegramMessage(chatId, promptText, {
+    reply_markup: { inline_keyboard: qtyButtons },
+  });
+}
+
+async function handleTicketQuantityTelegram(params: {
+  chatId: number;
+  quantity: number;
+  activeSession: any;
+  userId: number;
+  fromUser?: { first_name?: string; last_name?: string; username?: string };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, quantity, activeSession, userId, fromUser } = params;
+
+  if (quantity < 1 || quantity > 20) {
+    await sendTelegramMessage(chatId, "⚠️ Please enter a quantity between 1 and 20 tickets:");
+    return;
+  }
+
+  if (!activeSession || !activeSession.tier_id || !activeSession.event_id) {
+    await sendTelegramMessage(chatId, "❌ Session expired. Please send /tickets to restart.");
+    return;
+  }
+
+  // Check capacity
+  const { data: tier } = await db
+    .from("event_ticket_tiers")
+    .select("capacity, sold_count, name")
+    .eq("id", activeSession.tier_id)
+    .single();
+
+  if (tier) {
+    const remaining = Math.max(0, tier.capacity - tier.sold_count);
+    if (quantity > remaining) {
+      await sendTelegramMessage(
+        chatId,
+        `⚠️ Only *${remaining}* ticket${remaining === 1 ? "" : "s"} remaining for *${tier.name}*. Please enter ${remaining} or fewer:`,
+      );
+      return;
+    }
+  }
+
+  await db
+    .from("telegram_sessions")
+    .update({
+      quantity,
+      state: "awaiting_ticket_name",
+      metadata: { ...activeSession.metadata, step: "awaiting_ticket_name" },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", activeSession.id);
+
+  const suggestedName = [fromUser?.first_name, fromUser?.last_name].filter(Boolean).join(" ") || fromUser?.username || "";
+
+  const nameButtons: { text: string; callback_data: string }[][] = [];
+  if (suggestedName && suggestedName.length >= 2) {
+    nameButtons.push([{ text: `👤 Use Profile Name: "${suggestedName}"`, callback_data: "tikname:profile" }]);
+  }
+
+  await sendTelegramMessage(
+    chatId,
+    `👤 *Attendee Information*\n\n` +
+    `Please reply with the *Full Name* of the ticket holder (to appear on the pass and check-in scanner):` +
+    (suggestedName ? `\n\nOr tap below to use your Telegram profile name:` : ""),
+    {
+      reply_markup: nameButtons.length > 0 ? { inline_keyboard: nameButtons } : undefined,
+    }
+  );
+}
+
+async function handleTicketNameTelegram(params: {
+  chatId: number;
+  name: string;
+  activeSession: any;
+  userId: number;
+  fromUser?: { first_name?: string; last_name?: string; username?: string };
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, name, activeSession, userId, fromUser } = params;
+
+  let resolvedName = name.trim();
+  if (resolvedName === "profile") {
+    resolvedName = [fromUser?.first_name, fromUser?.last_name].filter(Boolean).join(" ") || fromUser?.username || "Guest";
+  }
+
+  if (resolvedName.length < 2) {
+    await sendTelegramMessage(chatId, "⚠️ Please enter a valid name with at least 2 characters:");
+    return;
+  }
+
+  if (!activeSession || !activeSession.event_id || !activeSession.tier_id || !activeSession.quantity) {
+    await sendTelegramMessage(chatId, "❌ Session expired. Please send /tickets to restart.");
+    return;
+  }
+
+  await db
+    .from("telegram_sessions")
+    .update({ customer_name: resolvedName, updated_at: new Date().toISOString() })
+    .eq("id", activeSession.id);
+
+  await handleTicketCheckoutTelegram({
+    chatId,
+    eventId: activeSession.event_id,
+    tierId: activeSession.tier_id,
+    quantity: activeSession.quantity,
+    customerName: resolvedName,
+    phone: activeSession.phone,
+    userId,
+    existingSessionId: activeSession.id,
+  });
+}
+
+async function handleTicketCheckoutTelegram(params: {
+  chatId: number;
+  eventId: string;
+  tierId: string;
+  quantity: number;
+  customerName: string;
+  phone?: string;
+  userId: number;
+  existingSessionId?: string;
+}): Promise<void> {
+  const db = paymentAdmin();
+  const { chatId, eventId, tierId, quantity, customerName, phone, userId, existingSessionId } = params;
+
+  // 1. Fetch Event
+  const { data: event, error: eventErr } = await db
+    .from("events")
+    .select("id, organization_id, name, venue_name, status, starts_at, ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (eventErr || !event || event.status === "closed") {
+    await sendTelegramMessage(chatId, "❌ This event is currently closed or unavailable.");
+    return;
+  }
+
+  // 2. Fetch Tier
+  const { data: tier, error: tierErr } = await db
+    .from("event_ticket_tiers")
+    .select("id, name, price_minor, capacity, sold_count, is_active")
+    .eq("id", tierId)
+    .eq("event_id", eventId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (tierErr || !tier) {
+    await sendTelegramMessage(chatId, "❌ This ticket tier is no longer active.");
+    return;
+  }
+
+  if (tier.sold_count + quantity > tier.capacity) {
+    const remaining = Math.max(0, tier.capacity - tier.sold_count);
+    await sendTelegramMessage(chatId, `❌ Sold out! Only ${remaining} ticket${remaining === 1 ? "" : "s"} remaining in this tier.`);
+    return;
+  }
+
+  const totalMinor = Number(tier.price_minor) * quantity;
+  const buyerPhone = phone && phone.length >= 9 ? phone : `+233000000000`;
+  const buyerEmail = phone && phone.length >= 9
+    ? `${normalizeGhanaPhone(phone)}@tickets.votecasthub.com`
+    : `tg_${userId}@telegram.votecasthub.com`;
+
+  // Free Ticket: issue immediately
+  if (totalMinor === 0) {
+    const { data: ticket, error: purchaseErr } = await db.rpc("purchase_event_ticket", {
+      p_event_id: eventId,
+      p_tier_id: tierId,
+      p_quantity: quantity,
+      p_customer_name: customerName,
+      p_customer_phone: buyerPhone,
+      p_customer_email: buyerEmail,
+      p_order_reference: null,
+      p_channel: "telegram",
+      p_initial_status: "valid",
+    });
+
+    if (purchaseErr) {
+      await sendTelegramMessage(chatId, `❌ Error reserving free pass: ${purchaseErr.message}`);
+      return;
+    }
+
+    if (existingSessionId) {
+      await db.from("telegram_sessions").update({ state: "completed", updated_at: new Date().toISOString() }).eq("id", existingSessionId);
+    }
+
+    const ticketObj = ticket as Record<string, unknown>;
+    const paxCode = String(ticketObj?.pax_code || "PAX");
+    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(paxCode)}`;
+
+    if (buyerPhone && buyerPhone !== "+233000000000") {
+      sendTicketConfirmationSms({
+        phone: buyerPhone,
+        customerName,
+        eventName: event.name,
+        tierName: tier.name,
+        paxCode,
+        venueName: event.venue_name,
+      }).catch(() => {});
+    }
+
+    await sendTelegramMessage(
+      chatId,
+      `🎉 *Your Free Ticket Is Confirmed!* 🎟️\n\n` +
+      `📌 *${event.name}*\n` +
+      `👤 *Attendee:* ${customerName}\n` +
+      `🎫 *Tier:* ${tier.name} (${quantity} Pass${quantity > 1 ? "es" : ""})\n` +
+      `🔑 *CODE PAX:* \`#${paxCode}\`\n` +
+      `📍 *Venue:* ${event.venue_name || "Event Venue"}\n\n` +
+      `🔗 *Digital Pass & QR Code:*\n👉 ${passUrl}\n\n` +
+      `_Show your CODE PAX or digital pass at the entrance gate._`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎫 Open Digital Pass", url: passUrl }],
+            [{ text: "🎟️ Browse More Events", callback_data: "browse_tickets" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  // Paid Ticket: Initialize Paystack
+  const { data: account } = await db
+    .from("organization_paystack_accounts")
+    .select("subaccount_code")
+    .eq("organization_id", event.organization_id)
+    .eq("status", "active")
+    .eq("paystack_verified", true)
+    .maybeSingle();
+
+  const orderRef = `VCH-TIK-${randomUUID().replaceAll("-", "")}`;
+
+  // Atomically reserve ticket with status 'pending'
+  const { error: reserveErr } = await db.rpc("purchase_event_ticket", {
+    p_event_id: eventId,
+    p_tier_id: tierId,
+    p_quantity: quantity,
+    p_customer_name: customerName,
+    p_customer_phone: buyerPhone,
+    p_customer_email: buyerEmail,
+    p_order_reference: orderRef,
+    p_channel: "telegram",
+    p_initial_status: "pending",
+  });
+
+  if (reserveErr) {
+    await sendTelegramMessage(chatId, `❌ Could not reserve ticket: ${reserveErr.message}`);
+    return;
+  }
+
+  const origin = siteUrl();
+  const totalGhs = (totalMinor / 100).toFixed(2);
+  const subaccountParams = account?.subaccount_code
+    ? {
+        subaccount: account.subaccount_code,
+        bearer: "account" as const,
+        transaction_charge: Math.floor(totalMinor / 10), // 10% platform fee
+      }
+    : {};
+
+  let authUrl = "";
+  try {
+    const paystackRes = await paystack<{ authorization_url: string }>("/transaction/initialize", {
+      reference: orderRef,
+      email: buyerEmail,
+      amount: totalMinor,
+      currency: "GHS",
+      ...subaccountParams,
+      callback_url: `${origin}/payments/complete?reference=${orderRef}`,
+      metadata: {
+        kind: "paid_ticket",
+        channel: "telegram",
+        chat_id: chatId,
+        phone: buyerPhone,
+        telegram_user_id: userId,
+        order_reference: orderRef,
+        event_id: eventId,
+        tier_id: tierId,
+        quantity,
+        customer_name: customerName,
+        customer_phone: buyerPhone,
+      },
+    });
+
+    const parsedUrl = new URL(paystackRes.authorization_url);
+    if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "checkout.paystack.com") {
+      throw new Error("Invalid checkout domain returned by Paystack");
+    }
+    authUrl = parsedUrl.href;
+  } catch (err) {
+    console.error("tg_ticket_paystack_init_failed:", err);
+    await sendTelegramMessage(chatId, "❌ Failed to initiate Paystack checkout. Please try again shortly.");
+    return;
+  }
+
+  if (existingSessionId) {
+    await db
+      .from("telegram_sessions")
+      .update({
+        reference: orderRef,
+        payment_url: authUrl,
+        state: "awaiting_payment",
+        customer_name: customerName,
+        quantity,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingSessionId);
+  }
+
+  await sendTelegramMessage(
+    chatId,
+    `🎟️ *Ticket Checkout — ${event.name}*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🎫 *Tier:* ${tier.name}\n` +
+    `👥 *Quantity:* ${quantity} Pass${quantity > 1 ? "es" : ""}\n` +
+    `👤 *Attendee:* ${customerName}\n` +
+    `💰 *Total Amount:* GH₵ ${totalGhs}\n\n` +
+    `📱 *Pay with Mobile Money (MTN / Telecel / AT) or Card:*\n` +
+    `Tap the secure button below to complete payment:`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: `💳 Complete Payment (GH₵ ${totalGhs})`, url: authUrl }],
+          [{ text: "❌ Cancel", callback_data: "cancel_ticket" }],
+        ],
+      },
+    }
+  );
+}
+
+async function handleMyTicketsTelegram(chatId: number, queryPhone?: string): Promise<void> {
+  const db = paymentAdmin();
+  if (queryPhone) {
+    const { data: myTickets } = await db.rpc("find_public_tickets", { p_query: queryPhone });
+    const list = (myTickets ?? []) as Record<string, unknown>[];
+
+    if (list.length > 0) {
+      let reply = `🎟️ *Your Event Passes (${list.length})*\n\n`;
+      for (const t of list) {
+        reply += `📌 *${t.event_name}*\n`;
+        reply += `👤 Holder: ${t.customer_name}\n`;
+        reply += `🎫 Tier: ${t.tier_name} (${t.quantity} Person)\n`;
+        reply += `🔑 *CODE PAX: #${t.pax_code}*\n`;
+        reply += `📍 Venue: ${t.venue_name || "Event Venue"}\n`;
+        reply += `🟢 Status: ${t.status === "checked_in" ? "✓ Checked In" : "Valid for Entry"}\n`;
+        reply += `🔗 Digital Pass: ${siteUrl()}/tickets?q=${t.pax_code}\n\n`;
+      }
+      reply += `_Show your CODE PAX or QR code at the entrance for verification._`;
+      await sendTelegramMessage(chatId, reply);
+      return;
+    }
+  }
+
+  await sendTelegramMessage(
+    chatId,
+    `🎟️ *Retrieve Your Event Tickets*\n\n` +
+    `To look up your tickets, you can search with your Phone Number or CODE PAX on our web portal:\n` +
+    `👉 ${siteUrl()}/tickets\n\n` +
+    `Or send /tickets to browse upcoming events and get passes!`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔍 Open Ticket Portal", url: `${siteUrl()}/tickets` }],
+          [{ text: "🎟️ Browse Events", callback_data: "browse_tickets" }],
+        ],
+      },
+    }
+  );
 }

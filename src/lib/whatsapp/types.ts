@@ -13,11 +13,27 @@ export interface WhatsAppSessionRecord {
   event_id: string | null;
   category_id: string | null;
   nominee_id: string | null;
+  tier_id?: string | null;
+  customer_name?: string | null;
   quantity: number | null;
-  state: "idle" | "awaiting_quantity" | "awaiting_payment" | "completed";
+  state:
+    | "idle"
+    | "awaiting_candidate"
+    | "awaiting_quantity"
+    | "awaiting_payment"
+    | "awaiting_invite_code"
+    | "awaiting_voter_id"
+    | "awaiting_claim_code"
+    | "awaiting_email"
+    | "awaiting_email_otp"
+    | "awaiting_ticket_tier"
+    | "awaiting_ticket_quantity"
+    | "awaiting_ticket_name"
+    | "completed";
   vote_request: string;
   reference: string | null;
   payment_url: string | null;
+  metadata?: Record<string, unknown> | null;
   expires_at: string;
   created_at: string;
   updated_at: string;
