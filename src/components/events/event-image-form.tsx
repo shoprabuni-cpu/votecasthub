@@ -94,7 +94,7 @@ export function EventImageForm({
   return (
     <div className="space-y-4">
       {/* Cover Banner Preview or Placeholder */}
-      <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-xs aspect-21/9 min-h-[160px] sm:min-h-[220px]">
+      <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-xs aspect-21/9 min-h-[160px] sm:min-h-[220px] dark:border-[#1c2721] dark:bg-[#080b09]">
         {imageUrl ? (
           <>
             <div
@@ -103,17 +103,17 @@ export function EventImageForm({
               role="img"
               aria-label={`${eventName} cover image`}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-4 sm:p-6">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent flex items-end p-4 sm:p-6">
               <span className="text-white font-serif font-bold text-base sm:text-xl drop-shadow-sm truncate">
                 {eventName}
               </span>
             </div>
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-stone-400">
-            <Icon name="image" size={32} className="text-stone-300" />
-            <span className="mt-2 text-xs font-medium text-stone-500">No cover image set</span>
-            <span className="text-[10px] text-stone-400">Recommended size: 1200 × 512px (Landscape)</span>
+          <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-stone-400 dark:text-stone-500">
+            <Icon name="image" size={32} className="text-stone-300 dark:text-stone-700" />
+            <span className="mt-2 text-xs font-medium text-stone-500 dark:text-stone-400">No cover image or ticket banner set</span>
+            <span className="text-[10px] text-stone-400 dark:text-stone-500">Recommended size: 1200 × 512px (Landscape)</span>
           </div>
         )}
       </div>
@@ -123,10 +123,10 @@ export function EventImageForm({
         <div className="flex items-center gap-2">
           <label
             htmlFor={`event-image-${eventId}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white min-h-11 px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white min-h-11 px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 hover:border-emerald-600 transition-all cursor-pointer dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:border-emerald-500"
           >
             <Icon name="image" size={13} />
-            <span>{imagePath ? "Select new cover" : "Choose image"}</span>
+            <span>{imagePath ? "Change cover image" : "Upload event banner / flyer"}</span>
           </label>
           <input
             id={`event-image-${eventId}`}
@@ -141,7 +141,7 @@ export function EventImageForm({
               }
             }}
           />
-          <span className="text-[11px] text-stone-400">JPEG, PNG, WebP · Max 5MB</span>
+          <span className="text-[11px] text-stone-400 dark:text-stone-500">JPEG, PNG, WebP · Max 5MB</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -150,14 +150,14 @@ export function EventImageForm({
               type="button"
               disabled={pending}
               onClick={() => saveImagePath(null)}
-              className="text-sm font-semibold text-red-700 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="text-sm font-semibold text-red-700 hover:bg-stone-100 cursor-pointer border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40"
             >
-              Remove cover
+              Remove banner
             </button>
           )}
           {pending && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-800 border-t-transparent" />
+            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-800 font-medium dark:text-emerald-400">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-800 border-t-transparent dark:border-emerald-400" />
               <span>Saving...</span>
             </span>
           )}
@@ -165,7 +165,7 @@ export function EventImageForm({
       </form>
 
       {message && (
-        <p className="rounded-xl bg-stone-50 p-2.5 text-xs text-stone-700 font-medium" role="status">
+        <p className="rounded-xl bg-stone-50 p-2.5 text-xs text-stone-700 font-medium dark:border dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300" role="status">
           {message}
         </p>
       )}

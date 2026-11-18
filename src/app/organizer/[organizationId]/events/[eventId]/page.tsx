@@ -248,6 +248,26 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
             venueName={eventMeta?.venue_name || event.venue_name}
             venueAddress={eventMeta?.venue_address}
             doorsOpenTime={eventMeta?.doors_open_time || event.doors_open_time}
+            coverImage={
+              permissions.editCover ? (
+                <EventImageForm
+                  eventId={eventId}
+                  eventName={event.name}
+                  initialPath={event.image_path}
+                  initialUrl={eventImage?.signedUrl ?? null}
+                  backTo={pagePath}
+                />
+              ) : eventImage?.signedUrl ? (
+                <div
+                  className="h-48 rounded-xl bg-cover bg-center"
+                  style={{ backgroundImage: `url("${eventImage.signedUrl}")` }}
+                  role="img"
+                  aria-label={`${event.name} cover`}
+                />
+              ) : (
+                <p className="text-sm text-stone-500">No cover image added.</p>
+              )
+            }
           />
         }
         guided={!isTicketOnly && canManage && event.status === "draft" ? { initialSection: requestedStep === "nominees" ? "nominees" : "details", nomineesReady: allCategoriesHaveNominees && !categoriesError && !nomineeError, votingReady: checkoutReady && verificationReady } : undefined}

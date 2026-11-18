@@ -21,6 +21,7 @@ export function TicketTiersManager({
   venueName = "",
   venueAddress = "",
   doorsOpenTime = "",
+  coverImage,
 }: {
   eventId: string;
   organizationId?: string;
@@ -28,6 +29,7 @@ export function TicketTiersManager({
   venueName?: string | null;
   venueAddress?: string | null;
   doorsOpenTime?: string | null;
+  coverImage?: React.ReactNode;
 }) {
   const [tiers, setTiers] = useState<TicketTier[]>(initialTiers);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -180,6 +182,21 @@ export function TicketTiersManager({
 
   return (
     <div className="space-y-6">
+      {/* Event Flyer / Ticket Banner Card */}
+      {coverImage && (
+        <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#070a08]">
+          <div className="mb-4">
+            <h3 className="text-base font-bold text-stone-900 dark:text-white">
+              Event Flyer & Ticket Banner
+            </h3>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              The official artwork displayed on your public ticket purchase page and on every attendee's digital ticket pass.
+            </p>
+          </div>
+          {coverImage}
+        </section>
+      )}
+
       {/* 1. Venue & Timing Card */}
       <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#070a08]">
         <div className="mb-4 flex items-center justify-between">
