@@ -569,13 +569,19 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   }
 
   // Browse ticket events
-  if (["BUY TICKET", "BUY TICKETS", "TICKETS", "TICKET", "MENU_TICKETS", "2"].includes(upperText)) {
+  if (
+    ["BUY TICKET", "BUY TICKETS", "TICKETS", "TICKET", "MENU_TICKETS", "2"].includes(upperText) ||
+    upperText.startsWith("MENU_TICKETS")
+  ) {
     await presentWhatsAppTicketsList(phone);
     return;
   }
 
   // View existing purchased tickets
-  if (["MY TICKET", "MY TICKETS", "MY PASS", "MY PASSES", "MENU_MY_TICKETS", "3"].includes(upperText)) {
+  if (
+    ["MY TICKET", "MY TICKETS", "MY PASS", "MY PASSES", "MENU_MY_TICKETS", "3"].includes(upperText) ||
+    upperText.startsWith("MENU_MY_TICKETS")
+  ) {
     const { data: myTickets } = await db.rpc("find_public_tickets", { p_query: phone });
     const list = (myTickets ?? []) as Record<string, unknown>[];
 
@@ -635,6 +641,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
   // Voting competitions list prompt
   const isVotingListPrompt =
     ["1", "VOTE", "VOTING", "EVENTS", "COMPETITION", "COMPETITIONS", "CONTEST", "MENU_VOTE"].includes(upperText) ||
+    upperText.startsWith("MENU_VOTE") ||
     /^(I\s+WANT\s+TO\s+VOTE|HOW\s+TO\s+VOTE|CAN\s+I\s+VOTE)/i.test(text.trim());
 
   if (isVotingListPrompt) {
