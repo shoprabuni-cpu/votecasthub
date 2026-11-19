@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Icon } from "@/components/icon";
 import type { NomineeAnalytics } from "@/lib/analytics";
@@ -14,6 +14,12 @@ import {
   generateAnalyzedTicketingCsv,
 } from "@/lib/exports/audit-reports";
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function OfficialAuditModal({
   isOpen,
   onClose,
@@ -22,6 +28,7 @@ export function OfficialAuditModal({
   nominees = [],
   ticketTiers = [],
   attendees = [],
+  nomineePhotos = {},
   defaultDocType = "voting",
 }: {
   isOpen: boolean;
@@ -40,6 +47,7 @@ export function OfficialAuditModal({
   nominees?: NomineeAnalytics[];
   ticketTiers?: TicketTier[];
   attendees?: AttendeeRecord[];
+  nomineePhotos?: Record<string, string>;
   defaultDocType?: "voting" | "ticketing";
 }) {
   const hasTickets =
@@ -55,6 +63,7 @@ export function OfficialAuditModal({
 
   const [auditHash, setAuditHash] = useState("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingWinnerCard, setIsGeneratingWinnerCard] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -98,7 +107,6 @@ export function OfficialAuditModal({
   function handlePrint() {
     document.body.classList.add("printing-audit-report");
     window.print();
-    // Remove class after print dialog is closed
     setTimeout(() => {
       document.body.classList.remove("printing-audit-report");
     }, 500);
@@ -140,14 +148,25 @@ export function OfficialAuditModal({
     return text.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
   }
 
-  // Branded Graphic Generator
+  // Helper to load image securely into an HTMLImageElement
+  function loadImage(src: string): Promise<HTMLImageElement | null> {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  // Standings Summary Graphic (Landscape / High-DPI with circular avatars)
   async function handleDownloadGraphic() {
     setIsGeneratingImage(true);
     try {
       const canvas = document.createElement("canvas");
       const width = 1200;
       const height = docType === "voting"
-        ? Math.min(1600, 420 + Math.min(12, votingAnalysis.ranked.length) * 85)
+        ? Math.min(1600, 440 + Math.min(12, votingAnalysis.ranked.length) * 88)
         : Math.min(1400, 440 + Math.min(8, ticketTiers.length) * 90);
 
       canvas.width = width;
@@ -168,17 +187,9 @@ export function OfficialAuditModal({
       ctx.lineWidth = 3;
       ctx.strokeRect(24, 24, width - 48, height - 48);
 
-      // Load Logo
-      const logo = new window.Image();
-      logo.crossOrigin = "anonymous";
-      logo.src = "/images/votecasthub-logo.png";
-
-      await new Promise<void>((resolve) => {
-        logo.onload = () => resolve();
-        logo.onerror = () => resolve();
-      });
-
-      if (logo.complete && logo.naturalWidth > 0) {
+      // Load VoteCastHub Logo
+      const logo = await loadImage("/images/votecasthub-logo.png");
+      if (logo) {
         ctx.drawImage(logo, 50, 45, 120, 52);
       } else {
         ctx.fillStyle = "#ffffff";
@@ -236,34 +247,89 @@ export function OfficialAuditModal({
         ctx.font = "12px sans-serif";
         ctx.fillText("NOMINEES", 460, 232);
 
-        // Standings Rows
-        let y = 280;
+        // Preload Nominee Avatars in parallel
         const topRows = votingAnalysis.ranked.slice(0, 12);
+        const avatarMap: Record<string, HTMLImageElement | null> = {};
+        await Promise.all(
+          topRows.map(async (r) => {
+            const photoUrl = nomineePhotos[r.nomineeId];
+            if (photoUrl) {
+              avatarMap[r.nomineeId] = await loadImage(photoUrl);
+            }
+          })
+        );
+
+        // Render Standings Rows with Photos
+        let y = 280;
         topRows.forEach((r, idx) => {
           ctx.fillStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.2)";
-          ctx.fillRect(50, y - 28, width - 100, 60);
+          ctx.fillRect(50, y - 30, width - 100, 68);
 
+          // Rank Badge
           ctx.fillStyle = r.rank === 1 ? "#fbbf24" : "#ffffff";
           ctx.font = "bold 18px sans-serif";
-          ctx.fillText(r.rank === 1 ? "🥇 #1" : `#${r.rank}`, 70, y + 8);
+          ctx.fillText(r.rank === 1 ? "🥇 #1" : `#${r.rank}`, 68, y + 10);
 
+          // Nominee Circular Avatar
+          const cx = 150;
+          const cy = y + 4;
+          const radius = 20;
+          const img = avatarMap[r.nomineeId];
+
+          if (img) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = r.rank === 1 ? "#fbbf24" : "rgba(255, 255, 255, 0.4)";
+            ctx.lineWidth = r.rank === 1 ? 2.5 : 1.2;
+            ctx.stroke();
+          } else {
+            // Initial circle fallback
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = r.rank === 1 ? "#78350f" : "#064e3b";
+            ctx.fill();
+            ctx.strokeStyle = r.rank === 1 ? "#fbbf24" : "rgba(255, 255, 255, 0.3)";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = r.rank === 1 ? "#fbbf24" : "#ffffff";
+            ctx.font = "bold 11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(getInitials(r.nomineeName), cx, cy);
+            ctx.textAlign = "start";
+            ctx.textBaseline = "alphabetic";
+          }
+
+          // Nominee Name
           ctx.fillStyle = "#ffffff";
           ctx.font = "bold 18px Georgia";
-          ctx.fillText(r.nomineeName.slice(0, 38), 160, y + 8);
+          ctx.fillText(r.nomineeName.slice(0, 34), 190, y + 10);
 
+          // Category Name
           ctx.fillStyle = "#9ba9a1";
           ctx.font = "14px sans-serif";
-          ctx.fillText(r.categoryName.slice(0, 30), 580, y + 8);
+          ctx.fillText(r.categoryName.slice(0, 28), 580, y + 10);
 
+          // Valid Votes
           ctx.fillStyle = "#4ade80";
           ctx.font = "bold 18px sans-serif";
-          ctx.fillText(`${r.validVotes.toLocaleString()} votes`, 920, y + 8);
+          ctx.fillText(`${r.validVotes.toLocaleString()} votes`, 910, y + 10);
 
+          // Category Share
           ctx.fillStyle = "#d4af37";
           ctx.font = "13px sans-serif";
-          ctx.fillText(r.categoryVoteShare, 1080, y + 8);
+          ctx.fillText(r.categoryVoteShare, 1075, y + 10);
 
-          y += 70;
+          y += 75;
         });
       } else {
         // Ticketing KPI Strip
@@ -286,12 +352,16 @@ export function OfficialAuditModal({
 
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(ticketAnalysis.totalCapacity > 0 ? ticketAnalysis.totalCapacity.toLocaleString() : "Unlimited", 500, 212);
+        ctx.fillText(
+          ticketAnalysis.totalCapacity > 0 ? ticketAnalysis.totalCapacity.toLocaleString() : "Unlimited",
+          500,
+          212
+        );
         ctx.fillStyle = "#9ba9a1";
         ctx.font = "12px sans-serif";
         ctx.fillText("CAPACITY ALLOWANCE", 500, 232);
 
-        // Tiers
+        // Tiers Matrix
         let y = 280;
         ticketAnalysis.tierBreakdown.forEach((t) => {
           ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
@@ -332,6 +402,194 @@ export function OfficialAuditModal({
       link.click();
     } finally {
       setIsGeneratingImage(false);
+    }
+  }
+
+  // Dedicated Winner Announcement Card (1080x1350 Portrait for WhatsApp Status & Instagram)
+  async function handleDownloadWinnerCard() {
+    setIsGeneratingWinnerCard(true);
+    try {
+      const topWinner =
+        votingAnalysis.ranked.find((r) => r.rank === 1 && r.validVotes > 0) ||
+        votingAnalysis.ranked[0];
+
+      if (!topWinner) return;
+
+      const canvas = document.createElement("canvas");
+      const width = 1080;
+      const height = 1350;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Dark luxury emerald gradient background
+      const grad = ctx.createLinearGradient(0, 0, width, height);
+      grad.addColorStop(0, "#01130a");
+      grad.addColorStop(0.3, "#072f1e");
+      grad.addColorStop(0.7, "#052216");
+      grad.addColorStop(1, "#01130a");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Gold Double Framing
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.45)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(36, 36, width - 72, height - 72);
+
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.2)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(50, 50, width - 100, height - 100);
+
+      // VoteCastHub Logo at top
+      const logo = await loadImage("/images/votecasthub-logo.png");
+      if (logo) {
+        ctx.drawImage(logo, width / 2 - 80, 75, 160, 68);
+      } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 30px Georgia";
+        ctx.textAlign = "center";
+        ctx.fillText("VOTECASTHUB GH", width / 2, 120);
+      }
+
+      ctx.textAlign = "center";
+
+      // Official declaration banner
+      ctx.fillStyle = "#d4af37";
+      ctx.font = "bold 13px sans-serif";
+      ctx.letterSpacing = "2px";
+      ctx.fillText("★ ★ ★  OFFICIAL CERTIFIED WINNER  ★ ★ ★", width / 2, 180);
+
+      // Event Name
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 32px Georgia";
+      ctx.fillText(event.name.slice(0, 40), width / 2, 230);
+
+      // Category Pill
+      ctx.fillStyle = "rgba(212, 175, 55, 0.15)";
+      ctx.fillRect(width / 2 - 280, 260, 560, 46);
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(width / 2 - 280, 260, 560, 46);
+
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 18px Georgia";
+      ctx.fillText(topWinner.categoryName.toUpperCase(), width / 2, 290);
+
+      // Large Winner Portrait (300px diameter circular avatar)
+      const cx = width / 2;
+      const cy = 540;
+      const radius = 150;
+      const winnerPhotoUrl = nomineePhotos[topWinner.nomineeId];
+      const winnerImg = winnerPhotoUrl ? await loadImage(winnerPhotoUrl) : null;
+
+      if (winnerImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(winnerImg, cx - radius, cy - radius, radius * 2, radius * 2);
+        ctx.restore();
+
+        // Glowing Gold Double Ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 12, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else {
+        // Fallback gold/emerald monogram circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#064e3b";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 72px Georgia";
+        ctx.textBaseline = "middle";
+        ctx.fillText(getInitials(topWinner.nomineeName), cx, cy);
+        ctx.textBaseline = "alphabetic";
+      }
+
+      // Winner Badge under photo
+      ctx.fillStyle = "#d97706";
+      ctx.fillRect(cx - 90, cy + radius - 20, 180, 40);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("🥇 1ST PLACE", cx, cy + radius + 6);
+
+      // Winner's Full Name
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 44px Georgia";
+      ctx.fillText(topWinner.nomineeName, cx, 770);
+
+      // Vote Tally Pill
+      ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
+      ctx.fillRect(cx - 240, 810, 480, 65);
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - 240, 810, 480, 65);
+
+      ctx.fillStyle = "#4ade80";
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillText(
+        `🏆 ${topWinner.validVotes.toLocaleString()} Certified Ballots`,
+        cx,
+        852
+      );
+
+      ctx.fillStyle = "#d4af37";
+      ctx.font = "16px sans-serif";
+      ctx.fillText(`${topWinner.categoryVoteShare} of Category Vote Share`, cx, 915);
+
+      // Separator
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.beginPath();
+      ctx.moveTo(150, 960);
+      ctx.lineTo(width - 150, 960);
+      ctx.stroke();
+
+      // Audit Verification Seal
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("CERTIFIED TAMPER-EVIDENT RECORD · VOTICASTHUB GHANA", cx, 1010);
+
+      ctx.fillStyle = "#4ade80";
+      ctx.font = "bold 16px monospace";
+      ctx.fillText(`LEDGER ID: ${auditHash}`, cx, 1045);
+
+      ctx.fillStyle = "#9ba9a1";
+      ctx.font = "12px sans-serif";
+      ctx.fillText(
+        `Authenticated record generated on ${dateFormatted}. Verified on votecasthub.com`,
+        cx,
+        1075
+      );
+
+      // Bottom Watermark
+      ctx.fillStyle = "#475569";
+      ctx.font = "11px sans-serif";
+      ctx.fillText("POWERING ELECTIONS & AWARDS ACROSS GHANA", cx, 1280);
+
+      const link = document.createElement("a");
+      link.download = `${slugify(event.name)}_${slugify(topWinner.nomineeName)}_winner_card_${auditHash}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally {
+      setIsGeneratingWinnerCard(false);
     }
   }
 
@@ -385,7 +643,7 @@ export function OfficialAuditModal({
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={handlePrint}
@@ -393,6 +651,29 @@ export function OfficialAuditModal({
               title="Print document or save as clean PDF"
             >
               <span>🖨️ Print / Save PDF</span>
+            </button>
+
+            {docType === "voting" && votingAnalysis.ranked.length > 0 && (
+              <button
+                type="button"
+                disabled={isGeneratingWinnerCard}
+                onClick={handleDownloadWinnerCard}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
+                title="Download 1080x1350 Winner Portrait Card with Nominee Photo for WhatsApp/Instagram"
+              >
+                <span>🏆 {isGeneratingWinnerCard ? "Generating..." : "Winner Card (.PNG)"}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isGeneratingImage}
+              onClick={handleDownloadGraphic}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+              title="Download Retina-ready branded graphic with nominee photos"
+            >
+              <Icon name="image" size={13} />
+              <span>{isGeneratingImage ? "Generating..." : "Summary Graphic (.PNG)"}</span>
             </button>
 
             <button
@@ -403,17 +684,6 @@ export function OfficialAuditModal({
             >
               <Icon name="download" size={13} />
               <span>Analyzed CSV</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isGeneratingImage}
-              onClick={handleDownloadGraphic}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-              title="Download Retina-ready branded graphic"
-            >
-              <Icon name="image" size={13} />
-              <span>{isGeneratingImage ? "Generating..." : "Graphic .PNG"}</span>
             </button>
 
             <button
@@ -562,6 +832,7 @@ export function OfficialAuditModal({
                           <tbody className="divide-y divide-stone-100">
                             {rows.map((r, idx) => {
                               const isWinner = r.rank === 1 && r.validVotes > 0;
+                              const photoUrl = nomineePhotos[r.nomineeId];
                               return (
                                 <tr
                                   key={idx}
@@ -577,12 +848,25 @@ export function OfficialAuditModal({
                                     )}
                                   </td>
                                   <td className="py-2 px-3 text-stone-900">
-                                    {r.nomineeName}
-                                    {isWinner && (
-                                      <span className="ml-2 text-[10px] font-bold uppercase text-emerald-800">
-                                        🥇 Winner
-                                      </span>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                      {photoUrl ? (
+                                        <img
+                                          src={photoUrl}
+                                          alt={r.nomineeName}
+                                          className="h-6 w-6 rounded-full object-cover border border-stone-300 shrink-0"
+                                        />
+                                      ) : (
+                                        <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-100 text-emerald-950 font-bold text-[9px] shrink-0">
+                                          {getInitials(r.nomineeName)}
+                                        </span>
+                                      )}
+                                      <span className="font-semibold text-stone-950">{r.nomineeName}</span>
+                                      {isWinner && (
+                                        <span className="ml-1 text-[10px] font-bold uppercase text-emerald-800">
+                                          🥇 Winner
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="py-2 px-3 text-right font-mono font-semibold text-stone-900">
                                     {r.validVotes.toLocaleString()}

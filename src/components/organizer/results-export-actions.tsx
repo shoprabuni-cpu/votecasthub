@@ -19,6 +19,7 @@ export function ResultsExportActions({
   organizationId = "",
   ticketTiers = [],
   attendees = [],
+  nomineePhotos = {},
 }: {
   nominees: NomineeAnalytics[];
   scopeLabel: string;
@@ -35,6 +36,7 @@ export function ResultsExportActions({
   organizationId?: string;
   ticketTiers?: TicketTier[];
   attendees?: AttendeeRecord[];
+  nomineePhotos?: Record<string, string>;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"voting" | "ticketing">("voting");
@@ -161,6 +163,7 @@ export function ResultsExportActions({
           nominees={nominees}
           ticketTiers={ticketTiers}
           attendees={attendees}
+          nomineePhotos={nomineePhotos}
           defaultDocType={modalType}
         />
       )}

@@ -114,6 +114,38 @@ export default async function AnalyticsPage({
   const row = analytics.rows[0];
   if (!row) return unavailable("This event is no longer available.");
 
+  const categoryIds = analytics.categories.map((c) => c.category_id);
+  const nomineePhotos: Record<string, string> = {};
+
+  if (categoryIds.length > 0) {
+    const { data: rawNominees } = await supabase
+      .from("nominees")
+      .select("id, image_path")
+      .in("category_id", categoryIds);
+
+    const paths = (rawNominees ?? [])
+      .map((n) => n.image_path)
+      .filter((p): p is string => Boolean(p));
+
+    if (paths.length > 0) {
+      const { data: signedImages } = await supabase.storage
+        .from("nominee-images")
+        .createSignedUrls(paths, 3600);
+
+      const pathToUrl = new Map(
+        (signedImages ?? []).flatMap((img) =>
+          img.signedUrl && img.path ? [[img.path, img.signedUrl] as const] : []
+        )
+      );
+
+      for (const n of rawNominees ?? []) {
+        if (n.image_path && pathToUrl.has(n.image_path)) {
+          nomineePhotos[n.id] = pathToUrl.get(n.image_path)!;
+        }
+      }
+    }
+  }
+
   const ticketTiers = (tiersRes?.data ?? []) as TicketTier[];
   const attendees = (attendeesRes?.data ?? []) as AttendeeRecord[];
   const isTicketing = event.event_type === "ticketing";
@@ -434,6 +466,7 @@ export default async function AnalyticsPage({
           paid={paid}
           ticketTiers={ticketTiers}
           attendees={attendees}
+          nomineePhotos={nomineePhotos}
         />
       </section>
     </main>

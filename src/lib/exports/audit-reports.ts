@@ -15,6 +15,7 @@ export function generateAuditHash(eventId: string, dateStr?: string): string {
 }
 
 export interface AnalyzedVotingRow {
+  nomineeId: string;
   rank: number | string;
   categoryName: string;
   nomineeName: string;
@@ -55,6 +56,7 @@ export function analyzeVotingStandings(nominees: NomineeAnalytics[]): {
     }
 
     return {
+      nomineeId: row.nominee_id,
       rank: votes > 0 ? row.rank : "—",
       categoryName: row.category_name,
       nomineeName: row.nominee_name,

@@ -32,6 +32,7 @@ export function ReportsTabbedHub({
   paid,
   ticketTiers = [],
   attendees = [],
+  nomineePhotos = {},
 }: {
   analytics: OrganizerAnalytics;
   activityAnalytics?: OrganizerAnalytics | null;
@@ -43,6 +44,7 @@ export function ReportsTabbedHub({
   paid: boolean;
   ticketTiers?: TicketTier[];
   attendees?: AttendeeRecord[];
+  nomineePhotos?: Record<string, string>;
 }) {
   const isTicketing = event.event_type === "ticketing";
   const hasTickets = isTicketing || event.event_type === "hybrid" || ticketTiers.length > 0;
@@ -471,6 +473,7 @@ export function ReportsTabbedHub({
             organizationId={organizationId}
             ticketTiers={ticketTiers}
             attendees={attendees}
+            nomineePhotos={nomineePhotos}
           />
         </motion.div>
       )}
