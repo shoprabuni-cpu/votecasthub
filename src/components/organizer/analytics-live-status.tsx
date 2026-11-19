@@ -95,7 +95,7 @@ export function ShareEventButton({ slug }: { slug: string }) {
         href={`/events/${encodeURIComponent(slug)}`}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 hover:text-emerald-900 px-3 py-2"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 hover:text-emerald-900 px-3 py-2 transition-colors dark:text-stone-300 dark:hover:text-emerald-400"
       >
         <span>Open Public Page</span>
         <Icon name="arrowRight" size={13} />

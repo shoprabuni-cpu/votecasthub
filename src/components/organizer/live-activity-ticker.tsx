@@ -95,12 +95,12 @@ export function LiveActivityTicker({
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-200/80 bg-linear-to-r from-emerald-50/90 via-white to-sky-50/50 px-4 py-2.5 shadow-2xs"
+      className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-200/80 bg-linear-to-r from-emerald-50/90 via-white to-sky-50/50 px-4 py-2.5 shadow-2xs dark:border-emerald-900/50 dark:from-emerald-950/40 dark:via-[#0c120e] dark:to-emerald-950/20"
     >
       <div className="flex items-center gap-3 overflow-hidden">
         {/* Pulsing Live badge */}
-        <div className="flex items-center gap-1.5 shrink-0 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-1 text-[10px] font-black text-emerald-950 uppercase tracking-wider">
-          <span className="size-1.5 rounded-full bg-emerald-600 animate-ping" />
+        <div className="flex items-center gap-1.5 shrink-0 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-1 text-[10px] font-black text-emerald-950 uppercase tracking-wider dark:bg-emerald-950/80 dark:border-emerald-800 dark:text-emerald-300">
+          <span className="size-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-ping" />
           <span>LIVE PULSE</span>
         </div>
 
@@ -116,9 +116,9 @@ export function LiveActivityTicker({
               className="flex items-center gap-2 text-xs truncate"
             >
               <span className="text-sm shrink-0">{current.icon}</span>
-              <strong className="text-stone-900 font-semibold truncate">{current.text}</strong>
-              <span className="text-stone-400 hidden sm:inline">·</span>
-              <span className="text-stone-500 text-[11px] hidden sm:inline truncate">{current.subtext}</span>
+              <strong className="text-stone-900 font-semibold truncate dark:text-white">{current.text}</strong>
+              <span className="text-stone-400 dark:text-stone-600 hidden sm:inline">·</span>
+              <span className="text-stone-500 dark:text-stone-400 text-[11px] hidden sm:inline truncate">{current.subtext}</span>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -132,7 +132,9 @@ export function LiveActivityTicker({
             type="button"
             onClick={() => setCurrentIndex(idx)}
             className={`size-1.5 rounded-full transition-all cursor-pointer ${
-              idx === currentIndex ? "w-3 bg-emerald-700" : "bg-stone-300 hover:bg-stone-400"
+              idx === currentIndex
+                ? "w-3 bg-emerald-700 dark:bg-emerald-400"
+                : "bg-stone-300 hover:bg-stone-400 dark:bg-stone-700 dark:hover:bg-stone-600"
             }`}
             aria-label={`Jump to ticker update ${idx + 1}`}
           />

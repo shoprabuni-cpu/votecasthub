@@ -105,8 +105,8 @@ export function CategoryLeaderboardStudio({
             onClick={() => setSelectedCatId("all")}
             className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
               selectedCatId === "all"
-                ? "bg-emerald-900 text-white shadow-sm"
-                : "border border-stone-200 bg-white text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
+                ? "bg-emerald-900 text-white shadow-sm dark:bg-emerald-600"
+                : "border border-stone-200 bg-white text-stone-700 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:bg-[#141d18]"
             }`}
           >
             All Categories ({categories.length})
@@ -121,14 +121,14 @@ export function CategoryLeaderboardStudio({
                 onClick={() => setSelectedCatId(cat.category_id)}
                 className={`shrink-0 flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
                   isSelected
-                    ? "bg-emerald-900 text-white shadow-sm"
-                    : "border border-stone-200 bg-white text-stone-700 hover:border-emerald-600 hover:bg-stone-50"
+                    ? "bg-emerald-900 text-white shadow-sm dark:bg-emerald-600"
+                    : "border border-stone-200 bg-white text-stone-700 hover:border-emerald-600 hover:bg-stone-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-300 dark:hover:bg-[#141d18]"
                 }`}
               >
                 <span className="truncate max-w-[140px] sm:max-w-[200px]">{cat.category_name}</span>
                 <span
                   className={`rounded-full px-1.5 py-px text-[10px] font-mono font-bold ${
-                    isSelected ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-600"
+                    isSelected ? "bg-emerald-700 text-white dark:bg-emerald-500" : "bg-stone-100 text-stone-600 dark:bg-[#1c2721] dark:text-stone-300"
                   }`}
                 >
                   {Number(cat.total_votes).toLocaleString()}
@@ -146,7 +146,7 @@ export function CategoryLeaderboardStudio({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search nominee or category…"
-              className="w-full rounded-xl border border-stone-300 bg-white pl-3.5 pr-8 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 transition-all"
+              className="w-full rounded-xl border border-stone-300 bg-white pl-3.5 pr-8 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-3 focus:ring-emerald-600/15 transition-all dark:border-[#1c2721] dark:bg-[#141d18] dark:text-white dark:placeholder:text-stone-500"
             />
             <AnimatePresence>
               {searchQuery && (
@@ -156,7 +156,7 @@ export function CategoryLeaderboardStudio({
                   exit={{ opacity: 0, scale: 0.8 }}
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-2 text-xs text-stone-400 hover:text-stone-700 cursor-pointer"
+                  className="absolute right-2.5 top-2 text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
                 >
                   ✕
                 </motion.button>
@@ -164,7 +164,7 @@ export function CategoryLeaderboardStudio({
             </AnimatePresence>
           </div>
 
-          <div className="flex items-center gap-1 rounded-xl border border-stone-200 bg-stone-100 p-1 text-xs self-start sm:self-auto">
+          <div className="flex items-center gap-1 rounded-xl border border-stone-200 bg-stone-100 p-1 text-xs self-start sm:self-auto dark:border-[#1c2721] dark:bg-[#141d18]">
             {(["visual", "table"] as const).map((mode) => (
               <button
                 key={mode}
@@ -172,8 +172,8 @@ export function CategoryLeaderboardStudio({
                 onClick={() => setViewMode(mode)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === mode
-                    ? "bg-white text-stone-900 shadow-sm"
-                    : "text-stone-500 hover:text-stone-800"
+                    ? "bg-white text-stone-900 shadow-sm dark:bg-[#0c120e] dark:text-white"
+                    : "text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-white"
                 }`}
               >
                 {mode === "visual" ? "Visual Podium" : "Spreadsheet"}
@@ -208,42 +208,42 @@ export function CategoryLeaderboardStudio({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: catIndex * 0.04 }}
-              className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs"
+              className="overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]"
             >
               {/* Category Header */}
-              <div className="border-b border-stone-100 bg-gradient-to-r from-stone-50 via-white to-stone-50 px-5 py-5 sm:px-6">
+              <div className="border-b border-stone-100 bg-gradient-to-r from-stone-50 via-white to-stone-50 px-5 py-5 sm:px-6 dark:border-[#1c2721] dark:from-[#0c120e] dark:via-[#141d18] dark:to-[#0c120e]">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       Category Standings
                     </span>
-                    <h3 className="mt-0.5 text-lg font-serif font-bold text-stone-900 leading-tight">{category.category_name}</h3>
+                    <h3 className="mt-0.5 text-lg font-serif font-bold text-stone-900 dark:text-white leading-tight">{category.category_name}</h3>
                   </div>
 
                   <div className="text-right shrink-0">
-                    <span className="font-mono text-sm font-bold text-stone-900">
+                    <span className="font-mono text-sm font-bold text-stone-900 dark:text-white">
                       {totalCategoryVotes.toLocaleString()}
                     </span>
-                    <span className="text-[11px] text-stone-400 block">Total Ballots</span>
+                    <span className="text-[11px] text-stone-400 block dark:text-stone-500">Total Ballots</span>
                   </div>
                 </div>
 
                 {leaders.length > 0 ? (
                   <div className="mt-3 flex items-center gap-2 text-xs">
                     <span className="text-base leading-none">{ended ? "🏆" : "⚡"}</span>
-                    <span className="font-semibold text-emerald-900">
+                    <span className="font-semibold text-emerald-900 dark:text-emerald-300">
                       {leaders.map((l) => l.nominee_name).join(" & ")}
                     </span>
-                    <span className="text-stone-400">
+                    <span className="text-stone-400 dark:text-stone-500">
                       {leaders.length > 1 ? "— Tied for 1st" : ended ? "— Final Winner" : "— Currently Leading"}
                     </span>
                   </div>
                 ) : (
-                  <p className="mt-2 text-xs text-stone-400 italic">No votes recorded yet.</p>
+                  <p className="mt-2 text-xs text-stone-400 dark:text-stone-500 italic">No votes recorded yet.</p>
                 )}
 
                 {leaders.length > 0 && (
-                  <p className="mt-1 text-xs text-stone-500">{contestSummary(nominees, ended)}</p>
+                  <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{contestSummary(nominees, ended)}</p>
                 )}
               </div>
 
@@ -255,7 +255,7 @@ export function CategoryLeaderboardStudio({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="p-8 text-center text-xs text-stone-400 italic"
+                  className="p-8 text-center text-xs text-stone-400 dark:text-stone-500 italic"
                 >
                   No nominees match your search in this category.
                 </motion.div>
@@ -283,8 +283,8 @@ export function CategoryLeaderboardStudio({
                         transition={{ delay: idx * 0.03 }}
                         className={`rounded-2xl border p-4 transition-colors ${
                           isFirst
-                            ? "border-emerald-200 bg-gradient-to-r from-emerald-50/60 to-white"
-                            : "border-stone-200/70 bg-stone-50/20 hover:bg-stone-50/50"
+                            ? "border-emerald-200 bg-gradient-to-r from-emerald-50/60 to-white dark:border-emerald-900/60 dark:from-emerald-950/40 dark:to-[#0c120e]"
+                            : "border-stone-200/70 bg-stone-50/20 hover:bg-stone-50/50 dark:border-[#1c2721] dark:bg-[#141d18]/40 dark:hover:bg-[#141d18]"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-3 mb-3">
@@ -294,33 +294,33 @@ export function CategoryLeaderboardStudio({
                               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                                 medal
                                   ? `${medal.bg} ${medal.text}`
-                                  : "bg-stone-100 text-stone-500 border border-stone-200"
+                                  : "bg-stone-100 text-stone-500 border border-stone-200 dark:bg-[#1c2721] dark:border-stone-800 dark:text-stone-400"
                               }`}
                             >
                               {medal ? medal.emoji : `#${nominee.rank}`}
                             </span>
-                            <span className="font-semibold text-stone-900 text-sm truncate">
+                            <span className="font-semibold text-stone-900 dark:text-white text-sm truncate">
                               {nominee.nominee_name}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2.5 shrink-0 text-right">
                             {!isFirst && leaderVotes > 0 && (
-                              <span className="text-[11px] font-mono text-stone-400 hidden sm:inline">
+                              <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 hidden sm:inline">
                                 −{gap.toLocaleString()} behind
                               </span>
                             )}
-                            <span className="font-mono text-sm font-bold text-stone-900">
+                            <span className="font-mono text-sm font-bold text-stone-900 dark:text-white">
                               {votes.toLocaleString()}{" "}
-                              <span className="text-[10px] font-normal text-stone-400">votes</span>
+                              <span className="text-[10px] font-normal text-stone-400 dark:text-stone-500">votes</span>
                             </span>
-                            <span className="rounded-lg bg-stone-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-stone-600">
+                            <span className="rounded-lg bg-stone-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-stone-600 dark:bg-[#1c2721] dark:text-stone-300">
                               {sharePercent.toFixed(1)}%
                             </span>
                             <button
                               type="button"
                               onClick={() => setFlyerNominee(nominee)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300"
                               title={`Generate campaign flyer for ${nominee.nominee_name}`}
                             >
                               <span>🎨 Flyer</span>
@@ -329,7 +329,7 @@ export function CategoryLeaderboardStudio({
                         </div>
 
                         {/* Animated Progress Bar */}
-                        <div className="h-2 w-full rounded-full bg-stone-100 overflow-hidden">
+                        <div className="h-2 w-full rounded-full bg-stone-100 dark:bg-[#1c2721] overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${sharePercent}%` }}
@@ -341,7 +341,7 @@ export function CategoryLeaderboardStudio({
                                 ? "bg-stone-400"
                                 : nominee.rank === 3
                                 ? "bg-amber-400"
-                                : "bg-stone-300"
+                                : "bg-stone-300 dark:bg-stone-600"
                             }`}
                           />
                         </div>
@@ -360,7 +360,7 @@ export function CategoryLeaderboardStudio({
                   className="overflow-x-auto"
                 >
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-stone-50 text-stone-500 font-semibold border-b border-stone-200">
+                    <thead className="bg-stone-50 text-stone-500 font-semibold border-b border-stone-200 dark:bg-[#141d18] dark:text-stone-400 dark:border-[#1c2721]">
                       <tr>
                         <th className="px-5 py-3">Rank</th>
                         <th className="px-5 py-3">Nominee</th>
@@ -369,7 +369,7 @@ export function CategoryLeaderboardStudio({
                         <th className="px-5 py-3 text-right">Behind #1</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-100">
+                    <tbody className="divide-y divide-stone-100 dark:divide-[#1c2721]">
                       {nominees.map((nominee) => {
                         const votes = Number(nominee.total_votes);
                         const share = totalCategoryVotes > 0 ? (votes / totalCategoryVotes) * 100 : 0;
@@ -377,27 +377,27 @@ export function CategoryLeaderboardStudio({
                         const medal = MEDAL[nominee.rank];
 
                         return (
-                          <tr key={nominee.nominee_id} className="hover:bg-stone-50/50 transition-colors">
+                          <tr key={nominee.nominee_id} className="hover:bg-stone-50/50 dark:hover:bg-[#141d18]/50 transition-colors">
                             <td className="px-5 py-3">
                               <span
                                 className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold ${
                                   medal
                                     ? `${medal.bg} ${medal.text}`
-                                    : "bg-stone-100 text-stone-500 border border-stone-200"
+                                    : "bg-stone-100 text-stone-500 border border-stone-200 dark:bg-[#1c2721] dark:border-stone-800 dark:text-stone-400"
                                 }`}
                               >
                                 {nominee.rank}
                               </span>
                             </td>
-                            <td className="px-5 py-3 font-semibold text-stone-900">{nominee.nominee_name}</td>
-                            <td className="px-5 py-3 font-mono font-bold text-stone-900 text-right">
+                            <td className="px-5 py-3 font-semibold text-stone-900 dark:text-white">{nominee.nominee_name}</td>
+                            <td className="px-5 py-3 font-mono font-bold text-stone-900 dark:text-white text-right">
                               {votes.toLocaleString()}
                             </td>
-                            <td className="px-5 py-3 font-mono text-stone-600 text-right">{share.toFixed(1)}%</td>
+                            <td className="px-5 py-3 font-mono text-stone-600 dark:text-stone-300 text-right">{share.toFixed(1)}%</td>
                             <td className="px-5 py-3 font-mono text-right">
                               {isLeader
-                                ? <span className="text-emerald-700 font-semibold">Leader</span>
-                                : <span className="text-stone-400">−{(leaderVotes - votes).toLocaleString()}</span>
+                                ? <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Leader</span>
+                                : <span className="text-stone-400 dark:text-stone-500">−{(leaderVotes - votes).toLocaleString()}</span>
                               }
                             </td>
                           </tr>
@@ -425,15 +425,15 @@ export function CategoryLeaderboardStudio({
                 !n.category_name.toLowerCase().includes(q)
             );
         }) && (
-          <div className="rounded-2xl border border-stone-200 bg-stone-50/50 py-10 text-center">
-            <p className="text-sm text-stone-500">
+          <div className="rounded-2xl border border-stone-200 bg-stone-50/50 py-10 text-center dark:border-[#1c2721] dark:bg-[#0c120e]">
+            <p className="text-sm text-stone-500 dark:text-stone-400">
               No nominees matching{" "}
-              <strong className="text-stone-800">&ldquo;{searchQuery}&rdquo;</strong>.
+              <strong className="text-stone-800 dark:text-stone-200">&ldquo;{searchQuery}&rdquo;</strong>.
             </p>
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="mt-3 text-xs font-semibold text-emerald-700 hover:underline cursor-pointer"
+              className="mt-3 text-xs font-semibold text-emerald-700 hover:underline cursor-pointer dark:text-emerald-400"
             >
               Clear search
             </button>

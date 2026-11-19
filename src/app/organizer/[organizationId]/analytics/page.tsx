@@ -171,9 +171,10 @@ export default async function AnalyticsPage({
 
               <Link
                 href={`/organizer/${organizationId}/events/${event.id}`}
-                className="rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-emerald-950 hover:bg-stone-100 transition-all active:scale-95"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-semibold text-white shadow-xs backdrop-blur-sm hover:bg-white/20 transition-all active:scale-95"
               >
-                Manage Event Settings →
+                <span>Event Settings</span>
+                <Icon name="arrowRight" size={13} />
               </Link>
             </div>
           </div>
@@ -188,23 +189,23 @@ export default async function AnalyticsPage({
 
         {/* Pending Payments Alert if any */}
         {Number(analytics.pending_payments) > 0 && (
-          <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark:border-amber-900/60 dark:bg-amber-950/30">
             <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold text-xs">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold text-xs dark:bg-amber-900 dark:text-amber-200">
                 !
               </span>
               <div>
-                <h2 className="font-semibold text-amber-950 text-sm">
+                <h2 className="font-semibold text-amber-950 dark:text-amber-200 text-sm">
                   {Number(analytics.pending_payments).toLocaleString()} Payments Awaiting Confirmation
                 </h2>
-                <p className="mt-0.5 text-xs text-amber-800 leading-relaxed">
+                <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                   These payments are currently being processed by Paystack and will automatically count as confirmed votes as soon as settled.
                 </p>
               </div>
             </div>
             <Link
               href={`/organizer/${organizationId}/payments`}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800 transition-all"
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-800 transition-all dark:bg-amber-700 dark:hover:bg-amber-600"
             >
               <span>Inspect Transactions</span>
               <Icon name="arrowRight" size={13} />
@@ -239,12 +240,16 @@ export default async function AnalyticsPage({
 
           {/* Voter Conversion */}
           <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Voter Conversion Rate</span>
+            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">
+              {stage === "upcoming" ? "Pre-Launch Traffic" : "Voter Conversion Rate"}
+            </span>
             <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
-              {conversionRate}%
+              {stage === "upcoming" ? `${visitorsCount} Visits` : `${conversionRate}%`}
             </strong>
             <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
-              {visitorsCount.toLocaleString()} visitors ({safeNum(analytics.views).toLocaleString()} page views)
+              {stage === "upcoming"
+                ? "Unique visitors previewing candidate profiles"
+                : `${visitorsCount.toLocaleString()} visitors (${safeNum(analytics.views).toLocaleString()} page views)`}
             </p>
           </article>
 
