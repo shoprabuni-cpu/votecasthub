@@ -146,13 +146,23 @@ export function OfficialAuditModal({
   const totalFee = votingFee + ticketsFee;
   const totalUnits = votingUnits + ticketsUnits;
 
-  // Print Action
+  // Print Action with proper reflow and persistent print mode until afterprint
   function handlePrint() {
-    document.body.classList.add("printing-audit-report");
-    window.print();
-    setTimeout(() => {
+    const cleanup = () => {
       document.body.classList.remove("printing-audit-report");
-    }, 500);
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    document.body.classList.add("printing-audit-report");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.print();
+      });
+    });
+    // Fallback safety timeout if afterprint is cancelled or not dispatched
+    setTimeout(() => {
+      cleanup();
+    }, 30000);
   }
 
   // CSV Export Action
@@ -214,131 +224,143 @@ export function OfficialAuditModal({
     });
   }
 
-  // Standings / Financial Summary Graphic (Landscape 1200px)
+  // Standings / Financial Summary Graphic (Landscape 1200px - White Crisp Luxury Audit Theme)
   async function handleDownloadGraphic() {
     setIsGeneratingImage(true);
     try {
       const canvas = document.createElement("canvas");
       const width = 1200;
+
+      const categoryEntries = Object.entries(categoriesGrouped);
+      const totalNomineesCount = categoryEntries.reduce((sum, [, rows]) => sum + rows.length, 0);
+
+      // Dynamic height calculation so every category and nominee fits completely without truncating
       const height =
         docType === "financial"
-          ? 780
+          ? 820
           : docType === "voting"
-          ? Math.min(1600, 440 + Math.min(12, votingAnalysis.ranked.length) * 88)
-          : Math.min(1400, 440 + Math.min(8, ticketTiers.length) * 90);
+          ? Math.max(760, 270 + categoryEntries.length * 80 + totalNomineesCount * 62 + 90)
+          : Math.max(700, 320 + Math.max(1, ticketAnalysis.tierBreakdown.length) * 85 + 100);
 
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Dark emerald luxury gradient background
-      const grad = ctx.createLinearGradient(0, 0, width, height);
-      grad.addColorStop(0, "#03140d");
-      grad.addColorStop(0.4, "#0a291b");
-      grad.addColorStop(1, "#03140d");
-      ctx.fillStyle = grad;
+      // Clean, bright white background
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
 
-      // Gold border accent
-      ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(24, 24, width - 48, height - 48);
+      // Outer border and top emerald accent bar
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, 20, width - 40, height - 40);
 
-      // Load VoteCastHub Logo
+      ctx.fillStyle = "#059669";
+      ctx.fillRect(20, 20, width - 40, 6);
+
+      // Load VoteCastHub Official Logo
       const logo = await loadImage("/images/votecasthub-logo.png");
       if (logo) {
-        ctx.drawImage(logo, 50, 45, 120, 52);
+        ctx.drawImage(logo, 50, 42, 130, 52);
       } else {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#065f46";
         ctx.font = "bold 26px Georgia";
-        ctx.fillText("VOTECASTHUB GH", 50, 80);
+        ctx.fillText("VOTECASTHUB GH", 50, 78);
       }
 
       // Title & Header Text
-      ctx.fillStyle = "#d4af37";
-      ctx.font = "bold 13px sans-serif";
+      ctx.fillStyle = "#047857";
+      ctx.font = "bold 12px sans-serif";
       ctx.fillText(
         docType === "financial"
-          ? "CERTIFIED FINANCIAL SETTLEMENT LEDGER · GHANA"
+          ? "CERTIFIED FINANCIAL SETTLEMENT STATEMENT · GHANA"
+          : docType === "ticketing"
+          ? "OFFICIAL GATE ADMITTANCE & ATTENDEE MANIFEST · GHANA"
           : "CERTIFIED OFFICIAL AUDIT LEDGER · GHANA",
-        190,
-        62
+        195,
+        60
       );
 
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 32px Georgia";
-      ctx.fillText(event.name.slice(0, 45), 190, 96);
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 30px Georgia";
+      ctx.fillText(event.name.slice(0, 46), 195, 94);
 
-      ctx.fillStyle = "#9ba9a1";
-      ctx.font = "14px sans-serif";
+      ctx.fillStyle = "#64748b";
+      ctx.font = "13px sans-serif";
       ctx.fillText(
-        `Audit Hash: ${auditHash} · Generated ${new Date().toISOString().slice(0, 10)} GMT`,
-        190,
-        122
+        `Audit Hash: ${auditHash} · Generated ${new Date().toISOString().slice(0, 10)} GMT · Verified Ledger`,
+        195,
+        120
       );
 
-      // Draw Separator line
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      // Separator line
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(50, 150);
-      ctx.lineTo(width - 50, 150);
+      ctx.moveTo(50, 146);
+      ctx.lineTo(width - 50, 146);
       ctx.stroke();
 
       if (docType === "financial") {
-        // 3 Giant Financial Metric Boxes
-        ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
-        ctx.fillRect(50, 180, 350, 130);
-        ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+        // 3 Financial Metric Boxes on clean cards
+        // Card 1: Net Payout (90%)
+        ctx.fillStyle = "#ecfdf5";
+        ctx.fillRect(50, 175, 350, 130);
+        ctx.strokeStyle = "#10b981";
         ctx.lineWidth = 2;
-        ctx.strokeRect(50, 180, 350, 130);
+        ctx.strokeRect(50, 175, 350, 130);
 
-        ctx.fillStyle = "#4ade80";
-        ctx.font = "bold 36px Georgia";
-        ctx.fillText(money(totalNet), 75, 235);
-        ctx.fillStyle = "#a7f3d0";
+        ctx.fillStyle = "#047857";
+        ctx.font = "bold 34px Georgia";
+        ctx.fillText(money(totalNet), 75, 228);
+        ctx.fillStyle = "#065f46";
         ctx.font = "bold 12px sans-serif";
-        ctx.fillText("ORGANIZER NET PAYOUT (90%)", 75, 265);
-        ctx.fillStyle = "#9ba9a1";
+        ctx.fillText("ORGANIZER NET PAYOUT (90%)", 75, 258);
+        ctx.fillStyle = "#047857";
         ctx.font = "11px sans-serif";
-        ctx.fillText("Credited to designated MoMo / Bank", 75, 290);
+        ctx.fillText("Credited to designated MoMo / Bank account", 75, 282);
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.fillRect(425, 180, 350, 130);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-        ctx.strokeRect(425, 180, 350, 130);
+        // Card 2: Gross Collected
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(425, 175, 350, 130);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(425, 175, 350, 130);
 
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 36px Georgia";
-        ctx.fillText(money(totalGross), 450, 235);
-        ctx.fillStyle = "#e2e8f0";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 34px Georgia";
+        ctx.fillText(money(totalGross), 450, 228);
+        ctx.fillStyle = "#334155";
         ctx.font = "bold 12px sans-serif";
-        ctx.fillText("GROSS REVENUE COLLECTED", 450, 265);
-        ctx.fillStyle = "#9ba9a1";
+        ctx.fillText("GROSS REVENUE COLLECTED", 450, 258);
+        ctx.fillStyle = "#64748b";
         ctx.font = "11px sans-serif";
-        ctx.fillText(`From ${totalUnits.toLocaleString()} total units paid`, 450, 290);
+        ctx.fillText(`From ${totalUnits.toLocaleString()} total units paid`, 450, 282);
 
-        ctx.fillStyle = "rgba(212, 175, 55, 0.08)";
-        ctx.fillRect(800, 180, 350, 130);
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.35)";
-        ctx.strokeRect(800, 180, 350, 130);
+        // Card 3: Platform Fee (10%)
+        ctx.fillStyle = "#fffbeb";
+        ctx.fillRect(800, 175, 350, 130);
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(800, 175, 350, 130);
 
-        ctx.fillStyle = "#fbbf24";
-        ctx.font = "bold 36px Georgia";
-        ctx.fillText(money(totalFee), 825, 235);
-        ctx.fillStyle = "#fef3c7";
+        ctx.fillStyle = "#b45309";
+        ctx.font = "bold 34px Georgia";
+        ctx.fillText(money(totalFee), 825, 228);
+        ctx.fillStyle = "#92400e";
         ctx.font = "bold 12px sans-serif";
-        ctx.fillText("PLATFORM SERVICE FEE (10%)", 825, 265);
-        ctx.fillStyle = "#9ba9a1";
+        ctx.fillText("PLATFORM SERVICE FEE (10%)", 825, 258);
+        ctx.fillStyle = "#b45309";
         ctx.font = "11px sans-serif";
-        ctx.fillText("Absorbs telecom MoMo charges & SMS", 825, 290);
+        ctx.fillText("Absorbs telecom MoMo charges & SMS", 825, 282);
 
         // Financial Streams Breakdown
-        let y = 370;
-        ctx.fillStyle = "#ffffff";
+        let y = 355;
+        ctx.fillStyle = "#0f172a";
         ctx.font = "bold 18px Georgia";
         ctx.fillText("REVENUE STREAMS RECONCILIATION", 50, y);
-        y += 30;
+        y += 28;
 
         const streams = [
           ...(votingUnits > 0 || votingGross > 0
@@ -350,67 +372,83 @@ export function OfficialAuditModal({
         ];
 
         streams.forEach((s, idx) => {
-          ctx.fillStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.2)";
+          ctx.fillStyle = idx % 2 === 0 ? "#f8fafc" : "#ffffff";
           ctx.fillRect(50, y, width - 100, 65);
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.strokeRect(50, y, width - 100, 65);
 
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 18px Georgia";
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 17px Georgia";
           ctx.fillText(s.name, 75, y + 38);
 
-          ctx.fillStyle = "#9ba9a1";
+          ctx.fillStyle = "#64748b";
           ctx.font = "14px sans-serif";
           ctx.fillText(s.units, 350, y + 38);
 
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = "#0f172a";
           ctx.font = "bold 16px monospace";
           ctx.fillText(`Gross: ${s.gross}`, 560, y + 38);
 
-          ctx.fillStyle = "#fbbf24";
+          ctx.fillStyle = "#b45309";
           ctx.font = "bold 16px monospace";
-          ctx.fillText(`Fee (10%): ${s.fee}`, 780, y + 38);
+          ctx.fillText(`Fee (10%): ${s.fee}`, 770, y + 38);
 
-          ctx.fillStyle = "#4ade80";
+          ctx.fillStyle = "#047857";
           ctx.font = "bold 18px monospace";
           ctx.fillText(`Net (90%): ${s.net}`, 970, y + 38);
 
-          y += 80;
+          y += 75;
         });
 
         // MoMo notice
-        ctx.fillStyle = "#d4af37";
-        ctx.font = "bold 13px sans-serif";
-        ctx.fillText("SETTLEMENT CYCLE: AUTOMATIC T+1 CLEARING VIA PAYSTACK GHANA (BANK OF GHANA REGULATED)", 50, height - 60);
+        ctx.fillStyle = "#047857";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("SETTLEMENT CYCLE: AUTOMATIC T+1 CLEARING VIA PAYSTACK GHANA (BANK OF GHANA REGULATED)", 50, height - 55);
       } else if (docType === "voting") {
-        // KPI Strip
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.fillRect(50, 170, width - 100, 75);
+        // KPI Strip on clean card (#f8fafc with #e2e8f0 border)
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(50, 165, width - 100, 72);
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(50, 165, width - 100, 72);
 
-        ctx.fillStyle = "#4ade80";
+        // KPI 1: Total Ballots
+        ctx.fillStyle = "#047857";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(votingAnalysis.totalEventVotes.toLocaleString(), 75, 212);
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("TOTAL BALLOTS", 75, 232);
+        ctx.fillText(votingAnalysis.totalEventVotes.toLocaleString(), 75, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("TOTAL BALLOTS", 75, 222);
 
-        ctx.fillStyle = "#ffffff";
+        // KPI 2: Categories
+        ctx.fillStyle = "#0f172a";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(votingAnalysis.categoryCount.toString(), 280, 212);
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("CATEGORIES", 280, 232);
+        ctx.fillText(votingAnalysis.categoryCount.toString(), 300, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("CATEGORIES", 300, 222);
 
-        ctx.fillStyle = "#ffffff";
+        // KPI 3: Nominees
+        ctx.fillStyle = "#0f172a";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(votingAnalysis.nomineeCount.toString(), 460, 212);
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("NOMINEES", 460, 232);
+        ctx.fillText(votingAnalysis.nomineeCount.toString(), 520, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("NOMINEES", 520, 222);
+
+        // KPI 4: Ballot Integrity
+        ctx.fillStyle = "#047857";
+        ctx.font = "bold 24px Georgia";
+        ctx.fillText("100%", 750, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("AUDITED INTEGRITY", 750, 222);
 
         // Preload Nominee Avatars in parallel
-        const topRows = votingAnalysis.ranked.slice(0, 12);
+        const allNominees = Object.values(categoriesGrouped).flat();
         const avatarMap: Record<string, HTMLImageElement | null> = {};
         await Promise.all(
-          topRows.map(async (r) => {
+          allNominees.map(async (r) => {
             const photoUrl = nomineePhotos[r.nomineeId];
             if (photoUrl) {
               avatarMap[r.nomineeId] = await loadImage(photoUrl);
@@ -418,140 +456,207 @@ export function OfficialAuditModal({
           })
         );
 
-        // Render Standings Rows with Photos
-        let y = 280;
-        topRows.forEach((r, idx) => {
-          ctx.fillStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.2)";
-          ctx.fillRect(50, y - 30, width - 100, 68);
+        // Render STANDINGS SEPARATED INTO CATEGORIES!
+        let y = 265;
+        for (const [catName, rows] of categoryEntries) {
+          const catTotal = votingAnalysis.categoryTotals[catName] || rows.reduce((s, x) => s + x.validVotes, 0);
 
-          // Rank Badge
-          ctx.fillStyle = r.rank === 1 ? "#fbbf24" : "#ffffff";
-          ctx.font = "bold 18px sans-serif";
-          ctx.fillText(r.rank === 1 ? "🥇 #1" : `#${r.rank}`, 68, y + 10);
+          // Category Header Banner
+          ctx.fillStyle = "#f1f5f9";
+          ctx.fillRect(50, y, width - 100, 42);
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.strokeRect(50, y, width - 100, 42);
 
-          // Nominee Circular Avatar
-          const cx = 150;
-          const cy = y + 4;
-          const radius = 20;
-          const img = avatarMap[r.nomineeId];
+          // Left Category Name
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 15px Georgia";
+          ctx.fillText(`📁 CATEGORY: ${catName.toUpperCase()}`, 65, y + 26);
 
-          if (img) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
-            ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
-            ctx.restore();
+          // Right Category Votes Total
+          ctx.fillStyle = "#047857";
+          ctx.font = "bold 13px sans-serif";
+          ctx.textAlign = "right";
+          ctx.fillText(`${catTotal.toLocaleString()} Category Ballots · 100% Share`, width - 65, y + 26);
+          ctx.textAlign = "left";
 
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = r.rank === 1 ? "#fbbf24" : "rgba(255, 255, 255, 0.4)";
-            ctx.lineWidth = r.rank === 1 ? 2.5 : 1.2;
-            ctx.stroke();
-          } else {
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.fillStyle = r.rank === 1 ? "#78350f" : "#064e3b";
-            ctx.fill();
-            ctx.strokeStyle = r.rank === 1 ? "#fbbf24" : "rgba(255, 255, 255, 0.3)";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+          y += 50;
 
-            ctx.fillStyle = r.rank === 1 ? "#fbbf24" : "#ffffff";
-            ctx.font = "bold 11px sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(getInitials(r.nomineeName), cx, cy);
-            ctx.textAlign = "start";
-            ctx.textBaseline = "alphabetic";
-          }
+          // Table column labels
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "bold 10px sans-serif";
+          ctx.fillText("RANK", 65, y);
+          ctx.fillText("NOMINEE", 145, y);
+          ctx.fillText("VOTES", 840, y);
+          ctx.fillText("CATEGORY SHARE", 980, y);
+          ctx.fillText("STANDING", 1090, y);
+          y += 12;
 
-          // Nominee Name
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 18px Georgia";
-          ctx.fillText(r.nomineeName.slice(0, 34), 190, y + 10);
+          // Nominee Rows under this category
+          rows.forEach((r, idx) => {
+            const isWinner = r.rank === 1 && r.validVotes > 0;
 
-          // Category Name
-          ctx.fillStyle = "#9ba9a1";
-          ctx.font = "14px sans-serif";
-          ctx.fillText(r.categoryName.slice(0, 28), 580, y + 10);
+            // Row background
+            ctx.fillStyle = isWinner ? "#f0fdf4" : idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+            ctx.fillRect(50, y, width - 100, 52);
+            ctx.strokeStyle = isWinner ? "#bbf7d0" : "#f1f5f9";
+            ctx.strokeRect(50, y, width - 100, 52);
 
-          // Valid Votes
-          ctx.fillStyle = "#4ade80";
-          ctx.font = "bold 18px sans-serif";
-          ctx.fillText(`${r.validVotes.toLocaleString()} votes`, 910, y + 10);
+            // Rank Badge
+            if (isWinner) {
+              ctx.fillStyle = "#fef3c7";
+              ctx.fillRect(65, y + 13, 50, 26);
+              ctx.strokeStyle = "#f59e0b";
+              ctx.strokeRect(65, y + 13, 50, 26);
+              ctx.fillStyle = "#b45309";
+              ctx.font = "bold 13px sans-serif";
+              ctx.fillText("🥇 #1", 72, y + 31);
+            } else {
+              ctx.fillStyle = "#f1f5f9";
+              ctx.fillRect(65, y + 13, 50, 26);
+              ctx.fillStyle = "#64748b";
+              ctx.font = "bold 13px sans-serif";
+              ctx.fillText(`#${r.rank}`, 78, y + 31);
+            }
 
-          // Category Share
-          ctx.fillStyle = "#d4af37";
-          ctx.font = "13px sans-serif";
-          ctx.fillText(r.categoryVoteShare, 1075, y + 10);
+            // Nominee Avatar
+            const cx = 150;
+            const cy = y + 26;
+            const radius = 18;
+            const img = avatarMap[r.nomineeId];
 
-          y += 75;
-        });
+            if (img) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+              ctx.closePath();
+              ctx.clip();
+              ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
+              ctx.restore();
+
+              ctx.beginPath();
+              ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+              ctx.strokeStyle = isWinner ? "#f59e0b" : "#cbd5e1";
+              ctx.lineWidth = isWinner ? 2 : 1;
+              ctx.stroke();
+            } else {
+              ctx.beginPath();
+              ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+              ctx.fillStyle = isWinner ? "#fef3c7" : "#d1fae5";
+              ctx.fill();
+              ctx.strokeStyle = isWinner ? "#f59e0b" : "#10b981";
+              ctx.lineWidth = 1;
+              ctx.stroke();
+
+              ctx.fillStyle = isWinner ? "#b45309" : "#065f46";
+              ctx.font = "bold 11px sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(getInitials(r.nomineeName), cx, cy);
+              ctx.textAlign = "left";
+              ctx.textBaseline = "alphabetic";
+            }
+
+            // Nominee Name
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "bold 16px Georgia";
+            ctx.fillText(r.nomineeName.slice(0, 36), 185, y + 32);
+
+            // Winner badge text next to name if winner
+            if (isWinner) {
+              const nameW = ctx.measureText(r.nomineeName.slice(0, 36)).width;
+              ctx.fillStyle = "#047857";
+              ctx.font = "bold 11px sans-serif";
+              ctx.fillText("🥇 WINNER", 195 + nameW, y + 31);
+            }
+
+            // Valid Votes
+            ctx.fillStyle = "#047857";
+            ctx.font = "bold 16px monospace";
+            ctx.fillText(`${r.validVotes.toLocaleString()} votes`, 840, y + 32);
+
+            // Category Share
+            ctx.fillStyle = "#b45309";
+            ctx.font = "bold 14px sans-serif";
+            ctx.fillText(r.categoryVoteShare, 980, y + 32);
+
+            // Standing Status
+            ctx.fillStyle = isWinner ? "#047857" : "#64748b";
+            ctx.font = "bold 12px sans-serif";
+            ctx.fillText(r.status || (isWinner ? "Winner" : "Nominee"), 1090, y + 32);
+
+            y += 56;
+          });
+
+          y += 20; // Space between categories
+        }
       } else {
-        // Ticketing KPI Strip
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.fillRect(50, 170, width - 100, 75);
+        // Ticketing KPI Strip on white/slate card
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(50, 165, width - 100, 72);
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(50, 165, width - 100, 72);
 
-        ctx.fillStyle = "#4ade80";
+        ctx.fillStyle = "#047857";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(ticketAnalysis.totalSold.toLocaleString(), 75, 212);
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("PASSES SOLD", 75, 232);
+        ctx.fillText(ticketAnalysis.totalSold.toLocaleString(), 75, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("PASSES SOLD", 75, 222);
 
-        ctx.fillStyle = "#38bdf8";
+        ctx.fillStyle = "#0284c7";
         ctx.font = "bold 24px Georgia";
-        ctx.fillText(ticketAnalysis.totalAdmitted.toLocaleString(), 280, 212);
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText(`ADMITTED (${ticketAnalysis.admittanceRate})`, 280, 232);
+        ctx.fillText(ticketAnalysis.totalAdmitted.toLocaleString(), 300, 202);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(`ADMITTED (${ticketAnalysis.admittanceRate})`, 300, 222);
 
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#0f172a";
         ctx.font = "bold 24px Georgia";
         ctx.fillText(
           ticketAnalysis.totalCapacity > 0 ? ticketAnalysis.totalCapacity.toLocaleString() : "Unlimited",
-          500,
-          212
+          550,
+          202
         );
-        ctx.fillStyle = "#9ba9a1";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("CAPACITY ALLOWANCE", 500, 232);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("CAPACITY ALLOWANCE", 550, 222);
 
         // Tiers Matrix
-        let y = 280;
+        let y = 265;
         ticketAnalysis.tierBreakdown.forEach((t) => {
-          ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-          ctx.fillRect(50, y - 28, width - 100, 65);
-
           ctx.fillStyle = "#ffffff";
+          ctx.fillRect(50, y, width - 100, 65);
+          ctx.strokeStyle = "#e2e8f0";
+          ctx.strokeRect(50, y, width - 100, 65);
+
+          ctx.fillStyle = "#0f172a";
           ctx.font = "bold 18px Georgia";
-          ctx.fillText(t.name, 75, y + 10);
+          ctx.fillText(t.name, 75, y + 38);
 
-          ctx.fillStyle = "#d4af37";
-          ctx.font = "14px sans-serif";
-          ctx.fillText(`GH₵ ${t.priceGhs}`, 320, y + 10);
-
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "15px sans-serif";
-          ctx.fillText(`Sold: ${t.sold.toLocaleString()} / ${t.capacity || "∞"}`, 500, y + 10);
-
-          ctx.fillStyle = "#4ade80";
+          ctx.fillStyle = "#b45309";
           ctx.font = "bold 15px sans-serif";
-          ctx.fillText(`Admitted: ${t.admitted.toLocaleString()} (${t.checkInRate})`, 820, y + 10);
+          ctx.fillText(`GH₵ ${t.priceGhs}`, 340, y + 38);
+
+          ctx.fillStyle = "#334155";
+          ctx.font = "15px sans-serif";
+          ctx.fillText(`Sold: ${t.sold.toLocaleString()} / ${t.capacity || "∞"}`, 530, y + 38);
+
+          ctx.fillStyle = "#047857";
+          ctx.font = "bold 15px sans-serif";
+          ctx.fillText(`Admitted: ${t.admitted.toLocaleString()} (${t.checkInRate})`, 820, y + 38);
 
           y += 75;
         });
       }
 
-      // Footer
-      ctx.fillStyle = "#63746c";
-      ctx.font = "11px sans-serif";
+      // Universal Footer on Graphic
+      ctx.fillStyle = "#64748b";
+      ctx.font = "12px sans-serif";
       ctx.fillText(
         "OFFICIAL TAMPER-PROOF RECORD · VOTICASTHUB GHANA · VERIFIED FINANCIAL & EVENT LEDGER",
-        width / 2 - 260,
-        height - 30
+        width / 2 - 280,
+        height - 35
       );
 
       const link = document.createElement("a");
@@ -563,7 +668,7 @@ export function OfficialAuditModal({
     }
   }
 
-  // Winner Announcement Card (1080x1350 Portrait)
+  // Winner Announcement Card (1080x1350 Portrait - White Luxury Theme with Logo)
   async function handleDownloadWinnerCard() {
     setIsGeneratingWinnerCard(true);
     try {
@@ -581,30 +686,25 @@ export function OfficialAuditModal({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Dark luxury emerald gradient background
-      const grad = ctx.createLinearGradient(0, 0, width, height);
-      grad.addColorStop(0, "#01130a");
-      grad.addColorStop(0.3, "#072f1e");
-      grad.addColorStop(0.7, "#052216");
-      grad.addColorStop(1, "#01130a");
-      ctx.fillStyle = grad;
+      // Clean luxury white background
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
 
       // Gold Double Framing
-      ctx.strokeStyle = "rgba(212, 175, 55, 0.45)";
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.75)";
       ctx.lineWidth = 3;
       ctx.strokeRect(36, 36, width - 72, height - 72);
 
-      ctx.strokeStyle = "rgba(212, 175, 55, 0.2)";
+      ctx.strokeStyle = "rgba(5, 150, 105, 0.35)";
       ctx.lineWidth = 1.5;
       ctx.strokeRect(50, 50, width - 100, height - 100);
 
       // VoteCastHub Logo at top
       const logo = await loadImage("/images/votecasthub-logo.png");
       if (logo) {
-        ctx.drawImage(logo, width / 2 - 80, 75, 160, 68);
+        ctx.drawImage(logo, width / 2 - 90, 75, 180, 70);
       } else {
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#064e3b";
         ctx.font = "bold 30px Georgia";
         ctx.textAlign = "center";
         ctx.fillText("VOTECASTHUB GH", width / 2, 120);
@@ -613,26 +713,25 @@ export function OfficialAuditModal({
       ctx.textAlign = "center";
 
       // Official declaration banner
-      ctx.fillStyle = "#d4af37";
-      ctx.font = "bold 13px sans-serif";
-      ctx.letterSpacing = "2px";
-      ctx.fillText("★ ★ ★  OFFICIAL CERTIFIED WINNER  ★ ★ ★", width / 2, 180);
+      ctx.fillStyle = "#b45309";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("★ ★ ★  OFFICIAL CERTIFIED WINNER  ★ ★ ★", width / 2, 185);
 
       // Event Name
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 32px Georgia";
-      ctx.fillText(event.name.slice(0, 40), width / 2, 230);
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 34px Georgia";
+      ctx.fillText(event.name.slice(0, 42), width / 2, 235);
 
       // Category Pill
-      ctx.fillStyle = "rgba(212, 175, 55, 0.15)";
-      ctx.fillRect(width / 2 - 280, 260, 560, 46);
-      ctx.strokeStyle = "rgba(212, 175, 55, 0.5)";
+      ctx.fillStyle = "#ecfdf5";
+      ctx.fillRect(width / 2 - 280, 265, 560, 46);
+      ctx.strokeStyle = "#10b981";
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(width / 2 - 280, 260, 560, 46);
+      ctx.strokeRect(width / 2 - 280, 265, 560, 46);
 
-      ctx.fillStyle = "#fbbf24";
+      ctx.fillStyle = "#047857";
       ctx.font = "bold 18px Georgia";
-      ctx.fillText(topWinner.categoryName.toUpperCase(), width / 2, 290);
+      ctx.fillText(topWinner.categoryName.toUpperCase(), width / 2, 295);
 
       // Large Winner Portrait (300px diameter circular avatar)
       const cx = width / 2;
@@ -653,28 +752,28 @@ export function OfficialAuditModal({
         // Glowing Gold Double Ring
         ctx.beginPath();
         ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
-        ctx.strokeStyle = "#fbbf24";
+        ctx.strokeStyle = "#f59e0b";
         ctx.lineWidth = 4;
         ctx.stroke();
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius + 12, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.4)";
         ctx.lineWidth = 2;
         ctx.stroke();
       } else {
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#064e3b";
+        ctx.fillStyle = "#ecfdf5";
         ctx.fill();
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = "#fbbf24";
+        ctx.strokeStyle = "#f59e0b";
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        ctx.fillStyle = "#fbbf24";
+        ctx.fillStyle = "#047857";
         ctx.font = "bold 72px Georgia";
         ctx.textBaseline = "middle";
         ctx.fillText(getInitials(topWinner.nomineeName), cx, cy);
@@ -682,64 +781,64 @@ export function OfficialAuditModal({
       }
 
       // Winner Badge under photo
-      ctx.fillStyle = "#d97706";
-      ctx.fillRect(cx - 90, cy + radius - 20, 180, 40);
+      ctx.fillStyle = "#f59e0b";
+      ctx.fillRect(cx - 95, cy + radius - 20, 190, 42);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 16px sans-serif";
-      ctx.fillText("🥇 1ST PLACE", cx, cy + radius + 6);
+      ctx.font = "bold 17px sans-serif";
+      ctx.fillText("🥇 1ST PLACE", cx, cy + radius + 7);
 
       // Winner's Full Name
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#0f172a";
       ctx.font = "bold 44px Georgia";
-      ctx.fillText(topWinner.nomineeName, cx, 770);
+      ctx.fillText(topWinner.nomineeName, cx, 775);
 
       // Vote Tally Pill
-      ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
-      ctx.fillRect(cx - 240, 810, 480, 65);
-      ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+      ctx.fillStyle = "#ecfdf5";
+      ctx.fillRect(cx - 240, 815, 480, 65);
+      ctx.strokeStyle = "#059669";
       ctx.lineWidth = 2;
-      ctx.strokeRect(cx - 240, 810, 480, 65);
+      ctx.strokeRect(cx - 240, 815, 480, 65);
 
-      ctx.fillStyle = "#4ade80";
+      ctx.fillStyle = "#047857";
       ctx.font = "bold 26px sans-serif";
       ctx.fillText(
         `🏆 ${topWinner.validVotes.toLocaleString()} Certified Ballots`,
         cx,
-        852
+        856
       );
 
-      ctx.fillStyle = "#d4af37";
-      ctx.font = "16px sans-serif";
+      ctx.fillStyle = "#b45309";
+      ctx.font = "bold 16px sans-serif";
       ctx.fillText(`${topWinner.categoryVoteShare} of Category Vote Share`, cx, 915);
 
       // Separator
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.strokeStyle = "#e2e8f0";
       ctx.beginPath();
       ctx.moveTo(150, 960);
       ctx.lineTo(width - 150, 960);
       ctx.stroke();
 
       // Audit Verification Seal
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#0f172a";
       ctx.font = "bold 14px sans-serif";
       ctx.fillText("CERTIFIED TAMPER-EVIDENT RECORD · VOTICASTHUB GHANA", cx, 1010);
 
-      ctx.fillStyle = "#4ade80";
+      ctx.fillStyle = "#047857";
       ctx.font = "bold 16px monospace";
       ctx.fillText(`LEDGER ID: ${auditHash}`, cx, 1045);
 
-      ctx.fillStyle = "#9ba9a1";
-      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "#64748b";
+      ctx.font = "13px sans-serif";
       ctx.fillText(
-        `Authenticated record generated on ${dateFormatted}. Verified on votecasthub.com`,
+        `Authenticated record generated on ${dateFormatted} · Verified on votecasthub.com`,
         cx,
         1075
       );
 
       // Bottom Watermark
-      ctx.fillStyle = "#475569";
-      ctx.font = "11px sans-serif";
-      ctx.fillText("POWERING ELECTIONS & AWARDS ACROSS GHANA", cx, 1280);
+      ctx.fillStyle = "#047857";
+      ctx.font = "bold 13px sans-serif";
+      ctx.fillText("POWERING ELECTIONS & AWARDS ACROSS GHANA", cx, 1270);
 
       const link = document.createElement("a");
       link.download = `${slugify(event.name)}_${slugify(topWinner.nomineeName)}_winner_card_${auditHash}.png`;
@@ -758,7 +857,7 @@ export function OfficialAuditModal({
     >
       <div className="relative w-full max-w-5xl rounded-3xl bg-stone-900 border border-stone-800 shadow-2xl overflow-hidden my-auto text-stone-100 flex flex-col max-h-[92vh]">
         {/* Top Control Bar (Screen Only - Hidden in Print) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 border-b border-stone-800 bg-[#0c120e] shrink-0">
+        <div className="audit-modal-control-bar print:hidden flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 border-b border-stone-800 bg-[#0c120e] shrink-0" data-print-hide="true">
           <div className="flex items-center gap-3">
             <span className="text-xl">📜</span>
             <div>

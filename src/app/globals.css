@@ -74,31 +74,110 @@ a {
 }
 
 @media print {
-  body {
-    background: #fff !important;
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
   }
+
+  /* When printing audit report, hide non-dialog page elements */
+  body.printing-audit-report > *:not([role="dialog"]) {
+    display: none !important;
+  }
+
   body.printing-audit-report {
-    background: #fff !important;
+    background: #ffffff !important;
   }
+
   body.printing-audit-report * {
     visibility: hidden;
   }
-  body.printing-audit-report #official-printable-audit-doc,
-  body.printing-audit-report #official-printable-audit-doc * {
+
+  /* Unclip all containers for the modal so it flows across all pages */
+  body.printing-audit-report [role="dialog"],
+  body.printing-audit-report [role="dialog"] * {
     visibility: visible;
   }
+
+  body.printing-audit-report [role="dialog"] {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  body.printing-audit-report [role="dialog"] > div {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  /* Hide the top control/action bar in print */
+  body.printing-audit-report .audit-modal-control-bar,
+  body.printing-audit-report [data-print-hide="true"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Unclip preview container */
+  body.printing-audit-report [role="dialog"] .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    display: block !important;
+  }
+
   body.printing-audit-report #official-printable-audit-doc {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
     color: #111827 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    display: block !important;
   }
+
+  body.printing-audit-report #official-printable-audit-doc * {
+    visibility: visible !important;
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   @page {
-    size: A4;
-    margin: 12mm;
+    size: A4 portrait;
+    margin: 12mm 10mm;
   }
 }

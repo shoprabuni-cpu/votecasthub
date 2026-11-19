@@ -101,87 +101,66 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   const nomineeCode = detail.code ? String(detail.code) : "";
   const hasUssd = Boolean(detail.ussd && detail.ussd.dial_code && detail.ussd.event_code);
 
-  // 1. BASE BACKGROUND & LUXURY LIGHTING
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, 1350);
-  bgGrad.addColorStop(0, "#0a1c15");
-  bgGrad.addColorStop(0.45, "#07130e");
-  bgGrad.addColorStop(1, "#040907");
-  ctx.fillStyle = bgGrad;
+  // 1. BASE BACKGROUND: Clean Crisp White Canvas
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, 1080, 1350);
 
-  // Subtle Ambient Glows
-  const goldGlow = ctx.createRadialGradient(920, 120, 10, 920, 120, 380);
-  goldGlow.addColorStop(0, "rgba(223, 177, 91, 0.12)");
-  goldGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = goldGlow;
-  ctx.fillRect(500, 0, 580, 500);
-
-  const emeraldGlow = ctx.createRadialGradient(120, 680, 10, 120, 680, 420);
-  emeraldGlow.addColorStop(0, "rgba(16, 185, 129, 0.08)");
-  emeraldGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = emeraldGlow;
-  ctx.fillRect(0, 300, 550, 750);
-
-  // Double Inset Hairline Frame
+  // Outer framing and gold double hairline border
   drawRoundedRect(ctx, 28, 28, 1024, 1294, 26);
-  ctx.strokeStyle = "rgba(223, 177, 91, 0.28)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
   drawRoundedRect(ctx, 36, 36, 1008, 1278, 20);
-  ctx.strokeStyle = "rgba(223, 177, 91, 0.12)";
+  ctx.strokeStyle = "rgba(5, 150, 105, 0.25)";
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // 2. TOP HEADER: Brand & Event Title
-  // Eyebrow Brand
-  ctx.textAlign = "center";
-  ctx.font = `bold 15px ${MONO_FONT}`;
-  ctx.fillStyle = "#dfb15b";
-  ctx.fillText("VOTECASTHUB  GH", 540, 72);
+  // Top emerald accent line
+  ctx.fillStyle = "#059669";
+  ctx.fillRect(40, 40, 1000, 5);
 
-  // Decorative header lines
-  const lineGradL = ctx.createLinearGradient(330, 67, 430, 67);
-  lineGradL.addColorStop(0, "rgba(223, 177, 91, 0)");
-  lineGradL.addColorStop(1, "rgba(223, 177, 91, 0.8)");
-  ctx.strokeStyle = lineGradL;
-  ctx.beginPath();
-  ctx.moveTo(330, 67);
-  ctx.lineTo(430, 67);
-  ctx.stroke();
+  // 2. TOP HEADER: VoteCastHub Official Logo & Event Title
+  let logoImg: HTMLImageElement | null = null;
+  try {
+    logoImg = await loadPhoto("/images/votecasthub-logo.png");
+  } catch {
+    logoImg = null;
+  }
 
-  const lineGradR = ctx.createLinearGradient(650, 67, 750, 67);
-  lineGradR.addColorStop(0, "rgba(223, 177, 91, 0.8)");
-  lineGradR.addColorStop(1, "rgba(223, 177, 91, 0)");
-  ctx.strokeStyle = lineGradR;
-  ctx.beginPath();
-  ctx.moveTo(650, 67);
-  ctx.lineTo(750, 67);
-  ctx.stroke();
+  if (logoImg) {
+    ctx.drawImage(logoImg, 540 - 75, 54, 150, 60);
+  } else {
+    ctx.textAlign = "center";
+    ctx.font = `bold 20px ${MONO_FONT}`;
+    ctx.fillStyle = "#047857";
+    ctx.fillText("VOTECASTHUB  GH", 540, 88);
+  }
 
   // Event Title
   const eventName = detail.eventName || title;
-  ctx.font = `bold 30px ${SERIF_FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold 32px ${SERIF_FONT}`;
+  ctx.fillStyle = "#0f172a";
+  ctx.textAlign = "center";
   const eventTitleLines = wrapText(ctx, eventName, 900).slice(0, 2);
   eventTitleLines.forEach((l, i) => {
-    ctx.fillText(l, 540, 114 + i * 36);
+    ctx.fillText(l, 540, 142 + i * 36);
   });
 
   // Category Badge Pill
   const categoryTitle = `★ ${(detail.category || "OFFICIAL NOMINEE").toUpperCase()} ★`;
   ctx.font = `bold 14px ${SANS_FONT}`;
   const catWidth = Math.min(ctx.measureText(categoryTitle).width + 36, 850);
-  const catY = eventTitleLines.length > 1 ? 190 : 162;
+  const catY = eventTitleLines.length > 1 ? 220 : 190;
 
   drawRoundedRect(ctx, 540 - catWidth / 2, catY - 16, catWidth, 28, 14);
-  ctx.fillStyle = "rgba(223, 177, 91, 0.16)";
+  ctx.fillStyle = "#ecfdf5";
   ctx.fill();
-  ctx.strokeStyle = "rgba(223, 177, 91, 0.45)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#10b981";
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  ctx.fillStyle = "#fce08a";
+  ctx.fillStyle = "#047857";
   ctx.fillText(categoryTitle, 540, catY + 4);
 
   // 3. NOMINEE HERO PHOTO (Framed Luxury Showcase)
@@ -193,7 +172,7 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   // Outer ambient shadow
   ctx.save();
   drawRoundedRect(ctx, photoBoxX, photoBoxY, photoBoxW, photoBoxH, 24);
-  ctx.fillStyle = "#0c1f17";
+  ctx.fillStyle = "#f8fafc";
   ctx.fill();
 
   let photoLoaded = false;
@@ -212,13 +191,6 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
       const y = photoBoxY + (photoBoxH - h) / 2;
       ctx.drawImage(img, x, y, w, h);
 
-      // Subtle bottom vignette inside photo
-      const photoVignette = ctx.createLinearGradient(0, photoBoxY + photoBoxH - 120, 0, photoBoxY + photoBoxH);
-      photoVignette.addColorStop(0, "rgba(0,0,0,0)");
-      photoVignette.addColorStop(1, "rgba(0,0,0,0.75)");
-      ctx.fillStyle = photoVignette;
-      ctx.fillRect(photoBoxX, photoBoxY + photoBoxH - 120, photoBoxW, 120);
-
       ctx.restore();
       photoLoaded = true;
     } catch {
@@ -231,13 +203,10 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
     ctx.save();
     drawRoundedRect(ctx, photoBoxX, photoBoxY, photoBoxW, photoBoxH, 24);
     ctx.clip();
-    const sealGrad = ctx.createRadialGradient(540, photoBoxY + photoBoxH / 2, 20, 540, photoBoxY + photoBoxH / 2, 220);
-    sealGrad.addColorStop(0, "#194230");
-    sealGrad.addColorStop(1, "#0a1f16");
-    ctx.fillStyle = sealGrad;
+    ctx.fillStyle = "#ecfdf5";
     ctx.fillRect(photoBoxX, photoBoxY, photoBoxW, photoBoxH);
 
-    ctx.strokeStyle = "rgba(223, 177, 91, 0.35)";
+    ctx.strokeStyle = "#a7f3d0";
     ctx.lineWidth = 1.5;
     for (const r of [80, 120, 160]) {
       ctx.beginPath();
@@ -245,28 +214,28 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
       ctx.stroke();
     }
     ctx.font = `bold 120px ${SERIF_FONT}`;
-    ctx.fillStyle = "#dfb15b";
+    ctx.fillStyle = "#047857";
     ctx.textAlign = "center";
     ctx.fillText((detail.nominee || title).trim().slice(0, 1).toUpperCase(), 540, photoBoxY + photoBoxH / 2 + 42);
     ctx.restore();
   }
 
-  // Draw 2px gold frame around photo
+  // Draw 2.5px gold frame around photo
   drawRoundedRect(ctx, photoBoxX, photoBoxY, photoBoxW, photoBoxH, 24);
-  ctx.strokeStyle = "rgba(223, 177, 91, 0.75)";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.75)";
+  ctx.lineWidth = 2.5;
   ctx.stroke();
   ctx.restore();
 
   // 4. CONTESTANT NAME & PROMINENT VOTING CODE BADGE
   const nameY = photoBoxY + photoBoxH + 46;
   ctx.font = `bold 42px ${SERIF_FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#0f172a";
   ctx.textAlign = "center";
   const nomineeDisplayName = detail.nominee || title;
   ctx.fillText(nomineeDisplayName, 540, nameY);
 
-  // High-Contrast Metallic Gold Code Pill
+  // High-Contrast Gold Code Pill
   const codeBadgeY = nameY + 20;
   if (nomineeCode) {
     const badgeText = `VOTING CODE:  ${nomineeCode}`;
@@ -277,7 +246,7 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
     drawRoundedRect(ctx, 540 - badgeW / 2, codeBadgeY, badgeW, badgeH, 14);
     ctx.fillStyle = "#dfb15b";
     ctx.fill();
-    ctx.strokeStyle = "#fce08a";
+    ctx.strokeStyle = "#b45309";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -288,12 +257,12 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
     ctx.font = `bold 16px ${MONO_FONT}`;
     const badgeW = ctx.measureText(badgeText).width + 48;
     drawRoundedRect(ctx, 540 - badgeW / 2, codeBadgeY, badgeW, 40, 12);
-    ctx.fillStyle = "rgba(223, 177, 91, 0.2)";
+    ctx.fillStyle = "#ecfdf5";
     ctx.fill();
-    ctx.strokeStyle = "#dfb15b";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 1.2;
     ctx.stroke();
-    ctx.fillStyle = "#fce08a";
+    ctx.fillStyle = "#047857";
     ctx.fillText(badgeText, 540, codeBadgeY + 25);
   }
 
@@ -304,26 +273,26 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   const cardH = 1350 - cardY - 44;
 
   drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 22);
-  ctx.fillStyle = "rgba(4, 12, 9, 0.85)";
+  ctx.fillStyle = "#f8fafc";
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.strokeStyle = "#e2e8f0";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
   // Card Header
   ctx.font = `bold 12px ${SANS_FONT}`;
   ctx.textAlign = "left";
-  ctx.fillStyle = "#9ca3af";
+  ctx.fillStyle = "#64748b";
   ctx.fillText("HOW TO CAST YOUR VOTE:", cardX + 24, cardY + 28);
 
   ctx.textAlign = "right";
-  ctx.fillStyle = "#34d399";
+  ctx.fillStyle = "#047857";
   ctx.fillText("VOTING IS LIVE", cardX + cardW - 24, cardY + 28);
 
   ctx.beginPath();
   ctx.moveTo(cardX + 24, cardY + 40);
   ctx.lineTo(cardX + cardW - 24, cardY + 40);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.strokeStyle = "#e2e8f0";
   ctx.stroke();
 
   // QR Code on right side
@@ -339,6 +308,9 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
     drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxW, qrBoxH, 14);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.drawImage(qrImg, qrBoxX + 10, qrBoxY + 10, 120, 120);
 
@@ -358,19 +330,19 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   // Channel 1: WhatsApp Bot (100% Free · Always Active)
   const waBoxH = 68;
   drawRoundedRect(ctx, channelsX, currentChannelY, channelsW, waBoxH, 14);
-  ctx.fillStyle = "rgba(6, 78, 59, 0.6)";
+  ctx.fillStyle = "#ecfdf5";
   ctx.fill();
-  ctx.strokeStyle = "rgba(16, 185, 129, 0.45)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#a7f3d0";
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
   ctx.textAlign = "left";
   ctx.font = `bold 14px ${SANS_FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#064e3b";
   ctx.fillText("💬 WhatsApp Bot (100% Free · No SMS needed)", channelsX + 16, currentChannelY + 24);
 
   ctx.font = `bold 13px ${MONO_FONT}`;
-  ctx.fillStyle = "#a7f3d0";
+  ctx.fillStyle = "#047857";
   const waCommand = nomineeCode ? `VOTE ${eventCode} ${nomineeCode}` : `VOTE ${eventCode}`;
   ctx.fillText(`Send "${waCommand}" to ${WA_DISPLAY}`, channelsX + 16, currentChannelY + 48);
 
@@ -380,18 +352,18 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   if (hasUssd && detail.ussd) {
     const ussdBoxH = 64;
     drawRoundedRect(ctx, channelsX, currentChannelY, channelsW, ussdBoxH, 14);
-    ctx.fillStyle = "rgba(35, 26, 10, 0.65)";
+    ctx.fillStyle = "#fffbeb";
     ctx.fill();
-    ctx.strokeStyle = "rgba(217, 119, 6, 0.45)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#fde68a";
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
     ctx.font = `bold 13px ${SANS_FONT}`;
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#92400e";
     ctx.fillText("📞 USSD Dialing (No Internet needed)", channelsX + 16, currentChannelY + 22);
 
     ctx.font = `bold 13px ${MONO_FONT}`;
-    ctx.fillStyle = "#fde68a";
+    ctx.fillStyle = "#b45309";
     const ussdDetail = nomineeCode
       ? `Dial ${detail.ussd.dial_code} · Event: ${detail.ussd.event_code} · Code: ${nomineeCode}`
       : `Dial ${detail.ussd.dial_code} · Event Code: ${detail.ussd.event_code}`;
@@ -403,11 +375,11 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
   // Channel 3: Official Web Link
   ctx.textAlign = "left";
   ctx.font = `600 13px ${SANS_FONT}`;
-  ctx.fillStyle = "#9ca3af";
+  ctx.fillStyle = "#64748b";
   const cleanUrl = url.replace(/^https?:\/\//, "");
   ctx.fillText(`🌐 Official Web Ballot: `, channelsX + 4, currentChannelY + 16);
   ctx.font = `bold 13px ${MONO_FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#0f172a";
   ctx.fillText(cleanUrl, channelsX + 164, currentChannelY + 16);
 
   // Footer Timing & Details
@@ -422,7 +394,7 @@ export async function createFlyer(title: string, url: string, detail: FlyerDetai
 
   ctx.textAlign = "center";
   ctx.font = `11px ${SANS_FONT}`;
-  ctx.fillStyle = "#6b7280";
+  ctx.fillStyle = "#64748b";
   ctx.fillText(
     `Voting Deadline: ${closesDate} · Ghana Time${pricingNote} · Powered by VoteCastHub`,
     cardX + cardW / 2,
