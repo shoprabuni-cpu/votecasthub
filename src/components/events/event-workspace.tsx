@@ -12,11 +12,12 @@ import { LineSidebar } from "@/components/ui/LineSidebar";
 
 type Section = "details" | "tickets" | "nominees" | "voting" | "review";
 
-export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false }: {
+export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false, hasTickets = false }: {
   details: ReactNode; tickets?: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
   guided?: { initialSection: SetupSection; nomineesReady: boolean; votingReady: boolean };
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
   isTicketOnly?: boolean;
+  hasTickets?: boolean;
 }) {
   const sections: { id: Section; label: ReactNode }[] = isTicketOnly
     ? [
@@ -25,7 +26,7 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
     ]
     : [
       { id: "details", label: "Event details" },
-      { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> },
+      ...(hasTickets ? [{ id: "tickets" as Section, label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> }] : []),
       { id: "nominees", label: "Categories & nominees" },
       { id: "voting", label: <span className="inline-flex items-center gap-1.5"><VoteIcon size={14} /> Voting settings</span> },
       ...(review ? [{ id: "review" as Section, label: "Review & Submit" }] : []),
@@ -56,7 +57,9 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
     </section>}
     <div className="flex flex-wrap items-center gap-2">
       {!isTicketOnly && canEdit && <button type="button" aria-expanded={editing} aria-controls="workspace-editor" onClick={() => { setSection("details"); setEditing(true); }} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500">Edit event</button>}
+      {isTicketOnly && canEdit && <button type="button" onClick={() => setSection("tickets")} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500">Manage tickets</button>}
       {!isTicketOnly && canManageVoting && <button type="button" onClick={() => setSection("voting")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Manage voting</button>}
+      {hasTickets && !isTicketOnly && <button type="button" onClick={() => setSection("tickets")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Manage tickets</button>}
       {viewLink}
     </div>
     {sections.length > 1 && (
@@ -87,7 +90,7 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       <div id="workspace-editor" hidden={!editing} className="space-y-4"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-stone-900 dark:text-white">Edit event</h2><button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-stone-600 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Hide editor</button></div>{editor}</div>
       {details}
     </section>
-    {tickets && <section id="workspace-tickets" role="tabpanel" aria-labelledby="workspace-tab-tickets" hidden={section !== "tickets"} className="space-y-5">{tickets}</section>}
+    {(hasTickets || isTicketOnly) && tickets && <section id="workspace-tickets" role="tabpanel" aria-labelledby="workspace-tab-tickets" hidden={section !== "tickets"} className="space-y-5">{tickets}</section>}
     {!isTicketOnly && <section id="workspace-nominees" role="tabpanel" aria-labelledby="workspace-tab-nominees" hidden={section !== "nominees"} className="space-y-5">{nominees}</section>}
     {review && <section id="workspace-review" role="tabpanel" aria-labelledby="workspace-tab-review" hidden={section !== "review"} className="space-y-5">{review}</section>}
     {!isTicketOnly && <section id="workspace-voting" role="tabpanel" aria-labelledby="workspace-tab-voting" hidden={section !== "voting"} className="space-y-5">{voting}</section>}

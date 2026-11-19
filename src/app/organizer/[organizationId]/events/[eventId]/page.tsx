@@ -170,6 +170,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
   const hasNomineeCategories = activeCategories.length > 0;
   const explicitType = eventMeta?.event_type ?? (event as any).event_type;
   const isTicketOnly = explicitType === "ticketing" || (hasTicketTiers && !hasNomineeCategories);
+  const hasTickets = isTicketOnly || explicitType === "hybrid" || hasTicketTiers;
   const venueReady = Boolean(eventMeta?.venue_name || event.venue_name);
 
   const hasPaidTiers = activeTiers.some((tier: any) => Number(tier.price_minor) > 0);
@@ -269,6 +270,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       {workspace?.review_feedback && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"><strong>Changes requested: </strong>{workspace.review_feedback}<a href="#review-feedback" className="ml-2 font-semibold border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0a0d0b] dark:text-stone-200">Read feedback</a></div>}
       <EventWorkspace
         isTicketOnly={isTicketOnly}
+        hasTickets={hasTickets}
         tickets={
           <TicketTiersManager
             eventId={eventId}
@@ -347,14 +349,24 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
               <span>Preview event</span> ↗
             </Link>
           ) : ["published", "paused", "closed"].includes(event.status) ? (
-            <Link
-              href={publicUrl}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
-            >
-              <span>View event page</span> ↗
-            </Link>
+            <>
+              <Link
+                href={publicUrl}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+              >
+                <span>View event page</span> ↗
+              </Link>
+              <Link
+                href={`/organizer/${organizationId}/analytics?event=${eventId}`}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-100 shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+              >
+                <span>📊 {isTicketOnly ? "Ticket Analytics" : "Live Standings & Analytics"}</span> ↗
+              </Link>
+            </>
           ) : null}
-          <Link href="/gate" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"><span>📱 Gate Scanner</span> ↗</Link>
+          {hasTickets && (
+            <Link href="/gate" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"><span>📱 Gate Scanner</span> ↗</Link>
+          )}
         </div>}
         editor={<>
           {permissions.editDraft ? <EventDetailsForm key={event.id + "-draft"} eventId={eventId} organizationId={organizationId} smsBalance={typeof smsBalance === "number" ? smsBalance : null} initial={{ name: event.name, description: event.description, price: Number(event.unit_price_minor), startsAt: event.starts_at, endsAt: event.ends_at, resultsVisibility: event.results_visibility, votingMode: event.voting_mode, verificationMethod, votingRule: isVotingRule(event.voting_rule) ? event.voting_rule : "category_limit", freeVoteLimit: event.free_vote_limit_per_phone, votingRules: event.voting_rules, eventType: ((eventMeta?.event_type ?? event.event_type) as any) ?? "voting", venueName: event.venue_name, doorsOpenTime: event.doors_open_time }} /> : permissions.editPublic ? <PublicEventEditor key={event.id} event={event} permissions={permissions} /> : <p className="text-sm text-stone-600">Details are protected while your event is awaiting approval.</p>}
@@ -362,10 +374,10 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           {!permissions.returnToDraft && permissions.editPublic && event.status !== "closed" && <p className="rounded-xl bg-stone-100 p-4 text-sm text-stone-600">Competition settings stay fixed while published. Full editing requires no voting or payment history and owner/admin access.</p>}
         </>}
         details={<>
-          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Event details</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm text-stone-600">{event.description || "Add a description to introduce your event to voters."}</p>
-            <dl className="mt-5 grid gap-4 border-t border-stone-100 pt-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voting</dt><dd className="mt-1 font-semibold text-stone-900">{event.voting_mode === "paid" ? `Paid · GH₵${(event.unit_price_minor / 100).toFixed(2)} per vote` : "Free voting"}</dd></div><div><dt className="text-stone-500">Results</dt><dd className="mt-1 font-semibold capitalize text-stone-900">{event.results_visibility.replace(/_/g, " ")}</dd></div></dl>
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Event details</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm text-stone-600 dark:text-stone-400">{event.description || "Add a description to introduce your event to voters."}</p>
+            <dl className="mt-5 grid gap-4 border-t border-stone-100 pt-4 text-sm sm:grid-cols-2 dark:border-[#1c2721]"><div><dt className="text-stone-500 dark:text-stone-400">Voting</dt><dd className="mt-1 font-semibold text-stone-900 dark:text-stone-100">{event.voting_mode === "paid" ? `Paid · GH₵${(event.unit_price_minor / 100).toFixed(2)} per vote` : "Free voting"}</dd></div><div><dt className="text-stone-500 dark:text-stone-400">Results</dt><dd className="mt-1 font-semibold capitalize text-stone-900 dark:text-stone-100">{event.results_visibility.replace(/_/g, " ")}</dd></div></dl>
           </section>}
-          <section className={panel}><h2 className="text-lg font-semibold text-stone-900">Cover image</h2><p className="mb-4 mt-1 text-sm text-stone-600">{event.status === "pending_review" ? "Withdraw from review to change the cover image." : "Shown on your voter page and the event directory."}</p>{permissions.editCover ? <EventImageForm eventId={eventId} eventName={event.name} initialPath={event.image_path} initialUrl={eventImage?.signedUrl ?? null} backTo={pagePath} /> : eventImage?.signedUrl ? <div className="h-48 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover`} /> : <p className="text-sm text-stone-500">No cover image added.</p>}</section>
+          <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Cover image</h2><p className="mb-4 mt-1 text-sm text-stone-600 dark:text-stone-400">{event.status === "pending_review" ? "Withdraw from review to change the cover image." : "Shown on your voter page and the event directory."}</p>{permissions.editCover ? <EventImageForm eventId={eventId} eventName={event.name} initialPath={event.image_path} initialUrl={eventImage?.signedUrl ?? null} backTo={pagePath} /> : eventImage?.signedUrl ? <div className="h-48 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url("${eventImage.signedUrl}")` }} role="img" aria-label={`${event.name} cover`} /> : <p className="text-sm text-stone-500 dark:text-stone-400">No cover image added.</p>}</section>
           {canManage && event.status !== "archived" && <VoterHelpSettings eventId={eventId} email={eventMeta?.voter_help_email ?? null} />}
           {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
         </>}
@@ -606,11 +618,11 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           )}
           {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Manage voting</h2><p className="mt-1 text-sm text-stone-600 dark:text-stone-400">{event.status === "closed" ? "This event is permanently closed and cannot reopen." : event.status === "archived" ? "This event is archived. Its history is preserved." : event.status === "pending_review" ? "Your event stays private until approval." : event.status === "draft" ? "Check your voting rules and voter access method here. When setup is ready, use Review & Submit." : permissions.expired ? "The voting deadline has passed. Existing votes are preserved." : event.status === "paused" ? "Voting is paused. Resume when you are ready." : "Voting follows the opening and closing times shown above."}</p>
             <div className="mt-4 flex flex-wrap gap-3">{permissions.pause && <EventStatusForm eventId={eventId} action="pause" backTo={pagePath} label="Pause voting" />}{permissions.resume && <EventStatusForm eventId={eventId} action="resume" backTo={pagePath} label="Resume voting" />}</div>
-            {permissions.extend && <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Extend deadline / edit schedule</summary><PublicEventEditor key={event.id} event={event} permissions={permissions} scheduleOnly /></details>}
-            {permissions.reopen && <div className="mt-5 border-t border-stone-100 pt-5"><ReopenEventForm eventId={eventId} /></div>}
+            {permissions.extend && <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-emerald-900 border border-stone-300 bg-white shadow-xs rounded-xl px-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-emerald-400">Extend deadline / edit schedule</summary><PublicEventEditor key={event.id} event={event} permissions={permissions} scheduleOnly /></details>}
+            {permissions.reopen && <div className="mt-5 border-t border-stone-100 pt-5 dark:border-[#1c2721]"><ReopenEventForm eventId={eventId} /></div>}
 
           </section>}
-          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500">Voter verification</dt><dd className="mt-1 font-semibold capitalize">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500">Voting rule</dt><dd className="mt-1 font-semibold capitalize">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-400">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>}
+          {event.status !== "draft" && <section className={panel}><h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Voting settings</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-stone-500 dark:text-stone-400">Voter verification</dt><dd className="mt-1 font-semibold capitalize text-stone-900 dark:text-stone-100">{verificationMethod.replace(/_/g, " ")}</dd></div><div><dt className="text-stone-500 dark:text-stone-400">Voting rule</dt><dd className="mt-1 font-semibold capitalize text-stone-900 dark:text-stone-100">{event.voting_rule.replace(/_/g, " ")}</dd></div></dl><p className="mt-4 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-400">{event.voting_rules || "No additional voter instructions."}</p>{returnToDraft}</section>}
           {canManage && event.voting_mode === "free" && event.status !== "archived" && (verificationMethod === "invite_code" ? <AccessCodeManager eventId={eventId} /> : verificationMethod === "voter_list" ? <VoterListManager eventId={eventId} categoryCount={activeCategories.length} onePerCategory={event.voting_rule === "one_per_category"} /> : null)}
 
         </>}
