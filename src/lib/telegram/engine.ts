@@ -431,6 +431,46 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
+  // 4e. If active session is awaiting ticket phone for SMS dispatch & payment prompt
+  if (activeSession && activeSession.state === "awaiting_ticket_phone" && activeSession.event_id && activeSession.tier_id && activeSession.quantity) {
+    if (text.trim() === "0") {
+      await db.from("telegram_sessions").delete().eq("id", activeSession.id);
+      await sendTelegramMessage(chatId, "❌ Ticket purchase cancelled. Send /tickets anytime to browse upcoming events.");
+      return;
+    }
+
+    const rawPhone = text.trim();
+    const normalized = normalizeGhanaPhone(rawPhone);
+    if (!normalized || normalized.length < 10) {
+      await sendTelegramMessage(
+        chatId,
+        "⚠️ Please enter a valid 10-digit Ghana phone number (e.g. *0244123456* or *0551234567*) to receive your SMS pass:\n_(Or reply 0 to cancel)_"
+      );
+      return;
+    }
+
+    const formattedPhone = `+${normalized}`;
+    await db
+      .from("telegram_sessions")
+      .update({
+        phone: formattedPhone,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activeSession.id);
+
+    await handleTicketCheckoutTelegram({
+      chatId,
+      eventId: activeSession.event_id,
+      tierId: activeSession.tier_id,
+      quantity: activeSession.quantity,
+      customerName: activeSession.customer_name || "Guest",
+      phone: formattedPhone,
+      userId,
+      existingSessionId: activeSession.id,
+    });
+    return;
+  }
+
   // 5. If active session is awaiting category selection and voter replies with number or name
   if (activeSession && activeSession.metadata?.step === "awaiting_category" && activeSession.event_id) {
     const { data: rawCategories } = await db
@@ -2371,19 +2411,19 @@ async function handleTicketNameTelegram(params: {
 
   await db
     .from("telegram_sessions")
-    .update({ customer_name: resolvedName, updated_at: new Date().toISOString() })
+    .update({
+      customer_name: resolvedName,
+      state: "awaiting_ticket_phone",
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", activeSession.id);
 
-  await handleTicketCheckoutTelegram({
+  await sendTelegramMessage(
     chatId,
-    eventId: activeSession.event_id,
-    tierId: activeSession.tier_id,
-    quantity: activeSession.quantity,
-    customerName: resolvedName,
-    phone: activeSession.phone,
-    userId,
-    existingSessionId: activeSession.id,
-  });
+    `👤 *Attendee:* ${resolvedName}\n\n` +
+    `📱 Please reply with your *Ghana Phone Number* (e.g. *0244123456* or *0551234567*) to receive your instant SMS pass and Mobile Money prompt:\n\n` +
+    `_(Reply 0 to cancel)_`
+  );
 }
 
 async function handleTicketCheckoutTelegram(params: {
@@ -2461,8 +2501,10 @@ async function handleTicketCheckoutTelegram(params: {
     }
 
     const ticketObj = ticket as Record<string, unknown>;
-    const paxCode = String(ticketObj?.pax_code || "PAX");
-    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(paxCode)}`;
+    const allCodes = Array.isArray(ticketObj?.pax_codes) && (ticketObj.pax_codes as string[]).length > 0
+      ? (ticketObj.pax_codes as string[])
+      : [String(ticketObj?.pax_code || "PAX")];
+    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
 
     if (buyerPhone && buyerPhone !== "+233000000000") {
       sendTicketConfirmationSms({
@@ -2470,10 +2512,14 @@ async function handleTicketCheckoutTelegram(params: {
         customerName,
         eventName: event.name,
         tierName: tier.name,
-        paxCode,
+        paxCode: allCodes,
         venueName: event.venue_name,
       }).catch(() => {});
     }
+
+    const codesList = allCodes.length === 1
+      ? `🔑 *CODE PAX:* \`#${allCodes[0]}\``
+      : allCodes.map((c, i) => `🔑 *Pass #${i + 1} CODE PAX:* \`#${c}\``).join("\n");
 
     await sendTelegramMessage(
       chatId,
@@ -2481,14 +2527,15 @@ async function handleTicketCheckoutTelegram(params: {
       `📌 *${event.name}*\n` +
       `👤 *Attendee:* ${customerName}\n` +
       `🎫 *Tier:* ${tier.name} (${quantity} Pass${quantity > 1 ? "es" : ""})\n` +
-      `🔑 *CODE PAX:* \`#${paxCode}\`\n` +
+      `${codesList}\n` +
       `📍 *Venue:* ${event.venue_name || "Event Venue"}\n\n` +
-      `🔗 *Digital Pass & QR Code:*\n👉 ${passUrl}\n\n` +
+      `📱 *SMS pass dispatched to:* ${buyerPhone}\n` +
+      `🔗 *Digital Pass & QR Codes:*\n👉 ${passUrl}\n\n` +
       `_Show your CODE PAX or digital pass at the entrance gate._`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎫 Open Digital Pass", url: passUrl }],
+            [{ text: "🎫 Open Digital Passes", url: passUrl }],
             [{ text: "🎟️ Browse More Events", callback_data: "browse_tickets" }],
           ],
         },

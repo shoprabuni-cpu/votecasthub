@@ -568,12 +568,14 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     }
   }
 
-  if (["BUY TICKET", "BUY TICKETS"].includes(upperText)) {
+  // Browse ticket events
+  if (["BUY TICKET", "BUY TICKETS", "TICKETS", "TICKET", "MENU_TICKETS", "2"].includes(upperText)) {
     await presentWhatsAppTicketsList(phone);
     return;
   }
 
-  if (["MY TICKET", "MY TICKETS", "TICKETS", "TICKET"].includes(upperText)) {
+  // View existing purchased tickets
+  if (["MY TICKET", "MY TICKETS", "MY PASS", "MY PASSES", "MENU_MY_TICKETS", "3"].includes(upperText)) {
     const { data: myTickets } = await db.rpc("find_public_tickets", { p_query: phone });
     const list = (myTickets ?? []) as Record<string, unknown>[];
 
@@ -593,18 +595,49 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       await sendWhatsAppMessage(phone, reply);
       return;
     } else {
-      await presentWhatsAppTicketsList(phone);
+      await sendWhatsAppMessage(
+        phone,
+        `🔍 No active tickets were found under this phone number (*${phone}*).\n\n` +
+        `Reply *TICKETS* to browse upcoming events and purchase admission passes.`
+      );
       return;
     }
   }
 
-  // Help / Menu prompt: Present all live competitions
+  // Main Menu Greetings
   const isGreetingOrMenu =
-    ["VOTE", "HELP", "MENU", "VOTEHUB", "VOTECASTHUB", "START", "HI", "HELLO", "HEY", "EVENTS", "COMPETITION", "COMPETITIONS", "CONTEST"].includes(upperText) ||
-    /^(HI|HELLO|HEY|YO|WASSUP|START|MENU|EVENTS|HELP|GREETINGS|GOOD\s+(MORNING|AFTERNOON|EVENING))\b/i.test(text.trim()) ||
-    /^(I\s+WANT\s+TO\s+VOTE|HOW\s+TO\s+VOTE|CAN\s+I\s+VOTE)/i.test(text.trim());
+    ["MENU", "START", "HI", "HELLO", "HEY", "WASSUP", "YO", "HELP", "GREETINGS"].includes(upperText) ||
+    /^(HI|HELLO|HEY|YO|WASSUP|START|MENU|HELP|GREETINGS|GOOD\s+(MORNING|AFTERNOON|EVENING))\b/i.test(text.trim());
 
   if (isGreetingOrMenu) {
+    const welcomeMsg =
+      `👋 Welcome to *VoteCastHub Ghana*! 🏆🎟️\n\n` +
+      `How can we help you today? Reply with a number:\n\n` +
+      `*1.* 🗳️ *Vote in a Competition*\n` +
+      `*2.* 🎟️ *Buy Event Tickets & Passes*\n` +
+      `*3.* 🔍 *My Tickets / Find My Passes*\n\n` +
+      `_💡 Direct Shortcut: Reply *VOTE [Code]* (e.g. *VOTE BSF-092*) or send *TICKETS* to choose passes._`;
+
+    await sendWhatsAppInteractiveButtons(
+      phone,
+      "🌟 VoteCastHub Main Menu",
+      welcomeMsg,
+      [
+        { id: "MENU_VOTE", title: "🗳️ Vote in Contest" },
+        { id: "MENU_TICKETS", title: "🎟️ Buy Tickets" },
+        { id: "MENU_MY_TICKETS", title: "🔍 My Tickets" },
+      ],
+      "VoteCastHub GH"
+    );
+    return;
+  }
+
+  // Voting competitions list prompt
+  const isVotingListPrompt =
+    ["1", "VOTE", "VOTING", "EVENTS", "COMPETITION", "COMPETITIONS", "CONTEST", "MENU_VOTE"].includes(upperText) ||
+    /^(I\s+WANT\s+TO\s+VOTE|HOW\s+TO\s+VOTE|CAN\s+I\s+VOTE)/i.test(text.trim());
+
+  if (isVotingListPrompt) {
     const { data: events } = await db
       .from("events")
       .select("id, name, slug, voting_mode, unit_price_minor, image_path, ends_at")
@@ -2086,14 +2119,25 @@ async function presentWhatsAppTicketsList(phone: string): Promise<void> {
   const db = paymentAdmin();
   const nowIso = new Date().toISOString();
 
-  const { data: ticketEvents } = await db
+  // Find all active ticket tiers to identify any event selling tickets
+  const { data: activeTiers } = await db
+    .from("event_ticket_tiers")
+    .select("event_id")
+    .eq("is_active", true);
+
+  const tierEventIds = new Set((activeTiers ?? []).map((t) => t.event_id));
+
+  const { data: rawEvents } = await db
     .from("events")
-    .select("id, name, slug, venue_name, doors_open_time, image_path, ends_at")
-    .in("event_type", ["ticketing", "hybrid"])
+    .select("id, name, slug, venue_name, doors_open_time, status, ends_at, event_type")
     .eq("status", "published")
     .gt("ends_at", nowIso)
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(15);
+
+  const ticketEvents = (rawEvents ?? []).filter(
+    (e) => tierEventIds.has(e.id) || e.event_type === "ticketing" || e.event_type === "hybrid"
+  ).slice(0, 8);
 
   if (!ticketEvents || ticketEvents.length === 0) {
     await sendWhatsAppMessage(
@@ -2106,16 +2150,30 @@ async function presentWhatsAppTicketsList(phone: string): Promise<void> {
   // Create or refresh active session for choosing an event
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   await db.from("whatsapp_sessions").delete().eq("phone", phone).neq("state", "completed");
-  await db.from("whatsapp_sessions").insert({
-    phone,
-    phone_hash: hashPhone(phone),
-    state: "awaiting_ticket_tier",
-    metadata: {
-      step: "awaiting_ticket_event",
-      events: ticketEvents.map((e) => ({ id: e.id, name: e.name, slug: e.slug })),
-    },
-    expires_at: expiresAt,
-  });
+  try {
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: hashPhone(phone),
+      state: "awaiting_ticket_tier",
+      metadata: {
+        step: "awaiting_ticket_event",
+        events: ticketEvents.map((e) => ({ id: e.id, name: e.name, slug: e.slug })),
+      },
+      expires_at: expiresAt,
+    });
+  } catch {
+    // Resilient fallback in case state constraint has not been migrated yet
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: hashPhone(phone),
+      state: "awaiting_candidate",
+      metadata: {
+        step: "awaiting_ticket_event",
+        events: ticketEvents.map((e) => ({ id: e.id, name: e.name, slug: e.slug })),
+      },
+      expires_at: expiresAt,
+    });
+  }
 
   let msg = `🎟️ *VoteCastHub Live Event Tickets* 🎫\n\nSelect an upcoming event below to buy passes or check in:\n\n`;
   ticketEvents.forEach((ev, idx) => {
@@ -2123,12 +2181,7 @@ async function presentWhatsAppTicketsList(phone: string): Promise<void> {
   });
   msg += `👉 Reply with the *Event Number* (e.g. *1*) or Event Name to choose ticket tiers.\n_(Reply 0 to cancel)_`;
 
-  const coverUrl = await getSignedImageUrl(ticketEvents[0]?.image_path);
-  if (coverUrl) {
-    await sendWhatsAppImage(phone, coverUrl, msg);
-  } else {
-    await sendWhatsAppMessage(phone, msg);
-  }
+  await sendWhatsAppMessage(phone, msg);
 }
 
 async function presentWhatsAppEventTicketTiers(phone: string, eventIdentifier: string): Promise<void> {
@@ -2168,18 +2221,33 @@ async function presentWhatsAppEventTicketTiers(phone: string, eventIdentifier: s
   // Create or refresh session
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   await db.from("whatsapp_sessions").delete().eq("phone", phone).neq("state", "completed");
-  await db.from("whatsapp_sessions").insert({
-    phone,
-    phone_hash: hashPhone(phone),
-    event_id: event.id,
-    state: "awaiting_ticket_tier",
-    metadata: {
-      step: "awaiting_tier_number",
-      event_name: event.name,
-      tiers: tiers.map((t) => ({ id: t.id, name: t.name })),
-    },
-    expires_at: expiresAt,
-  });
+  try {
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: hashPhone(phone),
+      event_id: event.id,
+      state: "awaiting_ticket_tier",
+      metadata: {
+        step: "awaiting_tier_number",
+        event_name: event.name,
+        tiers: tiers.map((t) => ({ id: t.id, name: t.name })),
+      },
+      expires_at: expiresAt,
+    });
+  } catch {
+    await db.from("whatsapp_sessions").insert({
+      phone,
+      phone_hash: hashPhone(phone),
+      event_id: event.id,
+      state: "awaiting_candidate",
+      metadata: {
+        step: "awaiting_tier_number",
+        event_name: event.name,
+        tiers: tiers.map((t) => ({ id: t.id, name: t.name })),
+      },
+      expires_at: expiresAt,
+    });
+  }
 
   let msg = `🎟️ *${event.name} — Admission Tickets*\n`;
   if (event.venue_name) msg += `📍 Venue: ${event.venue_name}\n`;
@@ -2198,12 +2266,7 @@ async function presentWhatsAppEventTicketTiers(phone: string, eventIdentifier: s
 
   msg += `\n\n👉 Reply with the *Tier Number* (e.g. *1*) to select your pass.\n_(Reply 0 to cancel)_`;
 
-  const coverUrl = await getSignedImageUrl(event.image_path);
-  if (coverUrl) {
-    await sendWhatsAppImage(phone, coverUrl, msg);
-  } else {
-    await sendWhatsAppMessage(phone, msg);
-  }
+  await sendWhatsAppMessage(phone, msg);
 }
 
 async function handleTicketCheckoutWhatsApp(params: {
@@ -2276,17 +2339,23 @@ async function handleTicketCheckoutWhatsApp(params: {
     }
 
     const ticketObj = ticket as Record<string, unknown>;
-    const paxCode = String(ticketObj?.pax_code || "PAX");
-    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(paxCode)}`;
+    const allCodes = Array.isArray(ticketObj?.pax_codes) && (ticketObj.pax_codes as string[]).length > 0
+      ? (ticketObj.pax_codes as string[])
+      : [String(ticketObj?.pax_code || "PAX")];
+    const passUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
 
     sendTicketConfirmationSms({
       phone,
       customerName,
       eventName: event.name,
       tierName: tier.name,
-      paxCode,
+      paxCode: allCodes,
       venueName: event.venue_name,
     }).catch(() => {});
+
+    const codesList = allCodes.length === 1
+      ? `🔑 *CODE PAX:* \`#${allCodes[0]}\``
+      : allCodes.map((c, i) => `🔑 *Pass #${i + 1} CODE PAX:* \`#${c}\``).join("\n");
 
     await sendWhatsAppMessage(
       phone,
@@ -2294,9 +2363,10 @@ async function handleTicketCheckoutWhatsApp(params: {
       `📌 *${event.name}*\n` +
       `👤 *Attendee:* ${customerName}\n` +
       `🎫 *Tier:* ${tier.name} (${quantity} Pass${quantity > 1 ? "es" : ""})\n` +
-      `🔑 *CODE PAX:* \`#${paxCode}\`\n` +
+      `${codesList}\n` +
       `📍 *Venue:* ${event.venue_name || "Event Venue"}\n\n` +
-      `🔗 *View Digital Pass & QR Code:*\n👉 ${passUrl}\n\n` +
+      `📱 *SMS pass dispatched to:* ${phone}\n` +
+      `🔗 *View Digital Pass & QR Codes:*\n👉 ${passUrl}\n\n` +
       `_Show your CODE PAX or QR code at the entrance for verification._`
     );
     return;

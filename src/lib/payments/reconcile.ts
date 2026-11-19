@@ -119,7 +119,9 @@ async function applyTransaction(t: Transaction, allowReversed = false) {
       try {
         const tgChatId = t.metadata?.channel === "telegram" ? Number(t.metadata.chat_id) : null;
         if (tgChatId) {
-          const codesList = allCodes.map((c) => `🔑 <b>CODE PAX:</b> <code>#${c}</code>`).join("\n");
+          const codesList = allCodes.length === 1
+            ? `🔑 <b>CODE PAX:</b> <code>#${allCodes[0]}</code>`
+            : allCodes.map((c, i) => `🔑 <b>Pass #${i + 1} CODE PAX:</b> <code>#${c}</code>`).join("\n");
           const venueLine = res.venue_name ? `📍 <b>Venue:</b> ${String(res.venue_name).replace(/[<>&]/g, "")}\n` : "";
           const ticketUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
           const tgTicketMsg =
@@ -144,7 +146,9 @@ async function applyTransaction(t: Transaction, allowReversed = false) {
       try {
         const waPhone = t.metadata?.channel === "whatsapp" ? String(t.metadata.phone || res.customer_phone) : null;
         if (waPhone) {
-          const codesList = allCodes.map((c) => `🔑 *CODE PAX:* #${c}`).join("\n");
+          const codesList = allCodes.length === 1
+            ? `🔑 *CODE PAX:* #${allCodes[0]}`
+            : allCodes.map((c, i) => `🔑 *Pass #${i + 1} CODE PAX:* #${c}`).join("\n");
           const venueLine = res.venue_name ? `📍 *Venue:* ${res.venue_name}\n` : "";
           const ticketUrl = `${siteUrl()}/tickets?q=${encodeURIComponent(allCodes[0])}`;
           const waTicketMsg =

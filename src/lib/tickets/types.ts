@@ -45,6 +45,7 @@ export interface GateCheckInResponse {
   customer_phone?: string;
   tier_name?: string;
   quantity?: number;
+  checked_in_number?: number;
   event_name?: string;
   venue_name?: string;
   checked_in_at?: string;

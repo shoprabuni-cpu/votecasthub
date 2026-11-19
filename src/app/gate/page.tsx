@@ -259,7 +259,7 @@ export default function GateScannerPage() {
                   <p className="text-base font-bold text-emerald-900 dark:text-emerald-300">
                     {result.customer_name}
                   </p>
-                  <p>Tier: <strong>{result.tier_name}</strong> ({result.quantity} Person)</p>
+                  <p>Tier: <strong>{result.tier_name}</strong> {result.quantity && result.quantity > 1 ? `(${result.checked_in_number ?? 1} of ${result.quantity} Admitted)` : `(1 Person)`}</p>
                   <p>Code: <strong className="font-mono">{result.pax_code}</strong></p>
                   <p>Event: {result.event_name}</p>
                 </div>
