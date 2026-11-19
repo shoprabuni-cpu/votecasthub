@@ -9,6 +9,7 @@ export type AnalyticsEventChoice = {
   voting_mode: string;
   starts_at: string;
   ends_at: string;
+  event_type?: string;
 };
 
 export function EventAnalyticsPicker({

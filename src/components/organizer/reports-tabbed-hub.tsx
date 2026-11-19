@@ -12,11 +12,14 @@ import { ResultsExportActions } from "@/components/organizer/results-export-acti
 import { WhatsAppLeaderboardShare } from "@/components/organizer/whatsapp-leaderboard-share";
 import { StageProjectorMode } from "@/components/organizer/stage-projector-mode";
 import { LiveActivityTicker } from "@/components/organizer/live-activity-ticker";
+import { TicketingAnalyticsHub } from "@/components/organizer/ticketing-analytics-hub";
+import type { TicketTier } from "@/lib/tickets/types";
+import type { AttendeeRecord } from "@/lib/tickets/actions";
 import { Icon } from "@/components/icon";
 
 type RankedNominee = NomineeAnalytics & { rank: number };
 
-export type TabKey = "standings" | "money" | "channels" | "exports";
+export type TabKey = "tickets" | "standings" | "money" | "channels" | "exports";
 
 export function ReportsTabbedHub({
   analytics,
@@ -27,17 +30,27 @@ export function ReportsTabbedHub({
   days,
   ended,
   paid,
+  ticketTiers = [],
+  attendees = [],
 }: {
   analytics: OrganizerAnalytics;
   activityAnalytics?: OrganizerAnalytics | null;
-  event: { id: string; name: string; slug: string; voting_mode: string; status: string; starts_at: string; ends_at: string };
+  event: { id: string; name: string; slug: string; voting_mode: string; status: string; starts_at: string; ends_at: string; event_type?: string };
   organizationId: string;
   standings: RankedNominee[];
   days: number;
   ended: boolean;
   paid: boolean;
+  ticketTiers?: TicketTier[];
+  attendees?: AttendeeRecord[];
 }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("standings");
+  const isTicketing = event.event_type === "ticketing";
+  const hasTickets = isTicketing || event.event_type === "hybrid" || ticketTiers.length > 0;
+  const isVoting = event.event_type !== "ticketing" || analytics.categories.length > 0;
+
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    isTicketing ? "tickets" : "standings"
+  );
   const money = (amount: number) => `GH₵ ${(Number(amount) / 100).toFixed(2)}`;
 
   const row = analytics.rows[0] ?? {
@@ -54,6 +67,7 @@ export function ReportsTabbedHub({
   };
 
   const totalVotes = safeNum(row.total_votes);
+  const totalTicketsSold = attendees.reduce((acc, a) => acc + (Number(a.quantity) || 1), 0);
   const visitors = safeNum(analytics.event_visitors);
   const conversionRate = visitors > 0 ? ((totalVotes / visitors) * 100).toFixed(1) : "0.0";
   const avgVotesPerVoter = visitors > 0 ? (totalVotes / visitors).toFixed(1) : "0";
@@ -64,9 +78,35 @@ export function ReportsTabbedHub({
   const webEstimated = Math.max(0, totalVotes - waEstimated - tgEstimated);
 
   const tabs: Array<{ key: TabKey; label: string; badge?: string; icon: string }> = [
-    { key: "standings", label: "Live Standings & Podium", icon: "🏆", badge: `${analytics.categories.length} Categories` },
-    ...(paid ? [{ key: "money" as TabKey, label: "Revenue & MoMo", icon: "💰", badge: money(row.net_minor) }] : []),
-    { key: "channels", label: "Bot Channels & Turnout", icon: "📱", badge: `${totalVotes.toLocaleString()} Votes` },
+    ...(hasTickets
+      ? [
+          {
+            key: "tickets" as TabKey,
+            label: "Ticket Sales & Gates",
+            icon: "🎟️",
+            badge: `${totalTicketsSold.toLocaleString()} Passes`,
+          },
+        ]
+      : []),
+    ...(isVoting
+      ? [
+          {
+            key: "standings" as TabKey,
+            label: "Live Standings & Podium",
+            icon: "🏆",
+            badge: `${analytics.categories.length} Categories`,
+          },
+        ]
+      : []),
+    ...(paid || hasTickets
+      ? [{ key: "money" as TabKey, label: "Revenue & MoMo", icon: "💰", badge: money(row.net_minor) }]
+      : []),
+    {
+      key: "channels",
+      label: "Bot Channels & Turnout",
+      icon: "📱",
+      badge: `${(totalVotes + totalTicketsSold).toLocaleString()} Units`,
+    },
     { key: "exports", label: "Official Exports & Audit", icon: "📄" },
   ];
 
@@ -113,6 +153,25 @@ export function ReportsTabbedHub({
           );
         })}
       </div>
+
+      {/* Tab 0: Ticketing & Passes (if hasTickets) */}
+      {activeTab === "tickets" && hasTickets && (
+        <motion.div
+          key="tab-tickets"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <TicketingAnalyticsHub
+            eventId={event.id}
+            eventName={event.name}
+            organizationId={organizationId}
+            tiers={ticketTiers}
+            attendees={attendees}
+            ended={ended}
+          />
+        </motion.div>
+      )}
 
       {/* Tab 1: Live Standings & Podium */}
       {activeTab === "standings" && (

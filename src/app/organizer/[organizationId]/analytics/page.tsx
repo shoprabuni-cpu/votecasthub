@@ -7,6 +7,8 @@ import { AnalyticsLiveStatus, ShareEventButton } from "@/components/organizer/an
 import { ReportsTabbedHub } from "@/components/organizer/reports-tabbed-hub";
 import { EventSwitcher } from "@/components/organizer/event-switcher";
 import { Icon } from "@/components/icon";
+import type { TicketTier } from "@/lib/tickets/types";
+import type { AttendeeRecord } from "@/lib/tickets/actions";
 
 export default async function AnalyticsPage({
   params,
@@ -87,11 +89,17 @@ export default async function AnalyticsPage({
   const event = choices.find((choice) => choice.id === scope.event);
   if (!event) return unavailable("This event is not available in your workspace.");
 
-  const [overall, activity] = await Promise.all([
+  const [overall, activity, tiersRes, attendeesRes] = await Promise.all([
     supabase.rpc("get_scoped_organizer_analytics", { p_org: organizationId, p_event: event.id, p_days: 0 }),
     scope.days
       ? supabase.rpc("get_scoped_organizer_analytics", { p_org: organizationId, ...scope.params })
       : Promise.resolve(null),
+    supabase
+      .from("event_ticket_tiers")
+      .select("id, event_id, name, price_minor, capacity, sold_count, is_active, sort_order, created_at, updated_at")
+      .eq("event_id", event.id)
+      .order("sort_order", { ascending: true }),
+    supabase.rpc("get_event_attendees", { p_event_id: event.id }),
   ]);
 
   const { data, error } = overall;
@@ -106,21 +114,54 @@ export default async function AnalyticsPage({
   const row = analytics.rows[0];
   if (!row) return unavailable("This event is no longer available.");
 
+  const ticketTiers = (tiersRes?.data ?? []) as TicketTier[];
+  const attendees = (attendeesRes?.data ?? []) as AttendeeRecord[];
+  const isTicketing = event.event_type === "ticketing";
+  const hasTickets = isTicketing || event.event_type === "hybrid" || ticketTiers.length > 0;
+
+  // Ticketing Metrics
+  const totalTicketCapacity = ticketTiers.reduce((acc, t) => acc + (Number(t.capacity) || 0), 0);
+  const totalTicketsSold = attendees.reduce((acc, a) => acc + (Number(a.quantity) || 1), 0);
+  const remainingAllowance = Math.max(0, totalTicketCapacity - totalTicketsSold);
+  const totalCheckedIn = attendees
+    .filter((a) => a.status === "checked_in" || !!a.checked_in_at)
+    .reduce((acc, a) => acc + (Number(a.quantity) || 1), 0);
+  const checkInRate = totalTicketsSold > 0 ? ((totalCheckedIn / totalTicketsSold) * 100).toFixed(1) : "0.0";
+  const ticketRevenueGross = attendees.reduce((acc, a) => acc + (Number(a.price_minor) || 0), 0);
+  const ticketRevenueNet = Math.round(ticketRevenueGross * 0.9);
+
   const standings = categoryStandings(analytics.nominees);
-  const period = "Whole event";
+  const period = isTicketing ? "Passes & Attendee Admissions" : "Whole event";
   const requestTime = Date.parse(analytics.as_of);
   const stage = eventStage(event, requestTime);
   const ended = stage === "ended" || stage === "archived";
   const live = stage === "active" || stage === "upcoming" || stage === "paused" || Number(analytics.pending_payments) > 0;
 
-  const stageLabel = {
-    active: "Voting is open",
-    upcoming: "Voting opens soon",
-    paused: "Voting is paused",
-    ended: "Voting ended",
-    archived: "Event archived",
-    draft: "Preparing for voting",
-  }[stage];
+  const stageLabel = isTicketing
+    ? {
+        active: "Ticket sales live",
+        upcoming: "Ticket sales open soon",
+        paused: "Ticket sales paused",
+        ended: "Event ended / doors closed",
+        archived: "Event archived",
+        draft: "Preparing ticket tiers",
+      }[stage]
+    : {
+        active: "Voting is open",
+        upcoming: "Voting opens soon",
+        paused: "Voting is paused",
+        ended: "Voting ended",
+        archived: "Event archived",
+        draft: "Preparing for voting",
+      }[stage];
+
+  const eventTypeLabel = isTicketing
+    ? "Ticketed Event & Gate Passes"
+    : event.event_type === "hybrid"
+    ? "Hybrid (Voting & Ticketing)"
+    : event.voting_mode === "paid"
+    ? "Paid MoMo / Card Ballot"
+    : "Free Ballot";
 
   const lastVoteGhana = analytics.last_vote_at
     ? new Intl.DateTimeFormat("en-GH", {
@@ -161,7 +202,7 @@ export default async function AnalyticsPage({
                 {event.name}
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-emerald-100/80">
-                <span className="font-semibold text-white">{stageLabel}</span> · {period} · {paid ? "Paid MoMo / Card Ballot" : "Free Ballot"}
+                <span className="font-semibold text-white">{stageLabel}</span> · {period} · {eventTypeLabel}
               </p>
             </div>
 
@@ -214,93 +255,156 @@ export default async function AnalyticsPage({
         )}
 
         {/* Master KPI Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Votes */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Total Confirmed Ballots</span>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
-              {totalVotesCount.toLocaleString()}
-            </strong>
-            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
-              Latest: {lastVoteGhana}
-            </p>
-          </article>
-
-          {/* Votes Today */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Votes Cast Today</span>
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
-              {safeNum(analytics.votes_today).toLocaleString()}
-            </strong>
-            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">Since midnight Accra GMT</p>
-          </article>
-
-          {/* Voter Conversion */}
-          <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">
-              {stage === "upcoming" ? "Pre-Launch Traffic" : "Voter Conversion Rate"}
-            </span>
-            <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
-              {stage === "upcoming" ? `${visitorsCount} Visits` : `${conversionRate}%`}
-            </strong>
-            <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
-              {stage === "upcoming"
-                ? "Unique visitors previewing candidate profiles"
-                : `${visitorsCount.toLocaleString()} visitors (${safeNum(analytics.views).toLocaleString()} page views)`}
-            </p>
-          </article>
-
-          {/* Earnings (if paid) or Roster count (if free) */}
-          {paid ? (
-            <article className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 to-white p-5 shadow-xs dark:border-amber-900/50 dark:from-amber-950/30 dark:to-[#0c120e]">
-              <span className="text-xs font-medium text-amber-950 dark:text-amber-300 block">Organizer Net Revenue</span>
-              <strong className="mt-2 block text-3xl font-bold font-mono text-amber-900 dark:text-amber-400">
-                {money(row.net_minor)}
-              </strong>
-              <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
-                Gross: {money(row.gross_minor)} ({safeNum(row.paid_votes).toLocaleString()} paid votes)
-              </p>
-            </article>
-          ) : (
+        {isTicketing ? (
+          /* Ticketing KPI Row */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Passes Issued */}
             <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
-              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Contest Scope</span>
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Total Passes Issued</span>
               <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
-                {analytics.nominees.length}
+                {totalTicketsSold.toLocaleString()}
               </strong>
               <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
-                Nominees across {analytics.categories.length} award categories
+                {totalTicketCapacity > 0
+                  ? `${((totalTicketsSold / totalTicketCapacity) * 100).toFixed(1)}% of total capacity booked`
+                  : "No capacity limit set"}
               </p>
             </article>
-          )}
-        </div>
+
+            {/* Gate Admissions */}
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Gate Admissions</span>
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
+                {totalCheckedIn.toLocaleString()}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
+                {checkInRate}% attendance rate at gate
+              </p>
+            </article>
+
+            {/* Inventory Allowance Remaining */}
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Inventory Allowance Left</span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
+                {remainingAllowance.toLocaleString()}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
+                Out of {totalTicketCapacity.toLocaleString()} max event seats
+              </p>
+            </article>
+
+            {/* Net Payout Revenue */}
+            <article className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 to-white p-5 shadow-xs dark:border-emerald-900/50 dark:from-emerald-950/30 dark:to-[#0c120e]">
+              <span className="text-xs font-medium text-emerald-950 dark:text-emerald-300 block">Organizer Net Payout</span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-900 dark:text-emerald-400">
+                {money(ticketRevenueNet)}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
+                Gross: {money(ticketRevenueGross)} (10% platform fee)
+              </p>
+            </article>
+          </div>
+        ) : (
+          /* Standard Voting KPI Row */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Total Votes */}
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Total Confirmed Ballots</span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
+                {totalVotesCount.toLocaleString()}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
+                Latest: {lastVoteGhana}
+              </p>
+            </article>
+
+            {/* Votes Today */}
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Votes Cast Today</span>
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
+                {safeNum(analytics.votes_today).toLocaleString()}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">Since midnight Accra GMT</p>
+            </article>
+
+            {/* Voter Conversion */}
+            <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">
+                {stage === "upcoming" ? "Pre-Launch Traffic" : "Voter Conversion Rate"}
+              </span>
+              <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
+                {stage === "upcoming" ? `${visitorsCount} Visits` : `${conversionRate}%`}
+              </strong>
+              <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
+                {stage === "upcoming"
+                  ? "Unique visitors previewing candidate profiles"
+                  : `${visitorsCount.toLocaleString()} visitors (${safeNum(analytics.views).toLocaleString()} page views)`}
+              </p>
+            </article>
+
+            {/* Earnings (if paid) or Roster count (if free) */}
+            {paid ? (
+              <article className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/50 to-white p-5 shadow-xs dark:border-amber-900/50 dark:from-amber-950/30 dark:to-[#0c120e]">
+                <span className="text-xs font-medium text-amber-950 dark:text-amber-300 block">Organizer Net Revenue</span>
+                <strong className="mt-2 block text-3xl font-bold font-mono text-amber-900 dark:text-amber-400">
+                  {money(row.net_minor)}
+                </strong>
+                <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">
+                  Gross: {money(row.gross_minor)} ({safeNum(row.paid_votes).toLocaleString()} paid votes)
+                </p>
+              </article>
+            ) : (
+              <article className="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">Contest Scope</span>
+                <strong className="mt-2 block text-3xl font-bold font-mono text-stone-900 dark:text-white">
+                  {analytics.nominees.length}
+                </strong>
+                <p className="mt-2 text-[11px] text-stone-400 dark:text-stone-500">
+                  Nominees across {analytics.categories.length} award categories
+                </p>
+              </article>
+            )}
+          </div>
+        )}
 
         {/* Action Prompt when starting out */}
-        {(stage === "draft" || stage === "upcoming" || stage === "paused" || !totalVotesCount) && (
+        {(stage === "draft" || stage === "upcoming" || stage === "paused" || (!totalVotesCount && !totalTicketsSold)) && (
           <aside className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark:border-[#1c2721] dark:bg-[#0c120e]">
             <div>
               <h2 className="font-semibold text-stone-900 dark:text-white text-sm">
                 {stage === "draft"
-                  ? "Get your event ready"
+                  ? isTicketing ? "Prepare your ticket tiers" : "Get your event ready"
                   : stage === "upcoming"
-                  ? "Voting hasn’t started yet"
+                  ? isTicketing ? "Ticket sales haven't started yet" : "Voting hasn’t started yet"
                   : stage === "paused"
-                  ? "Voting is paused"
+                  ? isTicketing ? "Ticket sales are paused" : "Voting is paused"
                   : ended
-                  ? "No votes were counted"
-                  : "Share to get your first votes"}
+                  ? isTicketing ? "Ticket sales have ended" : "No votes were counted"
+                  : isTicketing ? "Share your event to sell tickets" : "Share to get your first votes"}
               </h2>
               <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 leading-relaxed max-w-xl">
                 {stage === "draft"
-                  ? "Review your categories, nominees, and voting window in the Event Setup Studio before publishing."
+                  ? isTicketing
+                    ? "Configure your VIP, Regular and Early Bird tiers and capacities before publishing."
+                    : "Review your categories, nominees, and voting window in the Event Setup Studio before publishing."
                   : stage === "upcoming"
-                  ? "Check candidate profiles and share the public ballot link with voters ahead of opening time."
+                  ? isTicketing
+                    ? "Check tier pricing and share the event page with attendees ahead of the gate opening."
+                    : "Check candidate profiles and share the public ballot link with voters ahead of opening time."
                   : stage === "paused"
                   ? "Resume the event from Event Settings whenever you are ready."
                   : ended
-                  ? "Voting has officially closed. Review results and export certificates below."
+                  ? isTicketing
+                    ? "Event has ended. Review final attendee admissions and check-in rates below."
+                    : "Voting has officially closed. Review results and export certificates below."
+                  : isTicketing
+                  ? "Share your ticket booking link across WhatsApp and social media to start issuing passes."
                   : "Distribute your ballot flyer and link across WhatsApp and social media to start tracking results."}
               </p>
             </div>
@@ -328,6 +432,8 @@ export default async function AnalyticsPage({
           days={scope.days}
           ended={ended}
           paid={paid}
+          ticketTiers={ticketTiers}
+          attendees={attendees}
         />
       </section>
     </main>
