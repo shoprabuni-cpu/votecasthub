@@ -56,10 +56,24 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       {progress && <div className="mt-5 border-t border-emerald-100 pt-4 dark:border-emerald-950/60"><div className="mb-2 flex flex-wrap justify-between gap-2 text-xs font-medium text-stone-600 dark:text-stone-300"><span>Required setup</span><span>{progress.completed} of {progress.total} complete</span></div><progress aria-label="Required event setup" value={progress.completed} max={progress.total} className="block h-2 w-full overflow-hidden rounded-full bg-emerald-100 accent-emerald-700 dark:bg-emerald-950/60 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-emerald-700 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-emerald-100 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-emerald-700" /><p className="mt-2 text-xs text-stone-500 dark:text-stone-400">Cover image and description are optional.</p></div>}
     </section>}
     <div className="flex flex-wrap items-center gap-2">
-      {!isTicketOnly && canEdit && <button type="button" aria-expanded={editing} aria-controls="workspace-editor" onClick={() => { setSection("details"); setEditing(true); }} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500">Edit event</button>}
-      {isTicketOnly && canEdit && <button type="button" onClick={() => setSection("tickets")} className="min-h-11 rounded-xl bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500">Manage tickets</button>}
-      {!isTicketOnly && canManageVoting && <button type="button" onClick={() => setSection("voting")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Manage voting</button>}
-      {hasTickets && !isTicketOnly && <button type="button" onClick={() => setSection("tickets")} className="min-h-11 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Manage tickets</button>}
+      {!isTicketOnly && canEdit && (
+        <button
+          type="button"
+          aria-expanded={editing}
+          aria-controls="workspace-editor"
+          onClick={() => {
+            setSection("details");
+            setEditing(!editing);
+          }}
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-2xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${
+            editing
+              ? "border-emerald-600 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+              : "border-stone-300 bg-white text-stone-800 hover:bg-stone-50 dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+          }`}
+        >
+          <span>{editing ? "✕ Close Editor" : "✏️ Edit Details"}</span>
+        </button>
+      )}
       {viewLink}
     </div>
     {sections.length > 1 && (
@@ -87,7 +101,19 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       </div>
     )}
     <section id="workspace-details" role="tabpanel" aria-labelledby="workspace-tab-details" hidden={section !== "details"} className="space-y-5">
-      <div id="workspace-editor" hidden={!editing} className="space-y-4"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-stone-900 dark:text-white">Edit event</h2><button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-stone-600 hover:bg-stone-100 border border-stone-300 bg-white shadow-xs py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1c2721] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#121814]">Hide editor</button></div>{editor}</div>
+      <div id="workspace-editor" hidden={!editing} className="space-y-4 mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">Edit Event Details</h2>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-stone-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer shadow-2xs dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-200 dark:hover:bg-[#141b16]"
+          >
+            ✕ Close
+          </button>
+        </div>
+        {editor}
+      </div>
       {details}
     </section>
     {(hasTickets || isTicketOnly) && tickets && <section id="workspace-tickets" role="tabpanel" aria-labelledby="workspace-tab-tickets" hidden={section !== "tickets"} className="space-y-5">{tickets}</section>}

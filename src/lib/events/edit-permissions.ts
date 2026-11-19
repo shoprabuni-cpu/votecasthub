@@ -16,6 +16,7 @@ export function eventEditPermissions({ event, role, active, hasActivity, now }: 
     returnToDraft: manage && hasActivity === false && (event.status === "pending_review" || (ownerOrAdmin && ["published", "paused"].includes(event.status))),
     editStart: manage && publicEvent && !locked,
     editRules: manage && publicEvent && !locked,
+    editResultsVisibility: manage && ["published", "paused"].includes(event.status),
     editDescription: manage && ["published", "paused"].includes(event.status),
     extend: manage && ["published", "paused"].includes(event.status) && !expired,
     reopen: ownerOrAdmin && ["published", "paused"].includes(event.status) && expired,
