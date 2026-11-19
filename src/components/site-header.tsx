@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const navLinks = [
   { href: "/events", label: "Browse events", livePulse: true },
   { href: "/tickets", label: "Find tickets" },
+  { href: "/results", label: "Awards results" },
   { href: "/guides", label: "Guides" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },

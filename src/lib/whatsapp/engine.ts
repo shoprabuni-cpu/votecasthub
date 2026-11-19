@@ -6,6 +6,7 @@ import { paymentAdmin } from "@/lib/payments/admin";
 import { paystack, siteUrl } from "@/lib/payments/gateway";
 import { normalizeGhanaPhone, sendTicketConfirmationSms } from "@/lib/sms/send-ticket-sms";
 import { sendWhatsAppMessage, sendWhatsAppInteractiveButtons, sendWhatsAppInteractiveList, sendWhatsAppImage } from "./sendazi";
+import { loadPublicAwardsDirectory, loadEventPublicResults } from "@/lib/events/results";
 import type { NormalizedInboundMessage } from "./types";
 
 function getSharedSecret(): string {
@@ -610,6 +611,21 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
     }
   }
 
+  // Results and Standings
+  if (
+    ["4", "RESULTS", "RESULT", "AWARDS", "STANDINGS", "LEADERBOARD", "MENU_RESULTS"].includes(upperText) ||
+    upperText.startsWith("RESULTS ") ||
+    upperText.startsWith("RESULT ") ||
+    upperText.startsWith("AWARDS ") ||
+    upperText.startsWith("STANDINGS ") ||
+    upperText.startsWith("LEADERBOARD ") ||
+    upperText.startsWith("MENU_RESULTS")
+  ) {
+    const eventParam = text.replace(/^(RESULTS?|AWARDS?|STANDINGS?|LEADERBOARD|MENU_RESULTS)\s*/i, "").trim();
+    await handleWhatsAppResults(phone, eventParam);
+    return;
+  }
+
   // Main Menu Greetings
   const isGreetingOrMenu =
     ["MENU", "START", "HI", "HELLO", "HEY", "WASSUP", "YO", "HELP", "GREETINGS"].includes(upperText) ||
@@ -621,8 +637,9 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       `How can we help you today? Reply with a number:\n\n` +
       `*1.* 🗳️ *Vote in a Competition*\n` +
       `*2.* 🎟️ *Buy Event Tickets & Passes*\n` +
-      `*3.* 🔍 *My Tickets / Find My Passes*\n\n` +
-      `_💡 Direct Shortcut: Reply *VOTE [Code]* (e.g. *VOTE BSF-092*) or send *TICKETS* to choose passes._`;
+      `*3.* 🔍 *My Tickets / Find My Passes*\n` +
+      `*4.* 🏆 *View Awards Results & Standings*\n\n` +
+      `_💡 Direct Shortcut: Reply *VOTE [Code]*, *TICKETS*, or *RESULTS*._`;
 
     await sendWhatsAppInteractiveButtons(
       phone,
@@ -631,7 +648,7 @@ export async function processWhatsAppVote(inbound: NormalizedInboundMessage): Pr
       [
         { id: "MENU_VOTE", title: "🗳️ Vote in Contest" },
         { id: "MENU_TICKETS", title: "🎟️ Buy Tickets" },
-        { id: "MENU_MY_TICKETS", title: "🔍 My Tickets" },
+        { id: "MENU_RESULTS", title: "🏆 Awards Results" },
       ],
       "VoteCastHub GH"
     );
@@ -2623,6 +2640,110 @@ async function handleDirectNomineeVoteWhatsApp(params: {
       display_order: 1,
     },
   });
+}
+
+async function handleWhatsAppResults(phone: string, eventParam?: string): Promise<void> {
+  const db = paymentAdmin();
+
+  if (!eventParam) {
+    const list = await loadPublicAwardsDirectory(db);
+    if (!list || list.length === 0) {
+      await sendWhatsAppMessage(
+        phone,
+        `🔍 *No Public Awards Results Available*\n\nNone of the competitions currently have public results active. Organizers can configure Live Results Visibility to make tallies public.\n\nReply *VOTE* to browse active voting competitions or *TICKETS* to buy event passes.`
+      );
+      return;
+    }
+
+    if (list.length <= 10) {
+      const rows = list.map((ev) => ({
+        id: `RESULTS ${ev.slug}`,
+        title: ev.name.slice(0, 24),
+        description: ev.is_ended
+          ? `🏆 Certified Final · ${ev.total_votes.toLocaleString()} votes`
+          : `⚡ Live Standings · ${ev.total_votes.toLocaleString()} votes`,
+      }));
+
+      await sendWhatsAppInteractiveList(
+        phone,
+        "🏆 VoteCastHub Awards Results",
+        "🏆 *Certified Awards & Standings*\n\nSelect an event from the list below to view verified vote tallies and category winners:",
+        "View Results 🏆",
+        [{ title: "Competitions", rows }],
+        "VoteCastHub GH"
+      );
+      return;
+    }
+
+    let text = `🏆 *VoteCastHub Ghana — Awards Results*\n\nReply with an event number to view standings:\n\n`;
+    list.slice(0, 10).forEach((ev, idx) => {
+      const badge = ev.is_ended ? "🏁 Final" : "⚡ Live";
+      text += `*${idx + 1}.* ${ev.name} (${badge})\n`;
+    });
+    text += `\n_Example: Reply *RESULTS 1* or *RESULTS ${list[0]?.slug}*_`;
+    await sendWhatsAppMessage(phone, text);
+    return;
+  }
+
+  // Look up event: check if eventParam is a number (1-based index)
+  const num = parseInt(eventParam, 10);
+  let targetSlugOrId = eventParam;
+
+  if (!isNaN(num) && num >= 1) {
+    const list = await loadPublicAwardsDirectory(db);
+    if (list[num - 1]) {
+      targetSlugOrId = list[num - 1].slug;
+    }
+  }
+
+  const results = await loadEventPublicResults(targetSlugOrId, db);
+  if (!results) {
+    await sendWhatsAppMessage(
+      phone,
+      `❌ Could not find awards results for "*${eventParam}*".\n\nReply *RESULTS* to see all competitions with public standings.`
+    );
+    return;
+  }
+
+  if (!results.is_public) {
+    await sendWhatsAppMessage(
+      phone,
+      `🔒 *Results Confidential / Locked*\n\nThe organizer of *${results.event.name}* has configured results visibility as Organizer-Only or confidential until awards night.\n\n🔗 View event details: ${siteUrl()}/events/${results.event.slug}`
+    );
+    return;
+  }
+
+  // Build formatted message
+  const ev = results.event;
+  let reply = `🏆 *${ev.name.toUpperCase()}* 🏆\n`;
+  reply += ev.is_ended ? `🏁 *Official Final Awards Results*\n` : `⚡ *Live Standings & Vote Tallies*\n`;
+  reply += `🏛️ Organizer: ${ev.organization_name}\n`;
+  reply += `📊 Total Ballots: ${results.total_ballots.toLocaleString("en-GH")}\n`;
+  reply += `🔐 Audit Hash: *${results.audit_hash}*\n\n`;
+
+  results.categories.slice(0, 6).forEach((cat) => {
+    reply += `🎖️ *${cat.category_name}* (${cat.total_votes.toLocaleString("en-GH")} votes)\n`;
+    if (cat.podium.length === 0 || cat.total_votes === 0) {
+      reply += `   _No votes recorded yet_\n`;
+    } else {
+      cat.podium.forEach((n) => {
+        const medal = n.rank === 1 ? "🥇" : n.rank === 2 ? "🥈" : "🥉";
+        reply += `   ${medal} *${n.name}* — ${n.vote_count.toLocaleString("en-GH")} votes (${n.vote_share_percentage}%)\n`;
+      });
+    }
+    reply += `\n`;
+  });
+
+  if (results.categories.length > 6) {
+    reply += `_...and ${results.categories.length - 6} more categories._\n\n`;
+  }
+
+  reply += `🔗 *View Full Digital Certificate & Standings:*\n${siteUrl()}/results/${ev.slug}\n\n`;
+  if (ev.is_live) {
+    reply += `👉 *Cast your vote:* Reply *VOTE ${ev.slug}*`;
+  }
+
+  await sendWhatsAppMessage(phone, reply);
 }
 
 

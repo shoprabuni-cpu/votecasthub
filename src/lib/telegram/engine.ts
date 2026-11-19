@@ -10,6 +10,7 @@ import {
   sendTelegramMessage,
   sendTelegramPhoto,
 } from "./api";
+import { loadPublicAwardsDirectory, loadEventPublicResults } from "@/lib/events/results";
 import type { NormalizedTelegramInbound } from "./types";
 
 function getAuthClient() {
@@ -133,6 +134,17 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
     return;
   }
 
+  if (["/RESULTS", "RESULTS", "/AWARDS", "AWARDS", "/STANDINGS", "LEADERBOARD"].includes(upper)) {
+    await presentTelegramResultsList(chatId);
+    return;
+  }
+
+  if (upper.startsWith("/RESULTS ") || upper.startsWith("RESULTS ") || upper.startsWith("/AWARDS ") || upper.startsWith("AWARDS ")) {
+    const eventParam = text.replace(/^\/?(results?|awards?|standings?)\s+/i, "").trim();
+    await presentTelegramEventResults(chatId, eventParam);
+    return;
+  }
+
   if (["/TICKETS", "TICKETS", "/TICKET", "TICKET"].includes(upper)) {
     await presentTelegramTicketsList(chatId);
     return;
@@ -230,6 +242,17 @@ export async function processTelegramVote(inbound: NormalizedTelegramInbound): P
   // 4. Callback Query Router: Direct Actions
   if (isCallback && (text === "browse_tickets" || text === "tickets")) {
     await presentTelegramTicketsList(chatId);
+    return;
+  }
+
+  if (isCallback && (text === "results" || text === "awards")) {
+    await presentTelegramResultsList(chatId);
+    return;
+  }
+
+  if (isCallback && text.startsWith("results_")) {
+    const slug = text.replace(/^results_/, "");
+    await presentTelegramEventResults(chatId, slug);
     return;
   }
 
@@ -714,10 +737,146 @@ async function presentCompetitionsList(chatId: number): Promise<void> {
     },
   ]);
 
+  buttons.push([
+    {
+      text: "🏆 Awards Results & Standings",
+      callback_data: "results",
+    },
+  ]);
+
   const welcomeText = `🏆 *Welcome to VoteCastHub!* 🗳️\n\nTap an ongoing competition below to view contestants and cast your ballot:\n\n_(Or reply with any contestant's code like *VOTE BSF-092* to vote directly)_`;
 
   await sendTelegramMessage(chatId, welcomeText, {
     reply_markup: { inline_keyboard: buttons },
+  });
+}
+
+async function presentTelegramResultsList(chatId: number): Promise<void> {
+  const db = paymentAdmin();
+  const list = await loadPublicAwardsDirectory(db);
+
+  if (!list || list.length === 0) {
+    await sendTelegramMessage(
+      chatId,
+      "🏆 *Awards Results & Standings*\n\nThere are currently no competitions with public results released. Organizers can configure Live Results Visibility to make tallies public.\n\nSend /events to browse active voting competitions or /tickets to find passes.",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🗳️ Browse Active Competitions", callback_data: "events" }],
+            [{ text: "🎟️ Event Tickets", callback_data: "browse_tickets" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  const buttons = list.slice(0, 10).map((ev) => [
+    {
+      text: `${ev.is_ended ? "🏆" : "⚡"} ${ev.name} (${ev.total_votes.toLocaleString()} votes)`.slice(0, 42),
+      callback_data: `results_${ev.slug}`,
+    },
+  ]);
+
+  buttons.push([
+    {
+      text: "🗳️ Browse Competitions",
+      callback_data: "events",
+    },
+  ]);
+
+  const msg = `🏆 *VoteCastHub Ghana — Awards Results*\n\nTap a competition below to view certified standings, category winners, and recorded vote tallies:\n\n_(Or send /results [Event Name] directly)_`;
+
+  await sendTelegramMessage(chatId, msg, {
+    reply_markup: { inline_keyboard: buttons },
+  });
+}
+
+async function presentTelegramEventResults(chatId: number, eventIdentifier: string): Promise<void> {
+  const db = paymentAdmin();
+  const results = await loadEventPublicResults(eventIdentifier, db);
+
+  if (!results) {
+    await sendTelegramMessage(
+      chatId,
+      `❌ Could not find awards results for "*${eventIdentifier}*".\n\nSend /results to browse available competitions.`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: "🏆 All Results", callback_data: "results" }]],
+        },
+      }
+    );
+    return;
+  }
+
+  const ev = results.event;
+
+  if (!results.is_public) {
+    await sendTelegramMessage(
+      chatId,
+      `🔒 *Results Confidential / Locked*\n\nThe organizer of *${ev.name}* has configured results visibility as Organizer-Only or sealed until awards night.\n\n🔗 ${siteUrl()}/events/${ev.slug}`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🗳️ View Event Voting Page", url: `${siteUrl()}/events/${ev.slug}` }],
+            [{ text: "← All Results", callback_data: "results" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  let text = `🏆 *${ev.name.toUpperCase()}* 🏆\n`;
+  text += ev.is_ended ? `🏁 *Official Final Awards Results*\n` : `⚡ *Live Standings & Vote Tallies*\n`;
+  text += `🏛️ Organizer: ${ev.organization_name}\n`;
+  text += `📊 Recorded Ballots: *${results.total_ballots.toLocaleString("en-GH")}*\n`;
+  text += `🔐 Audit Hash: \`${results.audit_hash}\`\n\n`;
+
+  results.categories.slice(0, 6).forEach((cat) => {
+    text += `🎖️ *${cat.category_name}* (${cat.total_votes.toLocaleString("en-GH")} votes)\n`;
+    if (cat.podium.length === 0 || cat.total_votes === 0) {
+      text += `   _No votes recorded yet_\n`;
+    } else {
+      cat.podium.forEach((n) => {
+        const medal = n.rank === 1 ? "🥇" : n.rank === 2 ? "🥈" : "🥉";
+        text += `   ${medal} *${n.name}* — ${n.vote_count.toLocaleString("en-GH")} votes (${n.vote_share_percentage}%)\n`;
+      });
+    }
+    text += `\n`;
+  });
+
+  if (results.categories.length > 6) {
+    text += `_...and ${results.categories.length - 6} more categories._\n\n`;
+  }
+
+  const inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> = [
+    [
+      {
+        text: "🌐 View Full Certificate on Web",
+        url: `${siteUrl()}/results/${ev.slug}`,
+      },
+    ],
+  ];
+
+  if (ev.is_live) {
+    inline_keyboard.push([
+      {
+        text: `🗳️ Vote in ${ev.name}`.slice(0, 36),
+        callback_data: `event:${ev.id}`,
+      },
+    ]);
+  }
+
+  inline_keyboard.push([
+    {
+      text: "← Back to Results List",
+      callback_data: "results",
+    },
+  ]);
+
+  await sendTelegramMessage(chatId, text, {
+    reply_markup: { inline_keyboard },
   });
 }
 

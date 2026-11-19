@@ -6,6 +6,7 @@ import { BrandLogo } from "@/components/brand-logo";
 const menuItems = [
   { label: "Browse Events", link: "/events", ariaLabel: "Browse all voting and ticketed events" },
   { label: "Official Tickets", link: "/tickets", ariaLabel: "Find and buy event tickets" },
+  { label: "Awards Results", link: "/results", ariaLabel: "View awards results and standings" },
   { label: "Guides & Docs", link: "/guides", ariaLabel: "Organizer and voting guides" },
   { label: "Pricing", link: "/pricing", ariaLabel: "Platform pricing and rates" },
   { label: "About Us", link: "/about", ariaLabel: "About VoteCastHub GH" },
