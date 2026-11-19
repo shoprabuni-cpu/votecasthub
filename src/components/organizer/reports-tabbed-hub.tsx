@@ -13,6 +13,7 @@ import { WhatsAppLeaderboardShare } from "@/components/organizer/whatsapp-leader
 import { StageProjectorMode } from "@/components/organizer/stage-projector-mode";
 import { LiveActivityTicker } from "@/components/organizer/live-activity-ticker";
 import { TicketingAnalyticsHub } from "@/components/organizer/ticketing-analytics-hub";
+import { OfficialAuditModal, type FinancialReportData } from "@/components/organizer/official-audit-modal";
 import type { TicketTier } from "@/lib/tickets/types";
 import type { AttendeeRecord } from "@/lib/tickets/actions";
 import { Icon } from "@/components/icon";
@@ -53,6 +54,7 @@ export function ReportsTabbedHub({
   const [activeTab, setActiveTab] = useState<TabKey>(
     isTicketing ? "tickets" : "standings"
   );
+  const [financialModalOpen, setFinancialModalOpen] = useState(false);
   const money = (amount: number) => `GH₵ ${(Number(amount) / 100).toFixed(2)}`;
 
   const row = analytics.rows[0] ?? {
@@ -70,6 +72,21 @@ export function ReportsTabbedHub({
 
   const totalVotes = safeNum(row.total_votes);
   const totalTicketsSold = attendees.reduce((acc, a) => acc + (Number(a.quantity) || 1), 0);
+  const ticketRevenueGross = attendees.reduce((acc, a) => acc + (Number(a.price_minor) || 0), 0);
+  const ticketRevenueNet = Math.round(ticketRevenueGross * 0.9);
+  const votingGross = Number(row.gross_minor) || 0;
+  const votingNet = Number(row.net_minor) || 0;
+
+  const financialData: FinancialReportData = {
+    votingGrossMinor: votingGross,
+    votingNetMinor: votingNet,
+    votingUnitsCount: Number(row.paid_votes) || 0,
+    ticketsGrossMinor: ticketRevenueGross,
+    ticketsNetMinor: ticketRevenueNet,
+    ticketsUnitsCount: totalTicketsSold,
+    organizationName: organizationId,
+  };
+
   const visitors = safeNum(analytics.event_visitors);
   const conversionRate = visitors > 0 ? ((totalVotes / visitors) * 100).toFixed(1) : "0.0";
   const avgVotesPerVoter = visitors > 0 ? (totalVotes / visitors).toFixed(1) : "0";
@@ -252,12 +269,22 @@ export function ReportsTabbedHub({
                 </p>
               </div>
 
-              <Link
-                href={`/organizer/${organizationId}/payments`}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-amber-800 transition-all shadow-xs dark:bg-amber-700 dark:hover:bg-amber-600"
-              >
-                <span>Payout Accounts &amp; Settlements →</span>
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFinancialModalOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-all shadow-xs cursor-pointer dark:bg-emerald-800 dark:hover:bg-emerald-700 active:scale-95"
+                >
+                  <span>📜 Official Financial Statement (PDF/Print)</span>
+                </button>
+
+                <Link
+                  href={`/organizer/${organizationId}/payments`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-all shadow-2xs dark:border-[#1c2721] dark:bg-[#141d18] dark:text-stone-200 dark:hover:bg-[#1c2721]"
+                >
+                  <span>Payout Accounts &amp; Settlements →</span>
+                </Link>
+              </div>
             </div>
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -474,8 +501,25 @@ export function ReportsTabbedHub({
             ticketTiers={ticketTiers}
             attendees={attendees}
             nomineePhotos={nomineePhotos}
+            financialData={financialData}
           />
         </motion.div>
+      )}
+
+      {/* Financial Statement Modal */}
+      {financialModalOpen && (
+        <OfficialAuditModal
+          isOpen={financialModalOpen}
+          onClose={() => setFinancialModalOpen(false)}
+          event={event}
+          organizationId={organizationId}
+          nominees={analytics.nominees}
+          ticketTiers={ticketTiers}
+          attendees={attendees}
+          nomineePhotos={nomineePhotos}
+          financialData={financialData}
+          defaultDocType="financial"
+        />
       )}
     </div>
   );

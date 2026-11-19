@@ -5,7 +5,7 @@ import { categoryStandings, type NomineeAnalytics } from "@/lib/analytics";
 import type { TicketTier } from "@/lib/tickets/types";
 import type { AttendeeRecord } from "@/lib/tickets/actions";
 import { Icon } from "@/components/icon";
-import { OfficialAuditModal } from "@/components/organizer/official-audit-modal";
+import { OfficialAuditModal, type FinancialReportData } from "@/components/organizer/official-audit-modal";
 import {
   generateAuditHash,
   generateAnalyzedVotingCsv,
@@ -20,6 +20,7 @@ export function ResultsExportActions({
   ticketTiers = [],
   attendees = [],
   nomineePhotos = {},
+  financialData,
 }: {
   nominees: NomineeAnalytics[];
   scopeLabel: string;
@@ -37,9 +38,10 @@ export function ResultsExportActions({
   ticketTiers?: TicketTier[];
   attendees?: AttendeeRecord[];
   nomineePhotos?: Record<string, string>;
+  financialData?: FinancialReportData;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<"voting" | "ticketing">("voting");
+  const [modalType, setModalType] = useState<"voting" | "ticketing" | "financial">("voting");
 
   const ranked = categoryStandings(nominees);
   const eventId = event?.id || "vch-event";
@@ -50,6 +52,10 @@ export function ResultsExportActions({
     ticketTiers.length > 0 ||
     attendees.length > 0;
   const hasVoting = event?.event_type !== "ticketing" && nominees.length > 0;
+  const hasFinancial =
+    event?.voting_mode === "paid" ||
+    (financialData?.votingGrossMinor ?? 0) > 0 ||
+    (financialData?.ticketsGrossMinor ?? 0) > 0;
 
   function handleDownloadVotingCsv() {
     const auditHash = generateAuditHash(eventId);
@@ -144,6 +150,20 @@ export function ResultsExportActions({
             </button>
           </>
         )}
+
+        {/* Financial & Settlement Report if available */}
+        {hasFinancial && (
+          <button
+            type="button"
+            onClick={() => {
+              setModalType("financial");
+              setModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50/70 px-3.5 py-2 text-xs font-semibold text-amber-950 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition-all cursor-pointer dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
+          >
+            <span>💰 Financial Statement</span>
+          </button>
+        )}
       </div>
 
       {/* Official Audit Modal */}
@@ -164,6 +184,7 @@ export function ResultsExportActions({
           ticketTiers={ticketTiers}
           attendees={attendees}
           nomineePhotos={nomineePhotos}
+          financialData={financialData}
           defaultDocType={modalType}
         />
       )}

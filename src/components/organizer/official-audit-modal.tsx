@@ -12,12 +12,23 @@ import {
   generateAnalyzedVotingCsv,
   analyzeTicketingAdmissions,
   generateAnalyzedTicketingCsv,
+  generateAnalyzedFinancialCsv,
 } from "@/lib/exports/audit-reports";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export interface FinancialReportData {
+  votingGrossMinor?: number;
+  votingNetMinor?: number;
+  votingUnitsCount?: number;
+  ticketsGrossMinor?: number;
+  ticketsNetMinor?: number;
+  ticketsUnitsCount?: number;
+  organizationName?: string;
 }
 
 export function OfficialAuditModal({
@@ -29,6 +40,7 @@ export function OfficialAuditModal({
   ticketTiers = [],
   attendees = [],
   nomineePhotos = {},
+  financialData,
   defaultDocType = "voting",
 }: {
   isOpen: boolean;
@@ -48,7 +60,8 @@ export function OfficialAuditModal({
   ticketTiers?: TicketTier[];
   attendees?: AttendeeRecord[];
   nomineePhotos?: Record<string, string>;
-  defaultDocType?: "voting" | "ticketing";
+  financialData?: FinancialReportData;
+  defaultDocType?: "voting" | "ticketing" | "financial";
 }) {
   const hasTickets =
     event.event_type === "ticketing" ||
@@ -56,9 +69,21 @@ export function OfficialAuditModal({
     ticketTiers.length > 0 ||
     attendees.length > 0;
   const hasVoting = event.event_type !== "ticketing" && nominees.length > 0;
+  const hasFinancial =
+    event.voting_mode === "paid" ||
+    (financialData?.votingGrossMinor ?? 0) > 0 ||
+    (financialData?.ticketsGrossMinor ?? 0) > 0;
 
-  const [docType, setDocType] = useState<"voting" | "ticketing">(
-    defaultDocType === "ticketing" && hasTickets ? "ticketing" : hasVoting ? "voting" : "ticketing"
+  const [docType, setDocType] = useState<"voting" | "ticketing" | "financial">(
+    defaultDocType === "financial" && hasFinancial
+      ? "financial"
+      : defaultDocType === "ticketing" && hasTickets
+      ? "ticketing"
+      : hasVoting
+      ? "voting"
+      : hasTickets
+      ? "ticketing"
+      : "financial"
   );
 
   const [auditHash, setAuditHash] = useState("");
@@ -78,6 +103,8 @@ export function OfficialAuditModal({
     timeStyle: "short",
     timeZone: "Africa/Accra",
   }).format(new Date());
+
+  const money = (minor: number) => `GH₵ ${(Number(minor) / 100).toFixed(2)}`;
 
   // Voting analysis
   const votingAnalysis = analyzeVotingStandings(nominees);
@@ -103,6 +130,22 @@ export function OfficialAuditModal({
     }
   }
 
+  // Financial calculations
+  const votingGross = financialData?.votingGrossMinor ?? 0;
+  const votingNet = financialData?.votingNetMinor ?? Math.round(votingGross * 0.9);
+  const votingFee = Math.max(0, votingGross - votingNet);
+  const votingUnits = financialData?.votingUnitsCount ?? 0;
+
+  const ticketsGross = financialData?.ticketsGrossMinor ?? 0;
+  const ticketsNet = financialData?.ticketsNetMinor ?? Math.round(ticketsGross * 0.9);
+  const ticketsFee = Math.max(0, ticketsGross - ticketsNet);
+  const ticketsUnits = financialData?.ticketsUnitsCount ?? 0;
+
+  const totalGross = votingGross + ticketsGross;
+  const totalNet = votingNet + ticketsNet;
+  const totalFee = votingFee + ticketsFee;
+  const totalUnits = votingUnits + ticketsUnits;
+
   // Print Action
   function handlePrint() {
     document.body.classList.add("printing-audit-report");
@@ -123,7 +166,7 @@ export function OfficialAuditModal({
         auditHash,
       });
       downloadFile(csv, `${slugify(event.name)}_voting_standings_${auditHash}.csv`, "text/csv;charset=utf-8;");
-    } else {
+    } else if (docType === "ticketing") {
       const csv = generateAnalyzedTicketingCsv({
         eventName: event.name,
         attendees,
@@ -131,6 +174,19 @@ export function OfficialAuditModal({
         auditHash,
       });
       downloadFile(csv, `${slugify(event.name)}_attendee_manifest_${auditHash}.csv`, "text/csv;charset=utf-8;");
+    } else {
+      const csv = generateAnalyzedFinancialCsv({
+        eventName: event.name,
+        organizationName: financialData?.organizationName,
+        votingGrossMinor: votingGross,
+        votingNetMinor: votingNet,
+        votingUnitsCount: votingUnits,
+        ticketsGrossMinor: ticketsGross,
+        ticketsNetMinor: ticketsNet,
+        ticketsUnitsCount: ticketsUnits,
+        auditHash,
+      });
+      downloadFile(csv, `${slugify(event.name)}_financial_settlement_${auditHash}.csv`, "text/csv;charset=utf-8;");
     }
   }
 
@@ -148,7 +204,6 @@ export function OfficialAuditModal({
     return text.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
   }
 
-  // Helper to load image securely into an HTMLImageElement
   function loadImage(src: string): Promise<HTMLImageElement | null> {
     return new Promise((resolve) => {
       const img = new window.Image();
@@ -159,15 +214,18 @@ export function OfficialAuditModal({
     });
   }
 
-  // Standings Summary Graphic (Landscape / High-DPI with circular avatars)
+  // Standings / Financial Summary Graphic (Landscape 1200px)
   async function handleDownloadGraphic() {
     setIsGeneratingImage(true);
     try {
       const canvas = document.createElement("canvas");
       const width = 1200;
-      const height = docType === "voting"
-        ? Math.min(1600, 440 + Math.min(12, votingAnalysis.ranked.length) * 88)
-        : Math.min(1400, 440 + Math.min(8, ticketTiers.length) * 90);
+      const height =
+        docType === "financial"
+          ? 780
+          : docType === "voting"
+          ? Math.min(1600, 440 + Math.min(12, votingAnalysis.ranked.length) * 88)
+          : Math.min(1400, 440 + Math.min(8, ticketTiers.length) * 90);
 
       canvas.width = width;
       canvas.height = height;
@@ -200,7 +258,13 @@ export function OfficialAuditModal({
       // Title & Header Text
       ctx.fillStyle = "#d4af37";
       ctx.font = "bold 13px sans-serif";
-      ctx.fillText("CERTIFIED OFFICIAL AUDIT LEDGER · GHANA", 190, 62);
+      ctx.fillText(
+        docType === "financial"
+          ? "CERTIFIED FINANCIAL SETTLEMENT LEDGER · GHANA"
+          : "CERTIFIED OFFICIAL AUDIT LEDGER · GHANA",
+        190,
+        62
+      );
 
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 32px Georgia";
@@ -221,7 +285,102 @@ export function OfficialAuditModal({
       ctx.lineTo(width - 50, 150);
       ctx.stroke();
 
-      if (docType === "voting") {
+      if (docType === "financial") {
+        // 3 Giant Financial Metric Boxes
+        ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
+        ctx.fillRect(50, 180, 350, 130);
+        ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 180, 350, 130);
+
+        ctx.fillStyle = "#4ade80";
+        ctx.font = "bold 36px Georgia";
+        ctx.fillText(money(totalNet), 75, 235);
+        ctx.fillStyle = "#a7f3d0";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("ORGANIZER NET PAYOUT (90%)", 75, 265);
+        ctx.fillStyle = "#9ba9a1";
+        ctx.font = "11px sans-serif";
+        ctx.fillText("Credited to designated MoMo / Bank", 75, 290);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.fillRect(425, 180, 350, 130);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.strokeRect(425, 180, 350, 130);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 36px Georgia";
+        ctx.fillText(money(totalGross), 450, 235);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("GROSS REVENUE COLLECTED", 450, 265);
+        ctx.fillStyle = "#9ba9a1";
+        ctx.font = "11px sans-serif";
+        ctx.fillText(`From ${totalUnits.toLocaleString()} total units paid`, 450, 290);
+
+        ctx.fillStyle = "rgba(212, 175, 55, 0.08)";
+        ctx.fillRect(800, 180, 350, 130);
+        ctx.strokeStyle = "rgba(212, 175, 55, 0.35)";
+        ctx.strokeRect(800, 180, 350, 130);
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 36px Georgia";
+        ctx.fillText(money(totalFee), 825, 235);
+        ctx.fillStyle = "#fef3c7";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("PLATFORM SERVICE FEE (10%)", 825, 265);
+        ctx.fillStyle = "#9ba9a1";
+        ctx.font = "11px sans-serif";
+        ctx.fillText("Absorbs telecom MoMo charges & SMS", 825, 290);
+
+        // Financial Streams Breakdown
+        let y = 370;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 18px Georgia";
+        ctx.fillText("REVENUE STREAMS RECONCILIATION", 50, y);
+        y += 30;
+
+        const streams = [
+          ...(votingUnits > 0 || votingGross > 0
+            ? [{ name: "Paid Voting Ballots", units: `${votingUnits.toLocaleString()} votes`, gross: money(votingGross), fee: money(votingFee), net: money(votingNet) }]
+            : []),
+          ...(ticketsUnits > 0 || ticketsGross > 0
+            ? [{ name: "Event Ticket Passes", units: `${ticketsUnits.toLocaleString()} tickets`, gross: money(ticketsGross), fee: money(ticketsFee), net: money(ticketsNet) }]
+            : []),
+        ];
+
+        streams.forEach((s, idx) => {
+          ctx.fillStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.2)";
+          ctx.fillRect(50, y, width - 100, 65);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 18px Georgia";
+          ctx.fillText(s.name, 75, y + 38);
+
+          ctx.fillStyle = "#9ba9a1";
+          ctx.font = "14px sans-serif";
+          ctx.fillText(s.units, 350, y + 38);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 16px monospace";
+          ctx.fillText(`Gross: ${s.gross}`, 560, y + 38);
+
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "bold 16px monospace";
+          ctx.fillText(`Fee (10%): ${s.fee}`, 780, y + 38);
+
+          ctx.fillStyle = "#4ade80";
+          ctx.font = "bold 18px monospace";
+          ctx.fillText(`Net (90%): ${s.net}`, 970, y + 38);
+
+          y += 80;
+        });
+
+        // MoMo notice
+        ctx.fillStyle = "#d4af37";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText("SETTLEMENT CYCLE: AUTOMATIC T+1 CLEARING VIA PAYSTACK GHANA (BANK OF GHANA REGULATED)", 50, height - 60);
+      } else if (docType === "voting") {
         // KPI Strip
         ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
         ctx.fillRect(50, 170, width - 100, 75);
@@ -291,7 +450,6 @@ export function OfficialAuditModal({
             ctx.lineWidth = r.rank === 1 ? 2.5 : 1.2;
             ctx.stroke();
           } else {
-            // Initial circle fallback
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.fillStyle = r.rank === 1 ? "#78350f" : "#064e3b";
@@ -391,9 +549,9 @@ export function OfficialAuditModal({
       ctx.fillStyle = "#63746c";
       ctx.font = "11px sans-serif";
       ctx.fillText(
-        "OFFICIAL TAMPER-PROOF RECORD · VOTICASTHUB GHANA · VERIFIED VIA GATE SECURE INFRASTRUCTURE",
+        "OFFICIAL TAMPER-PROOF RECORD · VOTICASTHUB GHANA · VERIFIED FINANCIAL & EVENT LEDGER",
         width / 2 - 260,
-        height - 35
+        height - 30
       );
 
       const link = document.createElement("a");
@@ -405,7 +563,7 @@ export function OfficialAuditModal({
     }
   }
 
-  // Dedicated Winner Announcement Card (1080x1350 Portrait for WhatsApp Status & Instagram)
+  // Winner Announcement Card (1080x1350 Portrait)
   async function handleDownloadWinnerCard() {
     setIsGeneratingWinnerCard(true);
     try {
@@ -505,7 +663,6 @@ export function OfficialAuditModal({
         ctx.lineWidth = 2;
         ctx.stroke();
       } else {
-        // Fallback gold/emerald monogram circle
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
         ctx.fillStyle = "#064e3b";
@@ -614,9 +771,9 @@ export function OfficialAuditModal({
             </div>
           </div>
 
-          {/* Doc Type Switcher (if both are present) */}
-          {hasTickets && hasVoting && (
-            <div className="flex items-center rounded-xl bg-stone-800/80 p-1 border border-stone-700">
+          {/* Doc Type Switcher */}
+          <div className="flex items-center rounded-xl bg-stone-800/80 p-1 border border-stone-700 flex-wrap gap-1">
+            {hasVoting && (
               <button
                 type="button"
                 onClick={() => setDocType("voting")}
@@ -628,6 +785,8 @@ export function OfficialAuditModal({
               >
                 🏆 Voting Standings
               </button>
+            )}
+            {hasTickets && (
               <button
                 type="button"
                 onClick={() => setDocType("ticketing")}
@@ -639,8 +798,21 @@ export function OfficialAuditModal({
               >
                 🎟️ Gate &amp; Tickets
               </button>
-            </div>
-          )}
+            )}
+            {hasFinancial && (
+              <button
+                type="button"
+                onClick={() => setDocType("financial")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  docType === "financial"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-stone-300 hover:text-white"
+                }`}
+              >
+                💰 Financial &amp; Payout
+              </button>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -670,7 +842,7 @@ export function OfficialAuditModal({
               disabled={isGeneratingImage}
               onClick={handleDownloadGraphic}
               className="inline-flex items-center gap-1.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-200 px-3 py-2 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-              title="Download Retina-ready branded graphic with nominee photos"
+              title="Download Retina-ready branded graphic"
             >
               <Icon name="image" size={13} />
               <span>{isGeneratingImage ? "Generating..." : "Summary Graphic (.PNG)"}</span>
@@ -721,7 +893,7 @@ export function OfficialAuditModal({
                   />
                   <div className="h-6 w-px bg-stone-300" />
                   <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-900">
-                    Official Audit Division
+                    {docType === "financial" ? "Financial & Settlement Clearing" : "Official Audit Division"}
                   </span>
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-serif font-bold text-stone-950 tracking-tight">
@@ -729,12 +901,18 @@ export function OfficialAuditModal({
                 </h1>
                 <p className="text-xs text-stone-600">
                   <span className="font-semibold text-stone-800">
-                    {docType === "voting"
+                    {docType === "financial"
+                      ? "Official Financial Reconciliation & Settlement Statement"
+                      : docType === "voting"
                       ? "Certified Voting Standings & Declaration of Results"
                       : "Official Gate Admittance & Attendee Manifest Report"}
                   </span>
                   {" · "}
-                  {event.voting_mode === "paid" ? "Paid MoMo/Card Ballot" : "Free Ballot"}
+                  {docType === "financial"
+                    ? "Paystack Mobile Money & Card Settlement"
+                    : event.voting_mode === "paid"
+                    ? "Paid MoMo/Card Ballot"
+                    : "Free Ballot"}
                 </p>
               </div>
 
@@ -742,7 +920,7 @@ export function OfficialAuditModal({
               <div className="rounded-xl border-2 border-emerald-800/30 bg-emerald-50/60 p-3.5 text-right space-y-1">
                 <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-900">
                   <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-                  <span>Tamper-Evident Record</span>
+                  <span>Tamper-Evident Ledger</span>
                 </div>
                 <div className="font-mono text-xs font-bold text-emerald-950">
                   {auditHash}
@@ -753,8 +931,167 @@ export function OfficialAuditModal({
               </div>
             </div>
 
-            {/* Document Body: Voting Mode */}
-            {docType === "voting" ? (
+            {/* Document Body: Financial Mode */}
+            {docType === "financial" ? (
+              <div className="mt-8 space-y-8">
+                {/* 4 Executive Financial Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50/80 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">
+                      Net Organizer Payout (90%)
+                    </p>
+                    <p className="mt-1 text-2xl font-serif font-bold text-emerald-950 font-mono">
+                      {money(totalNet)}
+                    </p>
+                    <p className="text-[10px] text-emerald-800 mt-1">Direct organizer balance</p>
+                  </div>
+
+                  <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                      Gross Collected
+                    </p>
+                    <p className="mt-1 text-2xl font-serif font-bold text-stone-900 font-mono">
+                      {money(totalGross)}
+                    </p>
+                    <p className="text-[10px] text-stone-500 mt-1">Total incoming payments</p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900">
+                      Platform Fee (10%)
+                    </p>
+                    <p className="mt-1 text-2xl font-serif font-bold text-amber-950 font-mono">
+                      {money(totalFee)}
+                    </p>
+                    <p className="text-[10px] text-amber-800 mt-1">Absorbs MoMo &amp; gateway costs</p>
+                  </div>
+
+                  <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                      Total Checkouts
+                    </p>
+                    <p className="mt-1 text-2xl font-serif font-bold text-stone-900 font-mono">
+                      {totalUnits.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-stone-500 mt-1">Confirmed transactions</p>
+                  </div>
+                </div>
+
+                {/* Revenue Streams Table */}
+                <div className="rounded-xl border border-stone-200 overflow-hidden break-inside-avoid">
+                  <div className="bg-stone-100 px-4 py-2.5 border-b border-stone-200">
+                    <h3 className="font-serif font-bold text-sm text-stone-900">
+                      Event Revenue Streams Breakdown
+                    </h3>
+                  </div>
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-stone-200 bg-stone-50 text-[10px] font-bold uppercase text-stone-500">
+                        <th className="py-2.5 px-3">Revenue Stream</th>
+                        <th className="py-2.5 px-3 text-right">Units Paid</th>
+                        <th className="py-2.5 px-3 text-right">Gross Volume</th>
+                        <th className="py-2.5 px-3 text-right">Platform Fee (10%)</th>
+                        <th className="py-2.5 px-3 text-right">Your Net Payout (90%)</th>
+                        <th className="py-2.5 px-3 text-right">Settlement Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 font-mono">
+                      {votingUnits > 0 || votingGross > 0 ? (
+                        <tr className="hover:bg-stone-50">
+                          <td className="py-3 px-3 font-sans font-semibold text-stone-900">
+                            Paid Voting Ballots
+                          </td>
+                          <td className="py-3 px-3 text-right text-stone-700">
+                            {votingUnits.toLocaleString()} votes
+                          </td>
+                          <td className="py-3 px-3 text-right text-stone-900 font-semibold">
+                            {money(votingGross)}
+                          </td>
+                          <td className="py-3 px-3 text-right text-amber-900">
+                            {money(votingFee)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-800">
+                            {money(votingNet)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-sans">
+                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                              Settled / Available
+                            </span>
+                          </td>
+                        </tr>
+                      ) : null}
+
+                      {ticketsUnits > 0 || ticketsGross > 0 ? (
+                        <tr className="hover:bg-stone-50">
+                          <td className="py-3 px-3 font-sans font-semibold text-stone-900">
+                            Event Ticket Passes
+                          </td>
+                          <td className="py-3 px-3 text-right text-stone-700">
+                            {ticketsUnits.toLocaleString()} tickets
+                          </td>
+                          <td className="py-3 px-3 text-right text-stone-900 font-semibold">
+                            {money(ticketsGross)}
+                          </td>
+                          <td className="py-3 px-3 text-right text-amber-900">
+                            {money(ticketsFee)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-800">
+                            {money(ticketsNet)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-sans">
+                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
+                              Settled / Available
+                            </span>
+                          </td>
+                        </tr>
+                      ) : null}
+
+                      <tr className="bg-stone-100/90 font-bold border-t-2 border-stone-300">
+                        <td className="py-3 px-3 font-sans text-stone-950">
+                          Combined Total
+                        </td>
+                        <td className="py-3 px-3 text-right text-stone-950">
+                          {totalUnits.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-3 text-right text-stone-950">
+                          {money(totalGross)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-amber-950">
+                          {money(totalFee)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-emerald-900 text-sm">
+                          {money(totalNet)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-sans">
+                          <span className="inline-flex rounded-full bg-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-950">
+                            Reconciled
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Settlement & Payout Policy Information */}
+                <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 space-y-2 text-xs break-inside-avoid">
+                  <h4 className="font-serif font-bold text-stone-900">
+                    Official Settlement &amp; Disbursement Terms
+                  </h4>
+                  <ul className="list-disc list-inside text-stone-600 space-y-1 text-[11px] leading-relaxed">
+                    <li>
+                      <strong>Zero Extra Processing Deductions:</strong> The 10% platform share absorbs all Mobile Money (MTN MoMo, Telecel Cash, AT Money) and card processing charges. Organizers receive the exact 90% net earnings.
+                    </li>
+                    <li>
+                      <strong>Automatic T+1 Clearing:</strong> Payout batches clear automatically into your designated bank account or registered Mobile Money wallet.
+                    </li>
+                    <li>
+                      <strong>Bank of Ghana Regulated Infrastructure:</strong> All payments are processed through certified Bank of Ghana and PCI-DSS Level 1 compliant gateways.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            ) : docType === "voting" ? (
+              /* Document Body: Voting Mode */
               <div className="mt-8 space-y-8">
                 {/* Executive Summary Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1019,7 +1356,9 @@ export function OfficialAuditModal({
             <div className="mt-12 pt-8 border-t-2 border-stone-300 grid grid-cols-1 sm:grid-cols-2 gap-8 break-inside-avoid">
               <div className="space-y-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-stone-600">
-                  {docType === "voting"
+                  {docType === "financial"
+                    ? "Chief Financial Officer / Authorized Auditor"
+                    : docType === "voting"
                     ? "Electoral Commission / Audit Officer"
                     : "Gate Operations Lead / Chief Usher"}
                 </p>
@@ -1039,7 +1378,7 @@ export function OfficialAuditModal({
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-stone-800">
-                    Official Verification Seal
+                    {docType === "financial" ? "Financial Clearing & Settlement Seal" : "Official Verification Seal"}
                   </p>
                   <p className="text-[10px] text-stone-500 max-w-xs mt-0.5">
                     Certified tamper-evident ledger by VoteCastHub Ghana.
@@ -1051,7 +1390,7 @@ export function OfficialAuditModal({
 
             {/* Document Footer Notice */}
             <div className="mt-8 text-center text-[10px] text-stone-400 border-t border-stone-100 pt-3">
-              Generated by VoteCastHub Ghana Ltd. · System Reference: {auditHash} · All rights reserved.
+              Generated by VoteCastHub Ghana Ltd. · Financial Reference: {auditHash} · All rights reserved.
             </div>
           </div>
         </div>

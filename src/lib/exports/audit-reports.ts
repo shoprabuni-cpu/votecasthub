@@ -261,3 +261,98 @@ export function generateAnalyzedTicketingCsv({
 
   return [...metadata, headers.join(","), ...rows.map((row) => row.join(","))].join("\r\n");
 }
+
+export function generateAnalyzedFinancialCsv({
+  eventName,
+  organizationName = "Event Organizer",
+  votingGrossMinor = 0,
+  votingNetMinor = 0,
+  votingUnitsCount = 0,
+  ticketsGrossMinor = 0,
+  ticketsNetMinor = 0,
+  ticketsUnitsCount = 0,
+  auditHash,
+}: {
+  eventName: string;
+  organizationName?: string;
+  votingGrossMinor?: number;
+  votingNetMinor?: number;
+  votingUnitsCount?: number;
+  ticketsGrossMinor?: number;
+  ticketsNetMinor?: number;
+  ticketsUnitsCount?: number;
+  auditHash: string;
+}): string {
+  const dateFormatted = new Intl.DateTimeFormat("en-GH", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "Africa/Accra",
+  }).format(new Date());
+
+  const votingFeeMinor = Math.max(0, votingGrossMinor - votingNetMinor);
+  const ticketsFeeMinor = Math.max(0, ticketsGrossMinor - ticketsNetMinor);
+  const totalGrossMinor = votingGrossMinor + ticketsGrossMinor;
+  const totalFeeMinor = votingFeeMinor + ticketsFeeMinor;
+  const totalNetMinor = votingNetMinor + ticketsNetMinor;
+  const totalUnits = votingUnitsCount + ticketsUnitsCount;
+
+  const toGhs = (minor: number) => (Number(minor) / 100).toFixed(2);
+
+  const metadata = [
+    `# =========================================================================================`,
+    `# VOTICASTHUB GH · OFFICIAL FINANCIAL RECONCILIATION & SETTLEMENT STATEMENT`,
+    `# Event: ${eventName}`,
+    `# Organization: ${organizationName}`,
+    `# Generated At: ${dateFormatted} GMT`,
+    `# Financial Ledger ID: ${auditHash}`,
+    `# Settlement Terms: 90% Net Organizer Payout | 10% Platform Fee (Absorbs MoMo & Card Gateway Fees)`,
+    `# Currency: GHS (Ghana Cedi) | Settlement Cycle: T+1 Automatic Payout`,
+    `# =========================================================================================`,
+  ];
+
+  const headers = [
+    "Revenue Stream",
+    "Units Sold",
+    "Gross Revenue (GHS)",
+    "Platform Fee 10% (GHS)",
+    "Net Organizer Payout 90% (GHS)",
+    "Settlement Status",
+  ];
+
+  const rows = [
+    ...(votingUnitsCount > 0 || votingGrossMinor > 0
+      ? [
+          [
+            csvValue("Paid Voting Ballots"),
+            csvValue(votingUnitsCount),
+            csvValue(toGhs(votingGrossMinor)),
+            csvValue(toGhs(votingFeeMinor)),
+            csvValue(toGhs(votingNetMinor)),
+            csvValue("Settled / Available"),
+          ],
+        ]
+      : []),
+    ...(ticketsUnitsCount > 0 || ticketsGrossMinor > 0
+      ? [
+          [
+            csvValue("Ticket Passes"),
+            csvValue(ticketsUnitsCount),
+            csvValue(toGhs(ticketsGrossMinor)),
+            csvValue(toGhs(ticketsFeeMinor)),
+            csvValue(toGhs(ticketsNetMinor)),
+            csvValue("Settled / Available"),
+          ],
+        ]
+      : []),
+    [
+      csvValue("Combined Total"),
+      csvValue(totalUnits),
+      csvValue(toGhs(totalGrossMinor)),
+      csvValue(toGhs(totalFeeMinor)),
+      csvValue(toGhs(totalNetMinor)),
+      csvValue("Reconciled"),
+    ],
+  ];
+
+  return [...metadata, headers.join(","), ...rows.map((row) => row.join(","))].join("\r\n");
+}
