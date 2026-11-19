@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UssdInstructions, loadUssdInstructions } from "@/components/events/ussd-instructions";
 import { WhatsAppInstructions } from "@/components/events/whatsapp-instructions";
+import { PublicBallot } from "@/components/events/public-ballot";
 import { SiteHeader } from "@/components/site-header";
 import { FreeVoteForm } from "@/components/voting/free-vote-form";
 import { EventVoterVerification } from "@/components/voting/event-voter-verification";
@@ -280,6 +281,8 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
   const presentation = eventPresentation(event);
   const status = presentation.label;
   const resultsByNominee = new Map(publicResults.map((result) => [result.nominee_id, Number(result.vote_count)]));
+  const resultsByNomineeRecord: Record<string, number> = Object.fromEntries(resultsByNominee.entries());
+  const imageUrlByPathRecord: Record<string, string> = Object.fromEntries(imageUrlByPath.entries());
   const usedByCategory = new Map<string, number>();
   const usedByNominee = new Map<string, number>();
   for (const batch of voterUsage) {
@@ -521,22 +524,35 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                 <span>All events</span>
               </Link>
 
-              <ShareButton
-                title={event.name}
-                text={isTicketOnly ? `Get tickets for ${event.name}` : `${presentation.cta} — ${event.name}`}
-                url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
-                flyer={isTicketOnly ? undefined : {
-                  ussd: ussdInfo ?? undefined,
-                  eventName: event.name,
-                  imageUrl: eventImageUrl,
-                  startsAt: event.starts_at,
-                  endsAt: event.ends_at,
-                  status: event.status,
-                  votingMode: event.voting_mode,
-                  unitPriceMinor: event.unit_price_minor,
-                  eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
-                }}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                {(event.results_visibility === "live" ||
+                  (event.results_visibility === "after_close" &&
+                    (status === "Voting ended" || event.results_released))) && (
+                  <Link
+                    href={`/results/${slug}`}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-800 hover:bg-amber-500/20 transition-all dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300"
+                  >
+                    <span>🏆 View Standings &amp; Results</span>
+                  </Link>
+                )}
+
+                <ShareButton
+                  title={event.name}
+                  text={isTicketOnly ? `Get tickets for ${event.name}` : `${presentation.cta} — ${event.name}`}
+                  url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/events/${slug}`}
+                  flyer={isTicketOnly ? undefined : {
+                    ussd: ussdInfo ?? undefined,
+                    eventName: event.name,
+                    imageUrl: eventImageUrl,
+                    startsAt: event.starts_at,
+                    endsAt: event.ends_at,
+                    status: event.status,
+                    votingMode: event.voting_mode,
+                    unitPriceMinor: event.unit_price_minor,
+                    eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
+                  }}
+                />
+              </div>
             </div>
 
             {/* Hero Section */}
@@ -632,16 +648,9 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                   </div>
                 )}
 
-                {/* Notices and Results Banners (Voting events only) */}
+                {/* Notices and Announcements (Voting events only) */}
                 {!isTicketOnly && (
-                  <>
-                    <EventNotices eventId={event.id} />
-                    <VotingNotice
-                      event={event}
-                      resultsVisibility={event.results_visibility}
-                      resultsReleased={event.results_released}
-                    />
-                  </>
+                  <EventNotices eventId={event.id} />
                 )}
 
                 {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
@@ -659,253 +668,88 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                   </div>
                 )}
 
-                {/* Voter Verification Section (Only shown if voting is enabled) */}
+                {/* Bot & Instant Voting Channel */}
                 {!isTicketOnly && (
                   <>
                     <UssdInstructions eventId={event.id} />
                     <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
-                    <div id="voter-verification" className="space-y-3">
-                      <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-50 to-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900 font-bold">
-                            <Icon name="shield" size={15} />
-                          </div>
-                          <div>
-                            <strong className="text-stone-900 font-semibold block">
-                              {event.voting_mode === "free" ? "Voter Verification" : "Secure Payment Gateway"}
-                            </strong>
-                            <span className="text-stone-500 text-[11px]">
-                              {event.voting_mode === "free"
-                                ? event.verification_method === "email"
-                                  ? "Verify your email once, then cast your votes."
-                                  : event.verification_method === "invite_code"
-                                    ? "Enter your event access code once, then vote."
-                                    : event.verification_method === "voter_list"
-                                      ? "Verify the details provided by your organizer, then vote."
-                                      : "Verify your Ghana phone number once with SMS, then vote."
-                                : "Payments processed securely via Mobile Money & Cards with Paystack."}
-                            </span>
-                          </div>
-                        </div>
 
-                        {voterVerified && event.voting_mode === "free" && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
-                            <Icon name="check" size={12} />
-                            <span>Verified</span>
-                          </span>
+                    {/* Free Voting Verification (Only shown when voting mode is free) */}
+                    {event.voting_mode === "free" && (
+                      <div id="voter-verification" className="space-y-3 pt-2">
+                        {event.verification_method === "voter_list" && (
+                          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
+                            {rosterRemaining === null
+                              ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification."
+                              : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}
+                          </p>
                         )}
+                        <EventVoterVerification
+                          eventId={event.id}
+                          method={event.verification_method ?? "phone"}
+                          isVerified={voterVerified}
+                          hasRedeemed={voterAuthStatus.hasVoterList}
+                          available={votingOpen}
+                          inputTypes={voterInputTypes}
+                        />
                       </div>
-                      {event.voting_mode === "free" && event.verification_method === "voter_list" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{rosterRemaining === null ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification." : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}</p>}
-                      {event.voting_mode === "free" && (
-                        <EventVoterVerification eventId={event.id} method={event.verification_method ?? "phone"} isVerified={voterVerified} hasRedeemed={voterAuthStatus.hasVoterList} available={votingOpen} inputTypes={voterInputTypes} />
-                      )}
-
-                      <div className="rounded-xl border border-stone-200 p-3 text-sm text-stone-700"><p>Need help with your voter details or voting allowance?</p><a className="mt-2 inline-flex min-h-11 items-center font-semibold text-emerald-800!  border border-stone-300 bg-white shadow-xs rounded-xl px-4 py-2.5 min-h-11 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}>{event.voter_help_email ? "Contact the organizer" : "Contact platform support"}</a>{!event.voter_help_email && <p className="text-xs">For list corrections or private codes, contact the organizer through their official event announcement.</p>}</div>
-                      {/* Open instructions note */}
-                      {isOpen && (
-                        <div className="rounded-xl bg-stone-100/70 p-3 text-xs text-stone-600">
-                          {event.voting_mode === "free"
-                            ? voterVerified
-                              ? "Select a nominee below. Your remaining votes are shown on each candidate card."
-                              : "Voting is free. Complete verification above, then select your nominees below."
-                            : "Select your nominee and vote quantity below. Votes are recorded instantly after secure Mobile Money or Card payment."}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </>
                 )}
               </div>
             </section>
 
-            {/* Categories & Nominees Section (Voting / Hybrid events only) */}
+            {/* The Official Ballot: Categories & Nominees */}
             {!isTicketOnly && (
-              <section className="space-y-8">
-                <div className="flex items-center justify-between border-b border-stone-200/80 pb-4 dark:border-[#1c2721]">
-                  <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">The Ballot</span>
-                    <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight dark:text-white">Categories & Nominees</h2>
-                  </div>
-                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 dark:border-[#1c2721] dark:bg-[#141b16] dark:text-stone-300">
-                    {categories.length} {categories.length === 1 ? "Category" : "Categories"}
+              categories.length ? (
+                <PublicBallot
+                  eventId={event.id}
+                  eventName={event.name}
+                  eventSlug={slug}
+                  votingMode={event.voting_mode as "paid" | "free"}
+                  unitPriceMinor={event.unit_price_minor}
+                  isOpen={isOpen}
+                  status={status}
+                  categories={categories}
+                  nominees={nominees}
+                  imageUrlByPath={imageUrlByPathRecord}
+                  resultsByNominee={resultsByNomineeRecord}
+                  ussdInfo={ussdInfo}
+                  eventStartsAt={event.starts_at}
+                  eventEndsAt={event.ends_at}
+                  eventStatus={event.status}
+                  isFreeVerified={voterVerified}
+                  freeRemaining={voteCap}
+                  freeVerificationMethod={event.verification_method ?? "phone"}
+                />
+              ) : (
+                <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500 dark:border-[#223028]">
+                  <h3 className="font-serif font-semibold text-stone-900 text-base dark:text-stone-100">
+                    Nominees are being prepared.
+                  </h3>
+                  <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
+                </div>
+              )
+            )}
+
+            {/* Voter Assistance Card */}
+            {!isTicketOnly && (
+              <div className="rounded-2xl border border-stone-200/80 bg-stone-50/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs dark:border-[#1c2721] dark:bg-[#0c120e]">
+                <div>
+                  <strong className="block text-stone-900 font-semibold dark:text-stone-100">
+                    Need help with your ballot or private access code?
+                  </strong>
+                  <span className="text-stone-500 text-[11px] dark:text-stone-400">
+                    Reach out to our platform support team or contact the event organizer directly.
                   </span>
                 </div>
-
-                {categories.length ? (
-                  categories.map((category) => {
-                    const categoryNominees = nomineesByCategory.get(category.id) ?? [];
-                    return (
-                      <section
-                        key={category.id}
-                        className="rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs space-y-6 dark:border-[#1c2721] dark:bg-[#0c120e]"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
-                          <div>
-                            <h3 className="text-xl font-serif font-bold text-stone-900 dark:text-white">{category.name}</h3>
-                            {category.description && (
-                              <p className="mt-1 text-xs text-stone-500 leading-relaxed max-w-2xl dark:text-stone-400">
-                                {category.description}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-xs font-semibold text-stone-400 dark:text-stone-400">
-                            {categoryNominees.length} {categoryNominees.length === 1 ? "Nominee" : "Nominees"}
-                          </span>
-                        </div>
-
-                        {/* Nominees Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {categoryNominees.map((nominee) => {
-                            const used =
-                              event.voting_rule === "per_nominee_limit"
-                                ? usedByNominee.get(nominee.id) ?? 0
-                                : usedByCategory.get(category.id) ?? 0;
-                            const remaining = Math.max(0, Math.min(voteCap - used, rosterRemaining ?? voteCap));
-                            const imageUrl = imageUrlByPath.get(nominee.image_path ?? "");
-
-                            return (
-                              <article
-                                key={nominee.id}
-                                className="flex flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-4 shadow-2xs hover:shadow-xs transition-all dark:border-[#1c2721] dark:bg-[#0a0d0b]"
-                              >
-                                <div className="space-y-3">
-                                  <Link
-                                    href={`/events/${slug}/nominees/${nominee.id}`}
-                                    className="group flex min-h-11 items-start gap-3.5 rounded-xl border border-stone-200 bg-stone-50/50 p-3 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-[#1c2721] dark:bg-[#121914] dark:hover:border-emerald-600 dark:hover:bg-[#15221b]"
-                                  >
-                                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform dark:border-[#223028] dark:bg-[#141b16]">
-                                      {imageUrl ? (
-                                        <div
-                                          className="h-full w-full bg-cover bg-center"
-                                          style={{ backgroundImage: `url("${imageUrl}")` }}
-                                          role="img"
-                                          aria-label={`${nominee.name} photo`}
-                                        />
-                                      ) : (
-                                        <div className="flex h-full w-full items-center justify-center font-serif text-lg font-bold text-emerald-900 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300">
-                                          {nominee.name.trim().slice(0, 1).toUpperCase()}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="min-w-0 flex-1">
-                                      <h4 className="font-semibold text-stone-900 text-sm leading-tight group-hover:text-emerald-900 transition-colors dark:text-white dark:group-hover:text-emerald-400">
-                                        {nominee.name}
-                                      </h4>
-                                      {nominee.public_code && (
-                                        <span className="mt-1 inline-block rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-stone-700 dark:bg-[#18221b] dark:text-emerald-400">
-                                          {nominee.public_code}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <span className="text-stone-300 group-hover:text-stone-600 transition-colors text-xs dark:text-stone-400">
-                                      ↗
-                                    </span>
-                                  </Link>
-
-                                  {/* Public Results (if released) */}
-                                  {resultsByNominee.has(nominee.id) && (
-                                    <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs dark:bg-[#141b16]">
-                                      <span className="text-stone-500 font-medium text-[11px] dark:text-stone-400">Recorded Votes</span>
-                                      <strong className="font-mono text-stone-900 font-bold dark:text-white">
-                                        {resultsByNominee.get(nominee.id)?.toLocaleString("en-GH")}
-                                      </strong>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Voting Action Section */}
-                                <div className="mt-4 pt-3 border-t border-stone-100 space-y-3">
-                                  {event.voting_mode === "paid" && status === "Voting open" ? (
-                                    <PaidVoteForm
-                                      eventId={event.id}
-                                      categoryId={category.id}
-                                      nomineeId={nominee.id}
-                                      nomineeName={nominee.name}
-                                      unitPriceMinor={event.unit_price_minor}
-                                    />
-                                  ) : event.voting_mode === "free" && votingOpen ? (
-                                    voterVerified ? (
-                                      remaining > 0 ? (
-                                        <FreeVoteForm
-                                          eventId={event.id}
-                                          categoryId={category.id}
-                                          nomineeId={nominee.id}
-                                          nomineeName={nominee.name}
-                                          nextPath={votePath}
-                                          maxQuantity={remaining}
-                                          requestKey={randomUUID()}
-                                          phoneVerified={true}
-                                          verificationMethod={event.verification_method ?? "phone"}
-                                        />
-                                      ) : (
-                                        <p className="rounded-xl bg-stone-100 p-2 text-center text-[11px] font-medium text-stone-500">
-                                          Limit reached {event.voting_rule === "per_nominee_limit" ? "for this nominee" : "in this category"}.
-                                        </p>
-                                      )
-                                    ) : (
-                                      <FreeVoteForm
-                                        eventId={event.id}
-                                        categoryId={category.id}
-                                        nomineeId={nominee.id}
-                                        nomineeName={nominee.name}
-                                        nextPath={votePath}
-                                        maxQuantity={voterAuthStatus.hasVoterList && rosterRemaining === 0 ? 0 : voteCap}
-                                        requestKey={randomUUID()}
-                                        phoneVerified={false}
-                                        verificationMethod={event.verification_method ?? "phone"}
-                                      />
-                                    )
-                                  ) : null}
-
-                                  {/* Candidate Flyer Share & WhatsApp Vote Buttons */}
-                                  <div className="flex items-center justify-between pt-1 gap-2">
-                                    {nominee.public_code ? (
-                                      <a
-                                        href={`https://wa.me/233592992566?text=${encodeURIComponent(`VOTE ${ussdInfo?.event_code ?? slug} ${nominee.public_code}`)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all shadow-2xs dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                        title={`Vote for ${nominee.name} on WhatsApp`}
-                                      >
-                                        <span>💬</span>
-                                        <span>Vote on WhatsApp</span>
-                                      </a>
-                                    ) : <div />}
-                                    <ShareButton
-                                      title={nominee.name}
-                                      text={`${nominee.name} — ${event.name}`}
-                                      url={`/events/${slug}/nominees/${nominee.id}`}
-                                      flyer={{
-                                        nominee: nominee.name,
-                                        eventName: event.name,
-                                        category: category.name,
-                                        code: nominee.public_code,
-                                        imageUrl: imageUrlByPath.get(nominee.image_path ?? ""),
-                                        startsAt: event.starts_at,
-                                        endsAt: event.ends_at,
-                                        status: event.status,
-                                        votingMode: event.voting_mode,
-                                        unitPriceMinor: event.unit_price_minor,
-                                        eventCode: ussdInfo?.event_code ? String(ussdInfo.event_code) : slug,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500">
-                    <h3 className="font-serif font-semibold text-stone-900 text-base">Nominees are being prepared.</h3>
-                    <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
-                  </div>
-                )}
-              </section>
+                <a
+                  href={`mailto:${event.voter_help_email || "support@votecasthub.com"}?subject=${encodeURIComponent(`Voting help: ${event.name}`)}`}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-800 shadow-2xs hover:bg-stone-50 dark:border-[#223028] dark:bg-[#121914] dark:text-stone-200"
+                >
+                  {event.voter_help_email ? "Contact Organizer" : "Platform Support"}
+                </a>
+              </div>
             )}
           </>
         )}
