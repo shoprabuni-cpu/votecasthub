@@ -467,6 +467,10 @@ export function ReportsTabbedHub({
           <ResultsExportActions
             nominees={analytics.nominees}
             scopeLabel={`${event.name} · Complete Event`}
+            event={event}
+            organizationId={organizationId}
+            ticketTiers={ticketTiers}
+            attendees={attendees}
           />
         </motion.div>
       )}

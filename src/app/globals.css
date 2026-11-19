@@ -77,4 +77,28 @@ a {
   body {
     background: #fff !important;
   }
+  body.printing-audit-report {
+    background: #fff !important;
+  }
+  body.printing-audit-report * {
+    visibility: hidden;
+  }
+  body.printing-audit-report #official-printable-audit-doc,
+  body.printing-audit-report #official-printable-audit-doc * {
+    visibility: visible;
+  }
+  body.printing-audit-report #official-printable-audit-doc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
 }

@@ -8,6 +8,8 @@ import type { AttendeeRecord } from "@/lib/tickets/actions";
 import { Icon } from "@/components/icon";
 import { TicketIcon } from "@/components/brand-icons";
 import { csvValue } from "@/lib/analytics";
+import { OfficialAuditModal } from "@/components/organizer/official-audit-modal";
+import { generateAuditHash, generateAnalyzedTicketingCsv } from "@/lib/exports/audit-reports";
 
 type Props = {
   eventId: string;
@@ -29,6 +31,7 @@ export function TicketingAnalyticsHub({
   const [searchQuery, setSearchQuery] = useState("");
   const [tierFilter, setTierFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "checked_in" | "valid">("all");
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const money = (amount: number) => `GH₵ ${(Number(amount) / 100).toFixed(2)}`;
 
@@ -93,49 +96,19 @@ export function TicketingAnalyticsHub({
   function handleExportCsv() {
     if (attendees.length === 0) return;
 
-    const headers = [
-      "PAX Code",
-      "Order Reference",
-      "Customer Name",
-      "Customer Phone",
-      "Customer Email",
-      "Ticket Tier",
-      "Quantity",
-      "Unit Price (GHS)",
-      "Total Price (GHS)",
-      "Channel",
-      "Status",
-      "Checked In At",
-      "Checked In By",
-      "Purchased At",
-    ];
-
-    const rows = attendees.map((a) => [
-      csvValue(a.pax_code),
-      csvValue(a.order_reference),
-      csvValue(a.customer_name),
-      csvValue(a.customer_phone),
-      csvValue(a.customer_email || ""),
-      csvValue(a.tier_name),
-      csvValue(a.quantity),
-      csvValue((Number(a.price_minor) / (Number(a.quantity) || 1) / 100).toFixed(2)),
-      csvValue((Number(a.price_minor) / 100).toFixed(2)),
-      csvValue(a.channel),
-      csvValue(a.status === "checked_in" || a.checked_in_at ? "Checked In" : "Valid"),
-      csvValue(a.checked_in_at || ""),
-      csvValue(a.checked_in_by || ""),
-      csvValue(a.created_at),
-    ]);
-
-    const csvContent =
-      "\uFEFF" +
-      [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const auditHash = generateAuditHash(eventId);
+    const csvContent = "\uFEFF" + generateAnalyzedTicketingCsv({
+      eventName,
+      attendees,
+      ticketTiers: tiers,
+      auditHash,
+    });
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${eventName.replace(/[^a-zA-Z0-9_-]/g, "_")}_attendees_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `${eventName.replace(/[^a-zA-Z0-9_-]/g, "_")}_attendees_manifest_${auditHash}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -182,12 +155,20 @@ export function TicketingAnalyticsHub({
 
             <button
               type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-white px-3.5 py-2.5 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer dark:bg-emerald-800 dark:hover:bg-emerald-700"
+            >
+              <span>📜 Gate Report (PDF/Print)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleExportCsv}
               disabled={attendees.length === 0}
               className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer dark:border-[#1c2721] dark:bg-[#141d18] dark:text-stone-200 dark:hover:bg-[#1c2721]"
             >
               <Icon name="download" size={13} />
-              <span>Export Attendee CSV</span>
+              <span>Attendee Manifest CSV</span>
             </button>
           </div>
         </div>
@@ -560,6 +541,24 @@ export function TicketingAnalyticsHub({
           </div>
         )}
       </div>
+
+      {isReportModalOpen && (
+        <OfficialAuditModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          event={{
+            id: eventId,
+            name: eventName,
+            slug: eventName.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
+            status: ended ? "closed" : "published",
+            event_type: "ticketing",
+          }}
+          organizationId={organizationId}
+          ticketTiers={tiers}
+          attendees={attendees}
+          defaultDocType="ticketing"
+        />
+      )}
     </div>
   );
 }
