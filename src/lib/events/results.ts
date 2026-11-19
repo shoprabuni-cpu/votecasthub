@@ -118,8 +118,7 @@ export async function loadPublicAwardsDirectory(customClient?: any): Promise<Eve
   const { data: rawEvents, error } = await supabase
     .from("events")
     .select(
-      `id, name, slug, description, image_path, starts_at, ends_at, status, results_visibility, results_released, unit_price_minor, voting_mode, created_at,
-       organizations ( id, name, moderation_status )`
+      "id, name, slug, description, image_path, starts_at, ends_at, status, results_visibility, results_released, unit_price_minor, voting_mode"
     )
     .in("status", ["published", "paused", "closed"])
     .in("results_visibility", ["live", "after_close"])
@@ -131,10 +130,6 @@ export async function loadPublicAwardsDirectory(customClient?: any): Promise<Eve
 
   const now = Date.now();
   const eligibleEvents = rawEvents.filter((e: any) => {
-    const org = e.organizations;
-    if (org && org.moderation_status && org.moderation_status !== "active") {
-      return false;
-    }
     return isEventResultsPublic(e);
   });
 
@@ -221,8 +216,7 @@ export async function loadEventPublicResults(
   let query = supabase
     .from("events")
     .select(
-      `id, name, slug, description, image_path, starts_at, ends_at, status, results_visibility, results_released, unit_price_minor, voting_mode,
-       organizations ( id, name, moderation_status )`
+      "id, name, slug, description, image_path, starts_at, ends_at, status, results_visibility, results_released, unit_price_minor, voting_mode"
     )
     .in("status", ["published", "paused", "closed"]);
 
@@ -263,7 +257,7 @@ export async function loadEventPublicResults(
     slug: eventData.slug,
     description: eventData.description,
     image_url: bannerUrl,
-    organization_name: (eventData as any).organizations?.name || "Official Organization",
+    organization_name: "Verified Organizer",
     status: eventData.status,
     starts_at: eventData.starts_at,
     ends_at: eventData.ends_at,

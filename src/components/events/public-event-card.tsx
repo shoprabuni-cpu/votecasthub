@@ -25,7 +25,7 @@ export type PublicEventCardData = {
 function TicketBarcode() {
   return (
     <svg
-      className="h-6 w-28 sm:w-32 opacity-75 group-hover:opacity-100 transition-opacity text-stone-800 dark:text-stone-300"
+      className="h-5 sm:h-6 w-24 sm:w-32 opacity-75 group-hover:opacity-100 transition-opacity text-stone-800 dark:text-stone-300"
       viewBox="0 0 120 28"
       fill="currentColor"
       aria-hidden="true"
@@ -97,7 +97,121 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
         href={`/events/${event.slug}`}
         className="group block min-w-0 focus-visible:outline-2 focus-visible:outline-amber-500 rounded-3xl h-full transition-all duration-300 hover:-translate-y-1"
       >
-        <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-amber-900/15 bg-white shadow-sm transition-all duration-300 group-hover:border-amber-500/50 group-hover:shadow-xl dark:border-amber-900/40 dark:bg-[#0c120e] dark:group-hover:border-amber-500/40">
+        {/* =========================================================================
+            MOBILE HORIZONTAL PASS (sm:hidden)
+            Authentic landscape admission ticket with left main body, vertical
+            perforation tear notches, and right-side admission stub.
+           ========================================================================= */}
+        <div className="flex sm:hidden relative overflow-hidden rounded-2xl border border-amber-900/20 bg-white shadow-xs dark:border-amber-900/40 dark:bg-[#0c120e]">
+          {/* Left: Main Ticket Body */}
+          <div className="flex-1 min-w-0 p-3 flex flex-col justify-between">
+            <div>
+              {/* Header row */}
+              <div className="flex items-center justify-between gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 mb-2">
+                <span className="flex items-center gap-1 truncate">
+                  <TicketIcon size={12} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span className="truncate">{event.event_type === "hybrid" ? "Pass + Vote" : "Admission Pass"}</span>
+                </span>
+                <span className="font-mono text-[8px] text-stone-400 dark:text-stone-500 shrink-0">
+                  № {event.id.slice(0, 6).toUpperCase()}
+                </span>
+              </div>
+
+              {/* Event poster thumbnail & details */}
+              <div className="flex items-start gap-2.5">
+                {event.imageUrl ? (
+                  <div className="relative size-14 rounded-xl overflow-hidden shrink-0 border border-stone-200/80 bg-stone-100 dark:border-[#1c2721] dark:bg-[#151c17]">
+                    <Image
+                      src={event.imageUrl}
+                      alt={event.name}
+                      fill
+                      unoptimized
+                      sizes="64px"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex size-14 items-center justify-center rounded-xl border border-dashed border-amber-300/80 bg-amber-50/50 text-amber-700/60 dark:border-amber-900/40 dark:bg-amber-950/20 shrink-0">
+                    <TicketIcon size={22} />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  {event.organization_name && (
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 truncate">
+                      {event.organization_name}
+                    </p>
+                  )}
+                  <h3 className="font-serif text-xs font-bold text-stone-900 dark:text-white line-clamp-2 leading-tight">
+                    {event.name}
+                  </h3>
+                  <p className="mt-0.5 text-[10px] text-stone-500 dark:text-stone-400 truncate flex items-center gap-1">
+                    <span>📍</span>
+                    <span className="truncate">{event.venue_name || "Official Venue"}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom date badge */}
+            <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-[#18221b] flex items-center justify-between text-[10px]">
+              <span className="font-semibold text-stone-800 dark:text-stone-200">
+                🗓️ {dateInfo.month} {dateInfo.day} ({dateInfo.weekday})
+              </span>
+              <span className="text-[9px] text-amber-700 dark:text-amber-400 font-medium">
+                {doorsText}
+              </span>
+            </div>
+          </div>
+
+          {/* Vertical Perforation Divider with Physical Cutout Notches */}
+          <div className="relative flex flex-col items-center justify-between w-0 shrink-0">
+            {/* Top cutout notch */}
+            <div
+              className="absolute -top-2.5 -left-2.5 size-5 rounded-full border border-stone-300 bg-[var(--paper)] shadow-inner dark:border-[#2a3830] z-10"
+              aria-hidden="true"
+            />
+            {/* Vertical dashed line */}
+            <div className="h-full border-r-2 border-dashed border-stone-300/90 dark:border-stone-700/80 my-2" />
+            {/* Bottom cutout notch */}
+            <div
+              className="absolute -bottom-2.5 -left-2.5 size-5 rounded-full border border-stone-300 bg-[var(--paper)] shadow-inner dark:border-[#2a3830] z-10"
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* Right: Ticket Stub */}
+          <div className="w-28 shrink-0 p-2.5 bg-stone-50/70 dark:bg-[#080d0a]/80 flex flex-col items-center justify-between text-center">
+            <div>
+              <span className="font-mono text-[7px] uppercase tracking-widest text-stone-400 dark:text-stone-500 block">
+                GATE PASS
+              </span>
+              <div className="my-1 scale-90 origin-center">
+                <TicketBarcode />
+              </div>
+            </div>
+
+            <div className="w-full my-1">
+              <span className="text-[8px] uppercase tracking-wider text-stone-400 dark:text-stone-500 block font-semibold">
+                ENTRY
+              </span>
+              <span className="font-bold text-xs text-amber-900 dark:text-amber-200 truncate block">
+                {priceText}
+              </span>
+            </div>
+
+            <div className="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-white text-[10px] font-bold shadow-xs text-center">
+              Get Pass 🎟️
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            DESKTOP VERTICAL PASS (hidden sm:flex)
+            Full vertical ticket pass with rich artwork, calendar block,
+            horizontal perforation divider, and barcode footer stub.
+           ========================================================================= */}
+        <div className="hidden sm:flex relative h-full flex-col justify-between overflow-hidden rounded-3xl border border-amber-900/15 bg-white shadow-sm transition-all duration-300 group-hover:border-amber-500/50 group-hover:shadow-xl dark:border-amber-900/40 dark:bg-[#0c120e] dark:group-hover:border-amber-500/40">
           {/* Top Vintage / Ticket Pass Ribbon */}
           <div className="flex items-center justify-between border-b border-amber-200/50 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 px-4 py-2 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-amber-900 dark:border-amber-900/40 dark:text-amber-300">
             <span className="flex items-center gap-1.5">
@@ -105,7 +219,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
               <span>{event.event_type === "hybrid" ? "Pass + Vote" : "Admission Pass"}</span>
             </span>
             <div className="flex items-center gap-2">
-              <span className="hidden sm:inline font-mono text-[9px] text-stone-500 dark:text-stone-400">
+              <span className="font-mono text-[9px] text-stone-500 dark:text-stone-400">
                 № {event.id.slice(0, 8).toUpperCase()}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-stone-700 shadow-2xs dark:bg-[#141d18] dark:text-stone-300">
