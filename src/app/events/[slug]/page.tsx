@@ -18,6 +18,7 @@ import { eventPresentation } from "@/lib/events/presentation";
 import { ShareButton } from "@/components/sharing/share-buttons";
 import { EventViewTracker } from "@/components/analytics/event-view-tracker";
 import { Icon } from "@/components/icon";
+import { getCachedSignedUrl, getCachedSignedUrls } from "@/lib/storage/signed-url-cache";
 import { loadPublicSearchMetadata } from "@/lib/seo/public-data";
 import { publicMetadata, PRIVATE_ROBOTS, breadcrumbs } from "@/lib/seo/metadata";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -115,80 +116,118 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
   let voterUserId: string | null = null;
   let voterUsage: Array<{ category_id: string; nominee_id: string; quantity: number }> = [];
   let votingOpen = false;
+  let ussdInfo: Awaited<ReturnType<typeof loadUssdInstructions>> = null;
 
   try {
     const supabase = await createClient();
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      voterUserId = userData.user?.id ?? null;
-      voterAuthStatus.isAuthenticated = Boolean(voterUserId);
-      phoneVerified = Boolean(userData.user?.phone && userData.user.phone_confirmed_at);
-      emailVerified = Boolean(userData.user?.email && userData.user.email_confirmed_at);
-    } catch {
-      voterUserId = null;
-      phoneVerified = false;
-      emailVerified = false;
-    }
 
-    const eventResult = await supabase
-      .from("events")
-      .select(
-        "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released, event_type, venue_name, venue_address, doors_open_time"
-      )
-      .eq("slug", slug)
-      .in("status", ["published", "paused", "closed"])
-      .maybeSingle();
+    // Step 1: Parallelize User Auth and Event Metadata queries
+    const [userAuthResult, eventResult] = await Promise.all([
+      supabase.auth.getUser().catch(() => ({ data: { user: null } })),
+      supabase
+        .from("events")
+        .select(
+          "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released, event_type, venue_name, venue_address, doors_open_time"
+        )
+        .eq("slug", slug)
+        .in("status", ["published", "paused", "closed"])
+        .maybeSingle(),
+    ]);
+
+    const user = userAuthResult.data?.user ?? null;
+    voterUserId = user?.id ?? null;
+    voterAuthStatus.isAuthenticated = Boolean(voterUserId);
+    phoneVerified = Boolean(user?.phone && user.phone_confirmed_at);
+    emailVerified = Boolean(user?.email && user.email_confirmed_at);
 
     if (eventResult.error) {
       unavailable = true;
     } else if (eventResult.data) {
       event = eventResult.data;
-      if (event.image_path) {
-        const signedEventImage = await supabase.storage.from("nominee-images").createSignedUrl(event.image_path, 3600);
-        eventImageUrl = signedEventImage.data?.signedUrl ?? null;
+
+      // Step 2: Fire ALL dependent queries IN PARALLEL!
+      const isFreeMode = event.voting_mode === "free";
+      const method = event.verification_method ?? "phone";
+      const showResults = event.results_visibility === "live" || event.results_visibility === "after_close";
+
+      const [
+        coverImageUrl,
+        tiersResult,
+        freeOpenResult,
+        voterInputTypesResult,
+        eligibilityResult,
+        resultsRpcResult,
+        categoriesResult,
+        loadedUssdInfo,
+      ] = await Promise.all([
+        event.image_path ? getCachedSignedUrl(supabase, "nominee-images", event.image_path, 3600) : Promise.resolve(null),
+        supabase
+          .from("event_ticket_tiers")
+          .select("*")
+          .eq("event_id", event.id)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true }),
+        isFreeMode
+          ? supabase.rpc("is_free_voting_open", { p_event_id: event.id })
+          : Promise.resolve({ data: false, error: null }),
+        isFreeMode && method === "voter_list"
+          ? supabase.rpc("get_event_voter_input_types", { p_event_id: event.id })
+          : Promise.resolve({ data: [] as string[], error: null }),
+        isFreeMode && voterUserId
+          ? supabase.rpc("check_voter_event_eligibility", { p_event_id: event.id })
+          : Promise.resolve({ data: null, error: null }),
+        showResults
+          ? supabase.rpc("get_public_event_results", { p_event_id: event.id })
+          : Promise.resolve({ data: [] as Array<{ nominee_id: string; vote_count: number }>, error: null }),
+        supabase
+          .from("categories")
+          .select("id, name, description")
+          .eq("event_id", event.id)
+          .eq("is_active", true)
+          .order("display_order", { ascending: true }),
+        loadUssdInstructions(event.id),
+      ]);
+
+      eventImageUrl = coverImageUrl;
+      ticketTiers = (tiersResult.data as any) ?? [];
+      votingOpen = freeOpenResult.data === true;
+      ussdInfo = loadedUssdInfo;
+      if (!resultsRpcResult.error && resultsRpcResult.data) {
+        publicResults = resultsRpcResult.data;
       }
 
-      // Fetch active ticket tiers for this event
-      const { data: tiersData } = await supabase
-        .from("event_ticket_tiers")
-        .select("*")
-        .eq("event_id", event.id)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
-      ticketTiers = (tiersData as any) ?? [];
-      if (event.voting_mode === "free") {
-        const openResult = await supabase.rpc("is_free_voting_open", { p_event_id: event.id });
-        votingOpen = openResult.data === true;
+      if (Array.isArray(voterInputTypesResult.data)) {
+        voterInputTypes = voterInputTypesResult.data.filter(
+          (type): type is "phone" | "email" | "identifier" =>
+            type === "phone" || type === "email" || type === "identifier"
+        );
+      }
 
-        // Multi-method eligibility evaluation
-        const method = event.verification_method ?? "phone";
-        if (method === "voter_list") {
-          const { data: types } = await supabase.rpc("get_event_voter_input_types", { p_event_id: event.id });
-          if (Array.isArray(types)) voterInputTypes = types.filter((type): type is "phone" | "email" | "identifier" => type === "phone" || type === "email" || type === "identifier");
-        }
-        if (voterUserId) {
-          if (method === "phone") {
-            voterVerified = phoneVerified;
-          } else if (method === "email") {
-            voterVerified = emailVerified;
-          } else {
-            // For invite_code or voter_list, verify via RPC
-            const { data: eligibility } = await supabase.rpc("check_voter_event_eligibility", { p_event_id: event.id });
-            const el = eligibility as { is_verified?: boolean; has_access_code?: boolean; has_voter_list?: boolean; voter_list_max?: number; voter_list_used?: number } | null;
-            if (el) {
-              voterVerified = Boolean(el.is_verified);
-              if (method === "voter_list" && el.has_voter_list) rosterRemaining = Math.max(0, (el.voter_list_max ?? 0) - (el.voter_list_used ?? 0));
-              voterAuthStatus = {
-                isAuthenticated: true,
-                isVerified: voterVerified,
-                hasAccessCode: Boolean(el.has_access_code),
-                hasVoterList: Boolean(el.has_voter_list),
-              };
-            }
+      if (isFreeMode && voterUserId) {
+        const el = eligibilityResult.data as {
+          is_verified?: boolean;
+          has_access_code?: boolean;
+          has_voter_list?: boolean;
+          voter_list_max?: number;
+          voter_list_used?: number;
+        } | null;
+
+        if (el && typeof el.is_verified === "boolean") {
+          voterVerified = el.is_verified;
+          if (method === "voter_list" && el.has_voter_list) {
+            rosterRemaining = Math.max(0, (el.voter_list_max ?? 0) - (el.voter_list_used ?? 0));
           }
+          voterAuthStatus = {
+            isAuthenticated: true,
+            isVerified: voterVerified,
+            hasAccessCode: Boolean(el.has_access_code),
+            hasVoterList: Boolean(el.has_voter_list),
+          };
+        } else {
+          voterVerified = method === "phone" ? phoneVerified : method === "email" ? emailVerified : false;
         }
 
-        if (votingOpen && voterVerified && voterUserId) {
+        if (votingOpen && voterVerified) {
           const usageResult = await supabase
             .from("vote_batches")
             .select("category_id, nominee_id, quantity")
@@ -198,21 +237,11 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
           if (!usageResult.error) voterUsage = usageResult.data ?? [];
         }
       }
-      if (event.results_visibility === "live" || event.results_visibility === "after_close") {
-        const results = await supabase.rpc("get_public_event_results", { p_event_id: event.id });
-        if (!results.error) publicResults = results.data ?? [];
-      }
-      const categoryResult = await supabase
-        .from("categories")
-        .select("id, name, description")
-        .eq("event_id", event.id)
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
 
-      if (categoryResult.error) {
+      if (categoriesResult.error) {
         unavailable = true;
       } else {
-        categories = categoryResult.data ?? [];
+        categories = categoriesResult.data ?? [];
         const ids = categories.map((category) => category.id);
         if (ids.length) {
           const nomineeResult = await supabase
@@ -230,14 +259,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
               .map((nominee) => nominee.image_path)
               .filter((path): path is string => Boolean(path));
             if (paths.length) {
-              const { data: signedImages } = await supabase.storage
-                .from("nominee-images")
-                .createSignedUrls(paths, 3600);
-              imageUrlByPath = new Map(
-                (signedImages ?? []).flatMap((image) =>
-                  image.signedUrl && image.path ? [[image.path, image.signedUrl] as const] : []
-                )
-              );
+              imageUrlByPath = await getCachedSignedUrls(supabase, "nominee-images", paths, 3600);
             }
           }
         }
@@ -276,8 +298,6 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
   for (const nominee of nominees) {
     nomineesByCategory.set(nominee.category_id, [...(nomineesByCategory.get(nominee.category_id) ?? []), nominee]);
   }
-
-  const ussdInfo = await loadUssdInstructions(event.id);
   const presentation = eventPresentation(event);
   const status = presentation.label;
   const resultsByNominee = new Map(publicResults.map((result) => [result.nominee_id, Number(result.vote_count)]));

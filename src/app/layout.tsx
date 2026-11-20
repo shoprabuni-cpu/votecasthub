@@ -35,6 +35,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-GH" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://jjgwyvxntzrjugauknzo.supabase.co" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://jjgwyvxntzrjugauknzo.supabase.co" />
+        <link rel="preconnect" href="https://api.paystack.co" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://api.paystack.co" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('vch-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var dark=t==='dark'||(!t&&d);if(dark){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');document.documentElement.style.colorScheme='light';}}catch(e){}})();`,

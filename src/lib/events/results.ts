@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedSignedUrl } from "@/lib/storage/signed-url-cache";
 import { generateAuditHash } from "@/lib/exports/audit-reports";
 
 export interface RankedContender {
@@ -137,26 +138,14 @@ export async function loadPublicAwardsDirectory(customClient?: any): Promise<Eve
     return [];
   }
 
-  // Resolve signed banner images
+  // Resolve signed banner images using memory cache
   const imagePaths = eligibleEvents
     .map((e: any) => e.image_path)
     .filter((p: string | null): p is string => Boolean(p));
 
-  const signedUrlMap = new Map<string, string>();
-  if (imagePaths.length > 0) {
-    try {
-      const { data: signed } = await supabase.storage
-        .from("nominee-images")
-        .createSignedUrls(imagePaths, 3600);
-      for (const item of signed ?? []) {
-        if (item.path && item.signedUrl) {
-          signedUrlMap.set(item.path, item.signedUrl);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const signedUrlMap = imagePaths.length > 0
+    ? await getCachedSignedUrls(supabase, "nominee-images", imagePaths, 3600)
+    : new Map<string, string>();
 
   // For each eligible event, fetch tallies to show preview stats
   const resultsList: EventResultsSummary[] = [];
@@ -238,18 +227,10 @@ export async function loadEventPublicResults(
   const isLive = eventData.status === "published" && now >= startsTime && now < endsTime;
   const isEnded = eventData.status === "closed" || now >= endsTime;
 
-  // Sign banner image
-  let bannerUrl: string | null = null;
-  if (eventData.image_path) {
-    try {
-      const { data: signed } = await supabase.storage
-        .from("nominee-images")
-        .createSignedUrl(eventData.image_path, 3600);
-      bannerUrl = signed?.signedUrl ?? null;
-    } catch {
-      bannerUrl = null;
-    }
-  }
+  // Sign banner image using memory cache
+  const bannerUrl = eventData.image_path
+    ? await getCachedSignedUrl(supabase, "nominee-images", eventData.image_path, 3600)
+    : null;
 
   const eventSummary = {
     id: eventData.id,
@@ -335,21 +316,9 @@ export async function loadEventPublicResults(
     .map((n) => n.image_path)
     .filter((p): p is string => Boolean(p));
 
-  const nomineeImageUrlMap = new Map<string, string>();
-  if (nomineeImagePaths.length > 0) {
-    try {
-      const { data: signed } = await supabase.storage
-        .from("nominee-images")
-        .createSignedUrls(nomineeImagePaths, 3600);
-      for (const item of signed ?? []) {
-        if (item.path && item.signedUrl) {
-          nomineeImageUrlMap.set(item.path, item.signedUrl);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const nomineeImageUrlMap = nomineeImagePaths.length > 0
+    ? await getCachedSignedUrls(supabase, "nominee-images", nomineeImagePaths, 3600)
+    : new Map<string, string>();
 
   // Group and rank contenders per category
   let totalEventVotes = 0;

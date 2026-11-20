@@ -15,6 +15,8 @@ import { ResourceLinks } from "@/components/seo/resource-links";
 import { StructuredData } from "@/components/seo/structured-data";
 import { absoluteUrl, publicMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo/metadata";
 
+export const revalidate = 60;
+
 export const metadata = { ...publicMetadata("Online voting for awards and competitions in Ghana", SITE_DESCRIPTION, "/"), title: { absolute: "VotecastHub GH | Online voting for awards in Ghana" } };
 
 export default async function HomePage() {
