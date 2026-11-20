@@ -622,6 +622,23 @@ export async function createEventAction(_previousState: AuthFormState, formData:
           .eq("id", data);
       }
     }
+
+    const nominationsEnabled = formData.get("nominations_enabled") === "true";
+    const nominationFeeGhs = Number.parseFloat(formString(formData, "nomination_fee_ghs") || "0");
+    const nominationFeeMinor = Math.max(0, Math.round(Number.isNaN(nominationFeeGhs) ? 0 : nominationFeeGhs * 100));
+    const nominationsStartsAt = formString(formData, "nominations_starts_at") ? new Date(formString(formData, "nominations_starts_at")).toISOString() : null;
+    const nominationsEndsAt = formString(formData, "nominations_ends_at") ? new Date(formString(formData, "nominations_ends_at")).toISOString() : null;
+    const allowSelfNomination = formData.get("allow_self_nomination") !== "false";
+    const allowThirdPartyNomination = formData.get("allow_third_party_nomination") === "true";
+
+    await supabase.from("events").update({
+      nominations_enabled: nominationsEnabled,
+      nomination_fee_minor: nominationFeeMinor,
+      nominations_starts_at: nominationsStartsAt,
+      nominations_ends_at: nominationsEndsAt,
+      allow_self_nomination: allowSelfNomination,
+      allow_third_party_nomination: allowThirdPartyNomination,
+    }).eq("id", data);
   } catch {
     return { message: "Event setup is temporarily unavailable. Please try again shortly." };
   }
@@ -681,6 +698,25 @@ export async function updateEventDraftAction(_previousState: AuthFormState, form
         if (doorsOpenTime) updates.doors_open_time = doorsOpenTime;
         await supabase.from("events").update(updates).eq("id", eventId.data);
       }
+    }
+
+    if (formData.has("nominations_enabled")) {
+      const nominationsEnabled = formData.get("nominations_enabled") === "true";
+      const nominationFeeGhs = Number.parseFloat(formString(formData, "nomination_fee_ghs") || "0");
+      const nominationFeeMinor = Math.max(0, Math.round(Number.isNaN(nominationFeeGhs) ? 0 : nominationFeeGhs * 100));
+      const nominationsStartsAt = formString(formData, "nominations_starts_at") ? new Date(formString(formData, "nominations_starts_at")).toISOString() : null;
+      const nominationsEndsAt = formString(formData, "nominations_ends_at") ? new Date(formString(formData, "nominations_ends_at")).toISOString() : null;
+      const allowSelfNomination = formData.get("allow_self_nomination") !== "false";
+      const allowThirdPartyNomination = formData.get("allow_third_party_nomination") === "true";
+
+      await supabase.from("events").update({
+        nominations_enabled: nominationsEnabled,
+        nomination_fee_minor: nominationFeeMinor,
+        nominations_starts_at: nominationsStartsAt,
+        nominations_ends_at: nominationsEndsAt,
+        allow_self_nomination: allowSelfNomination,
+        allow_third_party_nomination: allowThirdPartyNomination,
+      }).eq("id", eventId.data);
     }
     revalidatePath(`/organizer/${organizationId.data}/events/${eventId.data}`);
     revalidatePath(`/events`);

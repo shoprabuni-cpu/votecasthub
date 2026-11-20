@@ -10,10 +10,10 @@ import { EventLeaveGuard } from "./event-save-feedback";
 import { TicketIcon, VoteIcon } from "@/components/brand-icons";
 import { LineSidebar } from "@/components/ui/LineSidebar";
 
-type Section = "details" | "tickets" | "nominees" | "voting" | "review";
+type Section = "details" | "nominations" | "tickets" | "nominees" | "voting" | "review";
 
-export function EventWorkspace({ details, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false, hasTickets = false }: {
-  details: ReactNode; tickets?: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
+export function EventWorkspace({ details, nominations, tickets, nominees, voting, review, editor, canEdit, canManageVoting, viewLink, nextStep, progress, guided, isTicketOnly = false, hasTickets = false }: {
+  details: ReactNode; nominations?: ReactNode; tickets?: ReactNode; nominees: ReactNode; voting: ReactNode; review?: ReactNode; editor: ReactNode; canEdit: boolean; canManageVoting: boolean; viewLink: ReactNode;
   guided?: { initialSection: SetupSection; nomineesReady: boolean; votingReady: boolean };
   nextStep?: EventNextStep; progress?: { completed: number; total: number };
   isTicketOnly?: boolean;
@@ -22,10 +22,12 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
   const sections: { id: Section; label: ReactNode }[] = isTicketOnly
     ? [
       { id: "tickets", label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets & Attendees</span> },
+      ...(nominations ? [{ id: "nominations" as Section, label: <span className="inline-flex items-center gap-1.5">📋 Nominations</span> }] : []),
       ...(review ? [{ id: "review" as Section, label: "Review & Publish" }] : []),
     ]
     : [
       { id: "details", label: "Event details" },
+      ...(nominations ? [{ id: "nominations" as Section, label: <span className="inline-flex items-center gap-1.5">📋 Nominations</span> }] : []),
       ...(hasTickets ? [{ id: "tickets" as Section, label: <span className="inline-flex items-center gap-1.5"><TicketIcon size={14} /> Tickets</span> }] : []),
       { id: "nominees", label: "Categories & nominees" },
       { id: "voting", label: <span className="inline-flex items-center gap-1.5"><VoteIcon size={14} /> Voting settings</span> },
@@ -116,6 +118,7 @@ export function EventWorkspace({ details, tickets, nominees, voting, review, edi
       </div>
       {details}
     </section>
+    {nominations && <section id="workspace-nominations" role="tabpanel" aria-labelledby="workspace-tab-nominations" hidden={section !== "nominations"} className="space-y-5">{nominations}</section>}
     {(hasTickets || isTicketOnly) && tickets && <section id="workspace-tickets" role="tabpanel" aria-labelledby="workspace-tab-tickets" hidden={section !== "tickets"} className="space-y-5">{tickets}</section>}
     {!isTicketOnly && <section id="workspace-nominees" role="tabpanel" aria-labelledby="workspace-tab-nominees" hidden={section !== "nominees"} className="space-y-5">{nominees}</section>}
     {review && <section id="workspace-review" role="tabpanel" aria-labelledby="workspace-tab-review" hidden={section !== "review"} className="space-y-5">{review}</section>}

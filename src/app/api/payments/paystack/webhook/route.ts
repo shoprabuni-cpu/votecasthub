@@ -19,6 +19,21 @@ export async function POST(request:Request){
   if(!timingSafeEqual(Buffer.from(signature,"hex"),createHmac("sha512",secret).update(raw).digest()))return new Response("Unauthorized",{status:401});
   let event;
   try{event=z.object({event:z.string(),data:z.object({id:z.number().int().positive().safe().optional(),reference:z.string().max(100).optional(),metadata:z.object({type:z.string().optional()}).passthrough().nullish()}).passthrough()}).passthrough().parse(JSON.parse(raw));}catch{return new Response("Invalid event",{status:400});}
+  if (event.event === "charge.success" && event.data.metadata?.type === "nomination_fee") {
+    const nominationId = event.data.metadata.nomination_id;
+    if (nominationId) {
+      try {
+        await paymentAdmin()
+          .from("event_nominations")
+          .update({ status: "pending", updated_at: new Date().toISOString() })
+          .eq("id", nominationId);
+        return Response.json({ received: true, nomination_status: "pending" });
+      } catch (err) {
+        console.error("nomination_fee_webhook_failed:", err);
+      }
+    }
+  }
+
   if(event.event==="charge.success"&&event.data.metadata?.type==="store_order"){
     try{
       const target=new URL(rabuniWebhookUrl);

@@ -24,6 +24,12 @@ type EventValues = {
   eventType?: "voting" | "ticketing" | "hybrid";
   venueName?: string | null;
   doorsOpenTime?: string | null;
+  nominationsEnabled?: boolean;
+  nominationFeeMinor?: number;
+  nominationsStartsAt?: string | null;
+  nominationsEndsAt?: string | null;
+  allowSelfNomination?: boolean;
+  allowThirdPartyNomination?: boolean;
 };
 
 function asLocalInput(value?: string) {
@@ -111,6 +117,15 @@ export function EventDetailsForm({
     markChanged();
     setEventTypeValue(value);
   };
+
+  const [nominationsEnabled, setNominationsEnabled] = useState(initial?.nominationsEnabled ?? false);
+  const [nominationFeeGhs, setNominationFeeGhs] = useState(
+    initial?.nominationFeeMinor ? (initial.nominationFeeMinor / 100).toFixed(2) : "0.00"
+  );
+  const [nominationsStartsAt, setNominationsStartsAt] = useState(asLocalInput(initial?.nominationsStartsAt ?? undefined));
+  const [nominationsEndsAt, setNominationsEndsAt] = useState(asLocalInput(initial?.nominationsEndsAt ?? undefined));
+  const [allowSelfNomination, setAllowSelfNomination] = useState(initial?.allowSelfNomination ?? true);
+  const [allowThirdPartyNomination, setAllowThirdPartyNomination] = useState(initial?.allowThirdPartyNomination ?? true);
 
   const [values, setValues] = useState({
     name: initial?.name ?? "",
@@ -404,6 +419,12 @@ export function EventDetailsForm({
         <input type="hidden" name="event_type" value={eventType} />
         <input type="hidden" name="venue_name" value={venueName} />
         <input type="hidden" name="doors_open_time" value={doorsOpenTime} />
+        <input type="hidden" name="nominations_enabled" value={String(nominationsEnabled)} />
+        <input type="hidden" name="nomination_fee_ghs" value={nominationFeeGhs} />
+        <input type="hidden" name="nominations_starts_at" value={nominationsStartsAt} />
+        <input type="hidden" name="nominations_ends_at" value={nominationsEndsAt} />
+        <input type="hidden" name="allow_self_nomination" value={String(allowSelfNomination)} />
+        <input type="hidden" name="allow_third_party_nomination" value={String(allowThirdPartyNomination)} />
 
         {/* Step Views */}
         <div className="rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-8 shadow-xs transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]">
@@ -1004,6 +1025,154 @@ export function EventDetailsForm({
                       ))}
                     </div>
                   </div>
+
+                  {/* Public Call for Nominations Portal Settings */}
+                  {eventType !== "ticketing" && (
+                    <div className="rounded-2xl border border-stone-200/90 bg-stone-50/30 p-4 sm:p-5 transition-all dark:border-[#1c2721] dark:bg-[#141b16]/30">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">📋</span>
+                            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-stone-900 dark:text-stone-100">
+                              Call for Nominations Portal
+                            </h3>
+                          </div>
+                          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                            Allow contestants or the public to submit contestant entries online before voting begins.
+                          </p>
+                        </div>
+                        <label className="relative inline-flex cursor-pointer items-center shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={nominationsEnabled}
+                            onChange={(e) => {
+                              markChanged();
+                              setNominationsEnabled(e.target.checked);
+                            }}
+                            className="peer sr-only"
+                          />
+                          <div className="h-6 w-11 rounded-full bg-stone-200 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-stone-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-hidden dark:bg-stone-700 dark:after:border-stone-600" />
+                        </label>
+                      </div>
+
+                      {nominationsEnabled && (
+                        <div className="mt-4 pt-4 border-t border-stone-200/70 dark:border-[#223028] space-y-4">
+                          {/* Filing Fee */}
+                          <div>
+                            <label className="font-mono text-[11px] font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 block mb-1.5">
+                              Nomination Filing Fee (GHS)
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  markChanged();
+                                  setNominationFeeGhs("0.00");
+                                }}
+                                className={`rounded-xl border p-2.5 text-left transition-all ${
+                                  nominationFeeGhs === "0.00" || Number(nominationFeeGhs) === 0
+                                    ? "border-emerald-700 bg-emerald-950/10 dark:border-emerald-500 dark:bg-emerald-950/40"
+                                    : "border-stone-200 bg-white hover:border-stone-300 dark:border-[#223028] dark:bg-[#0c120e]"
+                                }`}
+                              >
+                                <span className="block text-xs font-bold text-stone-900 dark:text-stone-100">Free Registration</span>
+                                <span className="text-[10px] text-stone-500 dark:text-stone-400">No payment required to submit a nominee</span>
+                              </button>
+                              <div
+                                className={`rounded-xl border p-2.5 transition-all ${
+                                  Number(nominationFeeGhs) > 0
+                                    ? "border-emerald-700 bg-emerald-950/10 dark:border-emerald-500 dark:bg-emerald-950/40"
+                                    : "border-stone-200 bg-white dark:border-[#223028] dark:bg-[#0c120e]"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold text-stone-900 dark:text-stone-100">Paid Filing Fee</span>
+                                  <div className="relative w-28">
+                                    <span className="absolute left-2 top-1.5 text-xs font-semibold text-stone-500">GH₵</span>
+                                    <input
+                                      type="number"
+                                      step="0.50"
+                                      min="0"
+                                      value={nominationFeeGhs}
+                                      onChange={(e) => {
+                                        markChanged();
+                                        setNominationFeeGhs(e.target.value);
+                                      }}
+                                      placeholder="50.00"
+                                      className="w-full rounded-lg border border-stone-200 bg-white py-1 pl-8 pr-2 text-xs font-semibold text-stone-900 focus:border-emerald-600 focus:outline-hidden dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+                                    />
+                                  </div>
+                                </div>
+                                <span className="mt-1 block text-[10px] text-stone-500 dark:text-stone-400">
+                                  Collected via Paystack Mobile Money before entry is reviewed
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Submission Window */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 block mb-1">
+                                Nominations Open
+                              </label>
+                              <input
+                                type="datetime-local"
+                                value={nominationsStartsAt}
+                                onChange={(e) => {
+                                  markChanged();
+                                  setNominationsStartsAt(e.target.value);
+                                }}
+                                className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 focus:border-emerald-600 focus:outline-hidden dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-100"
+                              />
+                            </div>
+                            <div>
+                              <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 block mb-1">
+                                Nominations Deadline
+                              </label>
+                              <input
+                                type="datetime-local"
+                                value={nominationsEndsAt}
+                                onChange={(e) => {
+                                  markChanged();
+                                  setNominationsEndsAt(e.target.value);
+                                }}
+                                className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 focus:border-emerald-600 focus:outline-hidden dark:border-[#223028] dark:bg-[#0c120e] dark:text-stone-100"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Submission Permissions */}
+                          <div className="flex flex-wrap items-center gap-4 pt-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-800 dark:text-stone-200">
+                              <input
+                                type="checkbox"
+                                checked={allowSelfNomination}
+                                onChange={(e) => {
+                                  markChanged();
+                                  setAllowSelfNomination(e.target.checked);
+                                }}
+                                className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600 dark:border-[#223028] dark:bg-[#080b09]"
+                              />
+                              <span>Allow contestants to self-nominate</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-800 dark:text-stone-200">
+                              <input
+                                type="checkbox"
+                                checked={allowThirdPartyNomination}
+                                onChange={(e) => {
+                                  markChanged();
+                                  setAllowThirdPartyNomination(e.target.checked);
+                                }}
+                                className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600 dark:border-[#223028] dark:bg-[#080b09]"
+                              />
+                              <span>Allow 3rd-party nominations (fans, managers, public)</span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Extra voter rules */}
                   <div className="rounded-2xl border border-stone-200/90 bg-stone-50/30 p-4 transition-all focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-emerald-600/10 dark:border-[#1c2721] dark:bg-[#141b16]/30 dark:focus-within:border-emerald-500 dark:focus-within:bg-[#0c120e]">

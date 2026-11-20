@@ -20,6 +20,8 @@ import { isVotingRule } from "@/lib/voting-rules";
 import { VoterHelpSettings } from "@/components/events/voter-help-settings";
 import { VoterListManager } from "@/components/events/voter-list-manager";
 import { CategoryNomineeStudio } from "@/components/events/category-nominee-studio";
+import { NominationsReviewHub, type ReviewNomination } from "@/components/organizer/nominations-review-hub";
+import { getCachedSignedUrls } from "@/lib/storage/signed-url-cache";
 import { EventReviewConversation } from "@/components/events/review-conversation";
 import { organizerEventPresentation, type EventWorkspaceState } from "@/lib/events/organizer-presentation";
 import { EventDetailsForm } from "@/components/events/event-details-form";
@@ -71,6 +73,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
     { data: smsBalance },
     { data: eventMeta },
     { data: ticketTiers },
+    { data: rawNominations },
   ] = await Promise.all([
     supabase.rpc("get_organization_events", { p_organization_id: organizationId }),
     supabase
@@ -86,8 +89,9 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
       .order("display_order", { ascending: true }),
     supabase.from("organizations").select("name, moderation_status, archived_at").eq("id", organizationId).maybeSingle(),
     supabase.rpc("get_organization_sms_balance", { p_org: organizationId }),
-    supabase.from("events").select("verification_method, voter_help_email, venue_name, venue_address, doors_open_time, event_type").eq("id", eventId).maybeSingle(),
+    supabase.from("events").select("verification_method, voter_help_email, venue_name, venue_address, doors_open_time, event_type, nominations_enabled, nomination_fee_minor, nominations_starts_at, nominations_ends_at").eq("id", eventId).maybeSingle(),
     supabase.from("event_ticket_tiers").select("*").eq("event_id", eventId).order("sort_order", { ascending: true }),
+    supabase.from("event_nominations").select("*").eq("event_id", eventId).order("created_at", { ascending: false }),
   ]);
 
   const verificationMethod = (eventMeta?.verification_method ?? "phone") as "phone" | "email" | "invite_code" | "voter_list";
@@ -133,6 +137,30 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
         .in("category_id", categoryIds)
         .order("display_order", { ascending: true })
     : { data: [], error: null };
+
+  const nominationPhotos = ((rawNominations as any[]) ?? [])
+    .map((n) => n.image_path)
+    .filter((p): p is string => Boolean(p));
+
+  const signedNominationUrls = nominationPhotos.length
+    ? await getCachedSignedUrls(supabase, "nominee-images", nominationPhotos, 3600)
+    : new Map<string, string>();
+
+  const reviewNominations: ReviewNomination[] = ((rawNominations as any[]) ?? []).map((n) => ({
+    id: n.id,
+    category_id: n.category_id,
+    nominee_name: n.nominee_name,
+    nominee_phone: n.nominee_phone,
+    nominee_email: n.nominee_email,
+    nominee_bio: n.nominee_bio,
+    image_url: n.image_path ? signedNominationUrls.get(n.image_path) ?? null : null,
+    portfolio_url: n.portfolio_url,
+    nominator_type: n.nominator_type as "self" | "third_party",
+    nominator_name: n.nominator_name,
+    nominator_phone: n.nominator_phone,
+    status: n.status as "pending" | "approved" | "declined" | "pending_payment",
+    created_at: n.created_at,
+  }));
 
   const pagePath = `/organizer/${organizationId}/events/${eventId}`;
   const { data: workspaceStates } = await supabase.rpc("get_event_workspace_states", { p_organization_id: organizationId });
@@ -382,6 +410,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
           {["published", "paused", "closed"].includes(event.status) && <><EventPromotionTools name={event.name} url={absoluteUrl(publicUrl)} endsAt={event.ends_at} phase={event.status === "closed" || permissions.expired ? "ended" : event.status === "paused" ? "paused" : Date.parse(event.starts_at) > requestTime ? "scheduled" : "open"} /><CorrectionRequestHistory eventId={eventId} /></>}
         </>}
         nominees={<section className={panel}>{categoriesError || nomineeError ? <p role="alert" className="text-sm text-red-800">Categories or nominees could not load. Refresh to try again.</p> : <><CategoryNomineeStudio categories={categories ?? []} nominees={nominees ?? []} imageUrlMap={imageUrlMap} eventId={eventId} canManage={canManage} isDraft={event.status === "draft"} pagePath={pagePath} />{event.status !== "draft" && <div className="mt-5 border-t border-stone-100 pt-4"><p className="mb-3 text-sm text-stone-600">Categories and nominees are protected outside private editing.</p>{returnToDraft}</div>}</>}</section>}
+        nominations={<section className={panel}><div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-[#1c2721]"><div className="space-y-1"><h2 className="text-lg font-serif font-bold text-stone-900 dark:text-stone-100">Public Nominations Vetting Hub</h2><p className="text-xs text-stone-500 dark:text-stone-400">Review candidate submissions, verify filing fees, and approve qualified contenders directly to the official voting ballot.</p></div></div><div className="pt-4"><NominationsReviewHub eventId={eventId} organizationId={organizationId} nominations={reviewNominations} categories={categories ?? []} /></div></section>}
         review={event.status === "draft" ? <section className={`${panel} space-y-6 transition-colors dark:border-[#1c2721] dark:bg-[#0c120e]`}>
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-100 pb-4 dark:border-[#1c2721]">
             <div>

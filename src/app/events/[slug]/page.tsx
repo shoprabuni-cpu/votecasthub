@@ -72,6 +72,10 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
     venue_name?: string | null;
     venue_address?: string | null;
     doors_open_time?: string | null;
+    nominations_enabled?: boolean;
+    nomination_fee_minor?: number;
+    nominations_starts_at?: string | null;
+    nominations_ends_at?: string | null;
   } | null = null;
 
   let ticketTiers: Array<{
@@ -127,7 +131,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
       supabase
         .from("events")
         .select(
-          "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released, event_type, venue_name, venue_address, doors_open_time"
+          "id, name, description, image_path, unit_price_minor, starts_at, ends_at, status, voting_mode, voting_rule, voting_rules, voter_help_email, free_vote_limit_per_phone, verification_method, results_visibility, results_released, event_type, venue_name, venue_address, doors_open_time, nominations_enabled, nomination_fee_minor, nominations_starts_at, nominations_ends_at"
         )
         .eq("slug", slug)
         .in("status", ["published", "paused", "closed"])
@@ -667,6 +671,40 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                   <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-4 text-xs text-stone-700 dark:border-[#1c2721] dark:bg-[#080b09] dark:text-stone-300">
                     <p className="font-semibold text-stone-900 dark:text-stone-100">Event Notice</p>
                     <p className="mt-1 text-stone-600 leading-relaxed dark:text-stone-300">{event.voting_rules}</p>
+                  </div>
+                )}
+
+                {/* Public Call for Nominations Banner */}
+                {event.nominations_enabled && (
+                  <div className="rounded-3xl border border-emerald-300/80 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 p-5 sm:p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">
+                          📢 Call for Nominations
+                        </span>
+                        {event.nomination_fee_minor && event.nomination_fee_minor > 0 ? (
+                          <span className="rounded-full bg-amber-400/20 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300 border border-amber-400/30">
+                            Fee: GH₵ {(event.nomination_fee_minor / 100).toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-300">
+                            Free Entry
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-serif text-lg sm:text-xl font-bold truncate">
+                        Nominations are open for {event.name}
+                      </h3>
+                      <p className="text-xs text-emerald-100/90 max-w-xl leading-relaxed">
+                        Submit your entry or nominate a deserving contender. All entries are reviewed by the official vetting committee.
+                      </p>
+                    </div>
+                    <Link
+                      href={`/events/${slug}/nominate`}
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-emerald-950 shadow-md hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer"
+                    >
+                      File Nomination →
+                    </Link>
                   </div>
                 )}
 
