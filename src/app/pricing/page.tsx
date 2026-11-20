@@ -4,6 +4,8 @@ import { publicMetadata } from "@/lib/seo/metadata";
 import { UssdOverview } from "@/components/events/ussd-overview";
 import { smsPackages } from "@/lib/payments/paystack";
 
+export const revalidate = 3600;
+
 export const metadata = publicMetadata("Online voting pricing and organizer costs", "Understand free and paid voting on VotecastHub GH, the 10% inclusive fee on paid collections, SMS credits, optional USSD access and organizer payment setup.", "/pricing");
 
 export default function PricingPage() {

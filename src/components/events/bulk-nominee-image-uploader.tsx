@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { updateNomineeImageAction } from "@/lib/auth/actions";
+import { compressImageFile } from "@/lib/images/client-compress";
 
 type Nominee = { id: string; name: string; public_code: string | null; image_path: string | null };
 type Item = { file: File; nominee: Nominee | null; status: "ready" | "uploading" | "done" | "error" | "cancelled"; message?: string; preview: string };
@@ -41,8 +42,10 @@ export function BulkNomineeImageUploader({ eventId, nominees, backTo }: { eventI
     const item = items[itemIndex]; if (!item.nominee || !types.has(item.file.type) || item.file.size === 0 || item.file.size > 5 * 1024 * 1024) return;
     setItems((current) => current.map((entry, index) => index === itemIndex ? { ...entry, status: "uploading", message: undefined } : entry));
     try {
-    const path = `${eventId}/${item.nominee.id}/${crypto.randomUUID()}-${item.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const supabase = createClient(); const result = await supabase.storage.from("nominee-images").upload(path, item.file, { contentType: item.file.type, upsert: false });
+    const compressedFile = await compressImageFile(item.file, 1200, 0.85);
+    const path = `${eventId}/${item.nominee.id}/${crypto.randomUUID()}-${compressedFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const supabase = createClient();
+    const result = await supabase.storage.from("nominee-images").upload(path, compressedFile, { contentType: compressedFile.type, upsert: false });
     if (result.error) { setItems((current) => current.map((entry, index) => index === itemIndex ? { ...entry, status: "error", message: "Upload failed. Retry this file." } : entry)); return; }
     const data = new FormData(); data.set("nomineeId", item.nominee.id); data.set("imagePath", path); data.set("backTo", backTo);
     const saved = await updateNomineeImageAction(null, data);

@@ -6,6 +6,8 @@ import { loadEventDirectory } from "@/lib/events/load-directory";
 import { directoryFilters, type EventDirectoryPage } from "@/lib/events/directory";
 import { BrandLogo } from "@/components/brand-logo";
 
+export const revalidate = 60;
+
 export const metadata = publicMetadata("Browse awards and voting events in Ghana", "Find public awards, competitions and community voting events on VotecastHub GH. Explore nominees, voting dates and participation rules.", "/events");
 
 export default async function EventsPage() {

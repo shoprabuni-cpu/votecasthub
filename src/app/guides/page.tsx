@@ -5,6 +5,8 @@ import { GuideFlowchart } from "@/components/guides/guide-flowchart";
 import { GUIDES } from "@/lib/seo/guides";
 import { YouTubeTutorialButton } from "@/components/media/youtube-tutorial";
 
+export const revalidate = 3600;
+
 export const metadata = publicMetadata(
   "Official Guides & Video Tutorials - VoteCastHub GH",
   "Step-by-step guides and video tutorials for voters and organizers. Learn how to vote on WhatsApp, Telegram, USSD, and online with Mobile Money.",

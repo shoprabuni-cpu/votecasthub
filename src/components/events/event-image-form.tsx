@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { updateEventImageAction } from "@/lib/auth/actions";
 import { createClient } from "@/lib/supabase/client";
+import { compressImageFile } from "@/lib/images/client-compress";
 import { Icon } from "@/components/icon";
 
 const maxFileBytes = 5 * 1024 * 1024;
@@ -55,24 +56,28 @@ export function EventImageForm({
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
-    const file = (new FormData(event.currentTarget).get("image") as File | null) ?? null;
-    if (!file || file.size === 0) {
+    const rawFile = (new FormData(event.currentTarget).get("image") as File | null) ?? null;
+    if (!rawFile || rawFile.size === 0) {
       setMessage("Choose an event cover image to upload.");
       return;
     }
-    if (file.size > maxFileBytes) {
+    if (rawFile.size > maxFileBytes) {
       setMessage("Choose an image smaller than 5 MB.");
       return;
     }
     if (
-      !(file.type in imageTypes) ||
-      !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))
+      !(rawFile.type in imageTypes) ||
+      !hasValidImageHeader(rawFile.type, new Uint8Array(await rawFile.slice(0, 12).arrayBuffer()))
     ) {
       setMessage("Use a valid JPEG, PNG, or WebP image.");
       return;
     }
 
-    const path = `${eventId}/${crypto.randomUUID()}.${imageTypes[file.type]}`;
+    // Client pre-compression: transforms multi-megabyte banners to optimized WebP (~90KB)
+    const file = await compressImageFile(rawFile, 1400, 0.85);
+    const fileExt = imageTypes[file.type] || "webp";
+    const path = `${eventId}/${crypto.randomUUID()}.${fileExt}`;
+
     const supabase = createClient();
     const { error } = await supabase.storage
       .from("nominee-images")

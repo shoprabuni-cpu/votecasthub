@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, type FormEvent } from "react";
 import { requestEventCorrectionAction } from "@/lib/events/actions";
 import { updateNomineeImageAction } from "@/lib/auth/actions";
 import { createClient } from "@/lib/supabase/client";
+import { compressImageFile } from "@/lib/images/client-compress";
 import { EventDialog } from "./event-dialog";
 import { Icon } from "@/components/icon";
 
@@ -94,26 +95,31 @@ export function NomineeImageForm({
     event.preventDefault();
     setMessage("");
     const form = event.currentTarget;
-    const file = (new FormData(form).get("image") as File | null) ?? null;
-    if (!file || file.size === 0) {
+    const rawFile = (new FormData(form).get("image") as File | null) ?? null;
+    if (!rawFile || rawFile.size === 0) {
       setMessage("Choose a photo to upload.");
       return;
     }
-    if (file.size > maxFileBytes) {
+    if (rawFile.size > maxFileBytes) {
       setMessage("Choose an image smaller than 5 MB.");
       return;
     }
     if (
-      !(file.type in imageTypes) ||
-      !hasValidImageHeader(file.type, new Uint8Array(await file.slice(0, 12).arrayBuffer()))
+      !(rawFile.type in imageTypes) ||
+      !hasValidImageHeader(rawFile.type, new Uint8Array(await rawFile.slice(0, 12).arrayBuffer()))
     ) {
       setMessage("Use a valid JPEG, PNG, or WebP image.");
       return;
     }
 
-    const path = `${eventId}/${nomineeId}/${crypto.randomUUID()}.${imageTypes[file.type]}`;
     setStage("uploading");
-    setPendingPreviewUrl(URL.createObjectURL(file));
+    setPendingPreviewUrl(URL.createObjectURL(rawFile));
+
+    // Client pre-compression: transforms multi-megabyte photos to optimized WebP (~75KB)
+    const file = await compressImageFile(rawFile, 1200, 0.85);
+    const fileExt = imageTypes[file.type] || "webp";
+    const path = `${eventId}/${nomineeId}/${crypto.randomUUID()}.${fileExt}`;
+
     const supabase = createClient();
     const { error } = await supabase.storage
       .from("nominee-images")

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { SiteHeader } from "@/components/site-header";
 
+export const revalidate = 3600;
+
 export const metadata = publicMetadata("About VotecastHub", "Learn about VotecastHub GH and how it supports event organizers and voters across Ghana.", "/about");
 
 export default function AboutPage() {
