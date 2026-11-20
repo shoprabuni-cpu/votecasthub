@@ -79,7 +79,21 @@ export default async function HomePage() {
 
       <ResourceLinks />
       <StructuredData data={{ "@context": "https://schema.org", "@graph": [
-        { "@type": "Organization", "@id": absoluteUrl("/#organization"), name: SITE_NAME, url: absoluteUrl("/"), logo: absoluteUrl("/images/votecasthub-logo.png"), email: "info@votecasthub.com", description: SITE_DESCRIPTION },
+        {
+          "@type": "Organization",
+          "@id": absoluteUrl("/#organization"),
+          name: SITE_NAME,
+          url: absoluteUrl("/"),
+          logo: {
+            "@type": "ImageObject",
+            url: absoluteUrl("/icons/icon-512.png"),
+            width: 512,
+            height: 512,
+          },
+          image: absoluteUrl("/images/votecasthub-logo.png"),
+          email: "info@votecasthub.com",
+          description: SITE_DESCRIPTION,
+        },
         { "@type": "WebSite", "@id": absoluteUrl("/#website"), name: SITE_NAME, url: absoluteUrl("/"), inLanguage: "en-GH", publisher: { "@id": absoluteUrl("/#organization") } },
       ] }} />
       <footer className="mx-auto mt-16 max-w-6xl border-t border-stone-200 px-4 py-8 sm:px-6 text-xs text-stone-600 dark:border-[#1c2721] dark:text-stone-400">

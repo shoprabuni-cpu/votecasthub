@@ -1,5 +1,5 @@
 const CACHE = "vch-static-v1";
-const STATIC_ASSETS = ["/offline.html", "/icons/votecasthub.svg"];
+const STATIC_ASSETS = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting()));
