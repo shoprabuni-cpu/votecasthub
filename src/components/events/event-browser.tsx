@@ -184,7 +184,7 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
                       TICKETING &amp; PASSES
                     </span>
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
-                      {page.events.filter(e => e.event_type === "ticketing").length} Available
+                      {page.events.filter(e => e.event_type === "ticketing" || e.event_type === "hybrid").length} Available
                     </span>
                   </div>
                   <h3 className="text-lg sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
@@ -208,7 +208,7 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
 
             <div aria-busy={loading} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
               {page.events
-                .filter(e => e.event_type === "ticketing")
+                .filter(e => e.event_type === "ticketing" || e.event_type === "hybrid")
                 .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
             </div>
           </div>
