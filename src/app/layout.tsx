@@ -4,6 +4,8 @@ import { PwaBootstrap } from "@/components/pwa-bootstrap";
 import "./globals.css";
 import { SITE_DESCRIPTION, SITE_NAME, siteOrigin, isPreviewDeployment, PRIVATE_ROBOTS } from "@/lib/seo/metadata";
 
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafbf8" },
@@ -33,11 +35,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-GH" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://jjgwyvxntzrjugauknzo.supabase.co" crossOrigin="" />
+        <link rel="preconnect" href="https://jjgwyvxntzrjugauknzo.supabase.co" />
         <link rel="dns-prefetch" href="https://jjgwyvxntzrjugauknzo.supabase.co" />
-        <link rel="preconnect" href="https://api.paystack.co" crossOrigin="" />
+        <link rel="preconnect" href="https://api.paystack.co" />
         <link rel="dns-prefetch" href="https://api.paystack.co" />
-        <link rel="preconnect" href="https://js.paystack.co" crossOrigin="" />
+        <link rel="preconnect" href="https://js.paystack.co" />
         <link rel="dns-prefetch" href="https://js.paystack.co" />
         <script
           dangerouslySetInnerHTML={{

@@ -20,12 +20,17 @@ export function NotificationBell({ notifications, organizationId, admin = false,
       if (document.visibilityState === "hidden") return;
       try {
         const response = await fetch(`/api/notifications${organizationId ? `?organizationId=${organizationId}` : ""}`, { signal: controller.signal, cache: "no-store" });
+        if (response.status === 401 || response.status === 403) {
+          // Unauthenticated or expired session — stop interval polling
+          clearInterval(timer);
+          return;
+        }
         if (response.ok) {
           const data = await response.json();
           if (!controller.signal.aborted) {
-            setSnapshot({ key, items: data.notifications });
+            setSnapshot({ key, items: data.notifications ?? [] });
             const known = new Set((JSON.parse(key) as Notice[]).map(item => item.id));
-            if ((data.notifications as Notice[]).some(item => !known.has(item.id))) router.refresh();
+            if ((data.notifications as Notice[] | undefined)?.some(item => !known.has(item.id))) router.refresh();
           }
         }
       } catch { /* Keep the last successful list while offline. */ }

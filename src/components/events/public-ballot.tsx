@@ -96,11 +96,27 @@ export function PublicBallot({
   const [freeSuccessMessage, setFreeSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialUsedByCategory) setUsedByCategory(initialUsedByCategory);
+    if (initialUsedByCategory) {
+      setUsedByCategory((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(initialUsedByCategory)) {
+          next[k] = Math.max(next[k] ?? 0, v);
+        }
+        return next;
+      });
+    }
   }, [initialUsedByCategory]);
 
   useEffect(() => {
-    if (initialUsedByNominee) setUsedByNominee(initialUsedByNominee);
+    if (initialUsedByNominee) {
+      setUsedByNominee((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(initialUsedByNominee)) {
+          next[k] = Math.max(next[k] ?? 0, v);
+        }
+        return next;
+      });
+    }
   }, [initialUsedByNominee]);
 
   function getFreeQuota(nomineeId: string, categoryId: string) {
@@ -443,13 +459,13 @@ export function PublicBallot({
                       )}
 
                       {/* Secondary Quick Share & WhatsApp Row */}
-                      <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
+                      <div className="flex items-center justify-between gap-1.5 pt-2 text-[11px] border-t border-stone-100 dark:border-[#1c2721]">
                         {waDirectUrl ? (
                           <a
                             href={waDirectUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-stone-600 hover:text-emerald-700 font-medium dark:text-stone-400 dark:hover:text-emerald-400"
+                            className="inline-flex items-center gap-1 text-stone-600 hover:text-emerald-700 font-medium px-2 py-1 rounded-lg hover:bg-stone-100 dark:text-stone-400 dark:hover:text-emerald-400 dark:hover:bg-[#121914]"
                             title={`Vote for ${nominee.name} on WhatsApp`}
                           >
                             <span>💬 WhatsApp</span>
@@ -458,11 +474,12 @@ export function PublicBallot({
                           <div />
                         )}
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <ShareButton
                             title={nominee.name}
                             text={`Vote for ${nominee.name} in ${category.name} on VoteCastHub GH`}
                             url={`/events/${eventSlug}/nominees/${nominee.id}`}
+                            variant="compact"
                             flyer={{
                               nominee: nominee.name,
                               eventName: eventName,

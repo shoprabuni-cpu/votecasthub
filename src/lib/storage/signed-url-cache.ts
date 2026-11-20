@@ -75,6 +75,16 @@ export async function getCachedSignedUrls(
         });
       }
     }
+
+    // Negative cache for paths that failed to sign so we don't re-query missing files on every request
+    for (const missing of uniqueMissing) {
+      if (!result.has(missing)) {
+        signedUrlCache.set(`${bucket}:${missing}`, {
+          url: "",
+          expiresAt: now + 300000, // 5 min negative cache
+        });
+      }
+    }
   } catch (err) {
     console.error("Exception signing storage URLs:", err);
   }

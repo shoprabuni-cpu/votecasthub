@@ -297,8 +297,23 @@ export async function castFreeVotesAction(_previousState: AuthFormState, formDat
   } catch {
     return { message: "Voting is temporarily unavailable. Please try again shortly." };
   }
-  revalidatePath("/events", "layout");
-  revalidatePath("/events/[slug]", "page");
+
+  try {
+    const supabase = await createClient();
+    const { data: eventData } = await supabase
+      .from("events")
+      .select("slug")
+      .eq("id", parsed.data.eventId)
+      .maybeSingle();
+
+    if (eventData?.slug) {
+      revalidatePath(`/events/${eventData.slug}`);
+    }
+  } catch {
+    // Non-critical cache revalidation fallback
+  }
+
+  revalidatePath("/events");
   return { message: "Your vote has been recorded securely.", success: true, nextRequestKey: randomUUID() };
 }
 

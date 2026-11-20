@@ -33,21 +33,43 @@ export async function updateSession(request: NextRequest, requestHeaders: Header
 
   try {
     const { data, error } = await supabase.auth.getClaims();
-    if (error && isProtectedRoute) {
-      return NextResponse.json({ error: "Unable to verify your session" }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
-    }
-    if (isProtectedRoute && !data?.claims?.sub) {
-      const signInUrl = new URL("/sign-in", request.url);
-      signInUrl.searchParams.set("next", request.nextUrl.pathname);
-      const redirect = NextResponse.redirect(signInUrl);
-      for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-      redirect.headers.set("Cache-Control", "private, no-store");
-      return redirect;
+    if (error || !data?.claims?.sub) {
+      if (isProtectedRoute) {
+        const signInUrl = new URL("/sign-in", request.url);
+        signInUrl.searchParams.set("next", request.nextUrl.pathname);
+        const redirect = NextResponse.redirect(signInUrl);
+        // Wipe stale auth cookies
+        for (const cookie of request.cookies.getAll()) {
+          if (cookie.name.includes("auth-token") || cookie.name.startsWith("sb-")) {
+            redirect.cookies.delete(cookie.name);
+          }
+        }
+        redirect.headers.set("Cache-Control", "private, no-store");
+        return redirect;
+      }
+      // On public routes with invalid/expired tokens, clear stale cookies so subsequent requests don't fail
+      if (error) {
+        for (const cookie of request.cookies.getAll()) {
+          if (cookie.name.includes("auth-token") || cookie.name.startsWith("sb-")) {
+            response.cookies.delete(cookie.name);
+          }
+        }
+      }
+      return response;
     }
     return response;
   } catch {
     if (isProtectedRoute) {
-      return NextResponse.json({ error: "Unable to verify your session" }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("next", request.nextUrl.pathname);
+      const redirect = NextResponse.redirect(signInUrl);
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.includes("auth-token") || cookie.name.startsWith("sb-")) {
+          redirect.cookies.delete(cookie.name);
+        }
+      }
+      redirect.headers.set("Cache-Control", "private, no-store");
+      return redirect;
     }
     return response;
   }
