@@ -648,11 +648,6 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                   </div>
                 )}
 
-                {/* Notices and Announcements (Voting events only) */}
-                {!isTicketOnly && (
-                  <EventNotices eventId={event.id} />
-                )}
-
                 {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
                 {(isTicketOnly || ticketTiers.length > 0) && (
                   <div className="pt-2">
@@ -668,33 +663,56 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                   </div>
                 )}
 
-                {/* Bot & Instant Voting Channel */}
+                {/* Optional Organizer Updates & Alternative Chat Bot Voting (WhatsApp, Telegram & USSD) */}
                 {!isTicketOnly && (
-                  <>
-                    <UssdInstructions eventId={event.id} />
-                    <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
-
-                    {/* Free Voting Verification (Only shown when voting mode is free) */}
-                    {event.voting_mode === "free" && (
-                      <div id="voter-verification" className="space-y-3 pt-2">
-                        {event.verification_method === "voter_list" && (
-                          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
-                            {rosterRemaining === null
-                              ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification."
-                              : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}
-                          </p>
-                        )}
-                        <EventVoterVerification
-                          eventId={event.id}
-                          method={event.verification_method ?? "phone"}
-                          isVerified={voterVerified}
-                          hasRedeemed={voterAuthStatus.hasVoterList}
-                          available={votingOpen}
-                          inputTypes={voterInputTypes}
-                        />
+                  <details className="group my-3 overflow-hidden rounded-2xl border border-stone-200/90 bg-stone-50/70 transition-all hover:border-emerald-300 dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-emerald-800/80">
+                    <summary className="flex cursor-pointer select-none list-none items-center justify-between p-3.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100/70 dark:text-stone-300 dark:hover:bg-[#121a14]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          📢
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block truncate font-semibold text-stone-900 dark:text-white">
+                            Organizer Updates &amp; Chat Bot Voting (WhatsApp, Telegram &amp; USSD)
+                          </span>
+                          <span className="block truncate text-[10px] text-stone-500 dark:text-stone-400">
+                            Optional · Tap to view dial codes, chat links, and announcements
+                          </span>
+                        </div>
                       </div>
+                      <span className="shrink-0 flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-400 ml-2">
+                        <span className="group-open:hidden">View options ↓</span>
+                        <span className="hidden group-open:inline">Hide options ↑</span>
+                      </span>
+                    </summary>
+
+                    <div className="space-y-4 border-t border-stone-200/80 p-4 pt-3 dark:border-[#1c2721]">
+                      <EventNotices eventId={event.id} />
+                      <WhatsAppInstructions eventId={event.id} eventSlug={slug} votingMode={event.voting_mode} />
+                      <UssdInstructions eventId={event.id} />
+                    </div>
+                  </details>
+                )}
+
+                {/* Free Voting Verification (Only shown when voting mode is free) */}
+                {!isTicketOnly && event.voting_mode === "free" && (
+                  <div id="voter-verification" className="space-y-3 pt-2">
+                    {event.verification_method === "voter_list" && (
+                      <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
+                        {rosterRemaining === null
+                          ? "Your approved voter list also sets a total allowance across the whole event. Your remaining total will appear after verification."
+                          : `You have ${rosterRemaining} total votes remaining across the whole event. The per-category or per-nominee limit above also applies.`}
+                      </p>
                     )}
-                  </>
+                    <EventVoterVerification
+                      eventId={event.id}
+                      method={event.verification_method ?? "phone"}
+                      isVerified={voterVerified}
+                      hasRedeemed={voterAuthStatus.hasVoterList}
+                      available={votingOpen}
+                      inputTypes={voterInputTypes}
+                    />
+                  </div>
                 )}
               </div>
             </section>

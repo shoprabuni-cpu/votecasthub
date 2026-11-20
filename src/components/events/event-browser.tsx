@@ -206,7 +206,7 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
               </button>
             </div>
 
-            <div aria-busy={loading} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6 items-stretch">
+            <div aria-busy={loading} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
               {page.events
                 .filter(e => e.event_type === "ticketing")
                 .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}

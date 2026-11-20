@@ -57,7 +57,7 @@ export default async function FindTicketsPage({
               Browse all events &rarr;
             </Link>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             {ticketEvents.events.map((event) => (
               <PublicEventCard key={event.id} event={event} now={ticketEvents?.now} />
             ))}
