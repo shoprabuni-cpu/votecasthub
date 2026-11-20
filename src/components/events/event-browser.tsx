@@ -209,7 +209,14 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
             <div aria-busy={loading} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
               {page.events
                 .filter(e => e.event_type === "ticketing" || e.event_type === "hybrid")
-                .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+                .map(event => (
+                  <PublicEventCard
+                    event={event}
+                    now={page.now}
+                    mode="ticketing"
+                    key={`ticket-${event.id}`}
+                  />
+                ))}
             </div>
           </div>
         )}
@@ -253,14 +260,28 @@ export function EventBrowser({ initialPage, unavailable = false, compact = false
             <div aria-busy={loading} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 items-stretch">
               {page.events
                 .filter(e => e.event_type !== "ticketing")
-                .map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+                .map(event => (
+                  <PublicEventCard
+                    event={event}
+                    now={page.now}
+                    mode="voting"
+                    key={`vote-${event.id}`}
+                  />
+                ))}
             </div>
           </div>
         )}
       </div>
     ) : (
       <div aria-busy={loading} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6 items-stretch">
-        {page.events.map(event => <PublicEventCard event={event} now={page.now} key={event.id} />)}
+        {page.events.map(event => (
+          <PublicEventCard
+            event={event}
+            now={page.now}
+            mode={filters.event_type === "ticketing" ? "ticketing" : event.event_type === "ticketing" ? "ticketing" : "voting"}
+            key={event.id}
+          />
+        ))}
       </div>
     )}
     {!page.events.length && !loading && !error && <div className="rounded-2xl border border-dashed border-stone-300 dark:border-[#1c2721] dark:bg-[#070a08] p-8 text-center"><h3 className="text-lg font-semibold text-stone-900 dark:text-white">No matching events</h3><p className="mt-2 text-sm text-stone-600 dark:text-stone-400">Try another search or clear the filters.</p><button type="button" className="mt-3 min-h-11 rounded-xl bg-emerald-800 dark:bg-emerald-600 hover:dark:bg-emerald-500 px-5 text-sm font-semibold text-white py-2.5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setFilters(defaults); setRetry(value => value + 1); }}>Clear filters</button></div>}

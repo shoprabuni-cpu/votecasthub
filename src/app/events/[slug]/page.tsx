@@ -290,6 +290,8 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
     usedByNominee.set(batch.nominee_id, (usedByNominee.get(batch.nominee_id) ?? 0) + batch.quantity);
   }
   const voteCap = event.free_vote_limit_per_phone ?? 1;
+  const usedByCategoryRecord: Record<string, number> = Object.fromEntries(usedByCategory.entries());
+  const usedByNomineeRecord: Record<string, number> = Object.fromEntries(usedByNominee.entries());
 
   const isOpen = presentation.key === "open";
   const isTicketOnly = event.event_type === "ticketing" || (ticketTiers.length > 0 && categories.length === 0);
@@ -650,7 +652,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
 
                 {/* Tickets Widget (Rendered if event has ticketing or tiers) */}
                 {(isTicketOnly || ticketTiers.length > 0) && (
-                  <div className="pt-2">
+                  <div id="tickets" className="scroll-mt-24 pt-2">
                     <PublicTicketWidget
                       eventId={event.id}
                       eventName={event.name}
@@ -719,35 +721,41 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
 
             {/* The Official Ballot: Categories & Nominees */}
             {!isTicketOnly && (
-              categories.length ? (
-                <PublicBallot
-                  eventId={event.id}
-                  eventName={event.name}
-                  eventSlug={slug}
-                  votingMode={event.voting_mode as "paid" | "free"}
-                  unitPriceMinor={event.unit_price_minor}
-                  isOpen={isOpen}
-                  status={status}
-                  categories={categories}
-                  nominees={nominees}
-                  imageUrlByPath={imageUrlByPathRecord}
-                  resultsByNominee={resultsByNomineeRecord}
-                  ussdInfo={ussdInfo}
-                  eventStartsAt={event.starts_at}
-                  eventEndsAt={event.ends_at}
-                  eventStatus={event.status}
-                  isFreeVerified={voterVerified}
-                  freeRemaining={voteCap}
-                  freeVerificationMethod={event.verification_method ?? "phone"}
-                />
-              ) : (
-                <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500 dark:border-[#223028]">
-                  <h3 className="font-serif font-semibold text-stone-900 text-base dark:text-stone-100">
-                    Nominees are being prepared.
-                  </h3>
-                  <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
-                </div>
-              )
+              <div id="ballot" className="scroll-mt-24">
+                {categories.length ? (
+                  <PublicBallot
+                    eventId={event.id}
+                    eventName={event.name}
+                    eventSlug={slug}
+                    votingMode={event.voting_mode as "paid" | "free"}
+                    unitPriceMinor={event.unit_price_minor}
+                    isOpen={isOpen}
+                    status={status}
+                    categories={categories}
+                    nominees={nominees}
+                    imageUrlByPath={imageUrlByPathRecord}
+                    resultsByNominee={resultsByNomineeRecord}
+                    ussdInfo={ussdInfo}
+                    eventStartsAt={event.starts_at}
+                    eventEndsAt={event.ends_at}
+                    eventStatus={event.status}
+                    isFreeVerified={voterVerified}
+                    freeVoteCap={voteCap}
+                    votingRule={event.voting_rule ?? "per_category_limit"}
+                    rosterRemaining={rosterRemaining}
+                    initialUsedByCategory={usedByCategoryRecord}
+                    initialUsedByNominee={usedByNomineeRecord}
+                    freeVerificationMethod={event.verification_method ?? "phone"}
+                  />
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-stone-300 p-12 text-center text-stone-500 dark:border-[#223028]">
+                    <h3 className="font-serif font-semibold text-stone-900 text-base dark:text-stone-100">
+                      Nominees are being prepared.
+                    </h3>
+                    <p className="text-xs text-stone-400 mt-1">Check back closer to the scheduled opening time.</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Voter Assistance Card */}

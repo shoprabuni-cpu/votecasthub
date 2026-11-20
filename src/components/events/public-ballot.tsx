@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef, useId, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ShareButton } from "@/components/sharing/share-buttons";
 import { Icon } from "@/components/icon";
+import { castFreeVotesAction } from "@/lib/auth/actions";
 
 export interface BallotCategory {
   id: string;
@@ -46,6 +48,10 @@ export interface PublicBallotProps {
   freeVoteLimit?: number;
   freeVerificationMethod?: string;
   freeVoteCap?: number;
+  votingRule?: string;
+  rosterRemaining?: number | null;
+  initialUsedByCategory?: Record<string, number>;
+  initialUsedByNominee?: Record<string, number>;
 }
 
 export function PublicBallot({
@@ -66,13 +72,50 @@ export function PublicBallot({
   eventStatus,
   isFreeVerified = false,
   freeRemaining = 0,
-  freeVerificationMethod = "phone",
+  freeVoteCap,
+  votingRule = "per_category_limit",
+  rosterRemaining,
+  initialUsedByCategory,
+  initialUsedByNominee,
 }: PublicBallotProps) {
+  const router = useRouter();
+
   // Modal state for active nominee being voted on
   const [selectedNominee, setSelectedNominee] = useState<{
     nominee: BallotNominee;
     category: BallotCategory;
   } | null>(null);
+
+  // Local quota tracking for free voting
+  const [usedByCategory, setUsedByCategory] = useState<Record<string, number>>(initialUsedByCategory ?? {});
+  const [usedByNominee, setUsedByNominee] = useState<Record<string, number>>(initialUsedByNominee ?? {});
+  const [selectedRemaining, setSelectedRemaining] = useState(1);
+  const [freeQuantity, setFreeQuantity] = useState(1);
+  const [freeBusy, setFreeBusy] = useState(false);
+  const [freeError, setFreeError] = useState<string | null>(null);
+  const [freeSuccessMessage, setFreeSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialUsedByCategory) setUsedByCategory(initialUsedByCategory);
+  }, [initialUsedByCategory]);
+
+  useEffect(() => {
+    if (initialUsedByNominee) setUsedByNominee(initialUsedByNominee);
+  }, [initialUsedByNominee]);
+
+  function getFreeQuota(nomineeId: string, categoryId: string) {
+    const cap = freeVoteCap ?? freeRemaining ?? 1;
+    const used = votingRule === "per_nominee_limit"
+      ? (usedByNominee[nomineeId] ?? 0)
+      : (usedByCategory[categoryId] ?? 0);
+    const remaining = Math.max(0, Math.min(cap - used, rosterRemaining ?? cap));
+    return {
+      used,
+      remaining,
+      isExhausted: remaining <= 0,
+      cap,
+    };
+  }
 
   // Telco Mobile Money minimum checkout is GH₵ 1.00 (100 minor)
   const minPaidQuantity = Math.max(1, Math.ceil(100 / Math.max(1, unitPriceMinor)));
@@ -82,28 +125,34 @@ export function PublicBallot({
   const [error, setError] = useState("");
   const attempt = useRef<{ details: string; key: string } | null>(null);
 
-  // When a nominee is selected, reset quantity to minimum
-  const handleOpenVote = (nominee: BallotNominee, category: BallotCategory) => {
+  // When a nominee is selected, reset form state
+  const handleOpenVote = (nominee: BallotNominee, category: BallotCategory, availableFree = 1) => {
     setSelectedNominee({ nominee, category });
     setQuantity(minPaidQuantity);
+    setFreeQuantity(1);
+    setSelectedRemaining(availableFree);
     setError("");
+    setFreeError(null);
+    setFreeSuccessMessage(null);
   };
 
   const handleCloseVote = () => {
-    if (busy) return;
+    if (busy || freeBusy) return;
     setSelectedNominee(null);
     setError("");
+    setFreeError(null);
+    setFreeSuccessMessage(null);
   };
 
   // Close modal on Escape
   useEffect(() => {
     if (!selectedNominee) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) handleCloseVote();
+      if (e.key === "Escape" && !busy && !freeBusy) handleCloseVote();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [selectedNominee, busy]);
+  }, [selectedNominee, busy, freeBusy]);
 
   // Packages for quick select
   const packages = [
@@ -163,6 +212,48 @@ export function PublicBallot({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start payment");
       setBusy(false);
+    }
+  }
+
+  async function handleFreeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedNominee || freeBusy) return;
+
+    setFreeBusy(true);
+    setFreeError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("eventId", eventId);
+      formData.append("categoryId", selectedNominee.category.id);
+      formData.append("nomineeId", selectedNominee.nominee.id);
+      formData.append("quantity", String(freeQuantity));
+      formData.append("requestKey", crypto.randomUUID());
+
+      const res = await castFreeVotesAction(null, formData);
+      if (res?.success) {
+        const qty = freeQuantity;
+        // Optimistically increment counts
+        setUsedByCategory((prev) => ({
+          ...prev,
+          [selectedNominee.category.id]: (prev[selectedNominee.category.id] ?? 0) + qty,
+        }));
+        setUsedByNominee((prev) => ({
+          ...prev,
+          [selectedNominee.nominee.id]: (prev[selectedNominee.nominee.id] ?? 0) + qty,
+        }));
+        setSelectedRemaining((prev) => Math.max(0, prev - qty));
+        setFreeSuccessMessage(
+          `Your ${qty === 1 ? "vote" : `${qty} votes`} for ${selectedNominee.nominee.name} has been recorded!`
+        );
+        router.refresh();
+      } else {
+        setFreeError(res?.message || "Unable to record vote. Please try again.");
+      }
+    } catch (err) {
+      setFreeError(err instanceof Error ? err.message : "Unable to record vote.");
+    } finally {
+      setFreeBusy(false);
     }
   }
 
@@ -300,22 +391,48 @@ export function PublicBallot({
                             </span>
                           </button>
                         ) : isFreeVerified ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenVote(nominee, category)}
-                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active:scale-[0.99] transition-all cursor-pointer dark:bg-emerald-600"
-                          >
-                            <span>🗳️ Cast Free Vote</span>
-                            <span className="text-emerald-200 font-normal">
-                              ({freeRemaining} remaining)
-                            </span>
-                          </button>
+                          (() => {
+                            const quota = getFreeQuota(nominee.id, category.id);
+                            if (quota.isExhausted) {
+                              return (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100/90 py-2.5 px-3 text-xs font-semibold text-stone-500 cursor-not-allowed dark:border-[#223028] dark:bg-[#121914] dark:text-stone-400"
+                                  title={
+                                    votingRule === "per_nominee_limit"
+                                      ? "Vote limit reached for this nominee"
+                                      : "You have already cast your free vote in this category"
+                                  }
+                                >
+                                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓</span>
+                                  <span>
+                                    {votingRule === "per_nominee_limit"
+                                      ? "Vote Cast (Limit Reached)"
+                                      : "Category Vote Cast (0 left)"}
+                                  </span>
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenVote(nominee, category, quota.remaining)}
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 active:scale-[0.99] transition-all cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                              >
+                                <span>🗳️ Cast Free Vote</span>
+                                <span className="text-emerald-200 font-normal">
+                                  ({quota.remaining} remaining)
+                                </span>
+                              </button>
+                            );
+                          })()
                         ) : (
                           <a
                             href="#voter-verification"
                             className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-bold text-stone-800 shadow-2xs hover:bg-stone-50 transition-all dark:border-[#223028] dark:bg-[#121914] dark:text-stone-200"
                           >
-                            <span>Verify to Vote</span>
+                            <span>Verify to Vote Free</span>
                             <span>→</span>
                           </a>
                         )
@@ -388,7 +505,7 @@ export function PublicBallot({
             {/* Close Button */}
             <button
               onClick={handleCloseVote}
-              disabled={busy}
+              disabled={busy || freeBusy}
               className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-100 dark:border-[#223028] dark:text-stone-400 dark:hover:bg-[#18221b] cursor-pointer"
               title="Close modal"
             >
@@ -544,19 +661,113 @@ export function PublicBallot({
                   🔒 Payments verified instantly via MTN MoMo, Telecel Cash, AT Money &amp; Bank Cards.
                 </p>
               </form>
-            ) : (
-              /* Free Voting Modal placeholder (handles submit via standard free vote form) */
-              <div className="mt-5 space-y-4 text-center">
-                <p className="text-sm text-stone-600 dark:text-stone-300">
-                  Cast your verified free vote for <strong>{selectedNominee.nominee.name}</strong>.
-                </p>
-                <Link
-                  href={`/events/${eventSlug}?nominee=${selectedNominee.nominee.id}#vote`}
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-800 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+            ) : freeSuccessMessage ? (
+              /* Success confirmation view */
+              <div className="mt-5 space-y-5 text-center py-2 animate-in fade-in duration-200">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-2xl dark:bg-emerald-950 dark:text-emerald-300">
+                  🎉
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-serif text-lg font-bold text-stone-900 dark:text-white">
+                    Vote Cast Successfully!
+                  </h4>
+                  <p className="text-xs text-stone-600 dark:text-stone-300 max-w-sm mx-auto">
+                    {freeSuccessMessage}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-stone-50 border border-stone-200 p-3 text-[11px] text-stone-500 dark:bg-[#121914] dark:border-[#223028] dark:text-stone-400">
+                  {votingRule === "per_nominee_limit"
+                    ? "Your quota for this nominee has been updated."
+                    : `Your free ballot in "${selectedNominee.category.name}" is now marked complete.`}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseVote}
+                  className="w-full inline-flex items-center justify-center rounded-xl bg-emerald-900 py-3 px-4 text-xs font-bold text-white shadow-md hover:bg-emerald-800 transition-all cursor-pointer dark:bg-emerald-600 dark:hover:bg-emerald-500"
                 >
-                  Confirm Free Vote →
-                </Link>
+                  Done &amp; Return to Ballot
+                </button>
               </div>
+            ) : (
+              /* Free Voting Confirmation Modal */
+              <form onSubmit={handleFreeSubmit} className="mt-5 space-y-4">
+                <div className="rounded-xl bg-emerald-50/80 border border-emerald-200/70 p-3 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800/40 dark:text-emerald-200 flex items-start gap-2.5">
+                  <span className="text-base shrink-0">✓</span>
+                  <div className="min-w-0">
+                    <strong className="block font-semibold">Verified Free Ballot</strong>
+                    <span className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                      {votingRule === "per_nominee_limit"
+                        ? `You can cast up to ${selectedRemaining} vote(s) for this nominee.`
+                        : `You have ${selectedRemaining} vote(s) remaining in category "${selectedNominee.category.name}".`}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedRemaining > 1 ? (
+                  <div>
+                    <label htmlFor="free-qty" className="block text-xs font-semibold text-stone-700 mb-1.5 dark:text-stone-300">
+                      Number of Free Votes to Cast (Max: {selectedRemaining})
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFreeQuantity((q) => Math.max(1, q - 1))}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-stone-100 text-lg font-bold text-stone-700 hover:bg-stone-200 active:scale-95 transition-all dark:border-[#223028] dark:bg-[#18221b] dark:text-stone-200"
+                      >
+                        −
+                      </button>
+                      <input
+                        id="free-qty"
+                        type="number"
+                        min={1}
+                        max={selectedRemaining}
+                        value={freeQuantity}
+                        onChange={(e) => {
+                          const val = Number.parseInt(e.target.value, 10);
+                          setFreeQuantity(Number.isNaN(val) ? 1 : Math.max(1, Math.min(val, selectedRemaining)));
+                        }}
+                        className="w-full text-center min-h-11 rounded-xl border border-stone-300 bg-white px-3 py-2 text-base font-bold text-stone-900 focus:border-emerald-600 focus:outline-hidden dark:border-[#223028] dark:bg-[#141b16] dark:text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFreeQuantity((q) => Math.min(selectedRemaining, q + 1))}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-stone-100 text-lg font-bold text-stone-700 hover:bg-stone-200 active:scale-95 transition-all dark:border-[#223028] dark:bg-[#18221b] dark:text-stone-200"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-stone-100 p-3 text-center text-xs font-medium text-stone-700 dark:bg-[#141b16] dark:text-stone-300">
+                    Casting <strong>1 free vote</strong> for {selectedNominee.nominee.name}
+                  </div>
+                )}
+
+                {freeError && (
+                  <p className="rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs text-rose-700 font-medium dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+                    {freeError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={freeBusy || selectedRemaining <= 0}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-900 py-3 px-4 text-sm font-bold text-white shadow-md hover:bg-emerald-800 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                >
+                  {freeBusy ? (
+                    <>
+                      <Icon name="refresh" size={14} className="animate-spin" />
+                      <span>Recording Vote…</span>
+                    </>
+                  ) : (
+                    <span>Confirm &amp; Cast Free Vote</span>
+                  )}
+                </button>
+
+                <p className="text-center text-[11px] text-stone-400 dark:text-stone-500">
+                  🔒 Ballots are validated against voter fraud protection and recorded immediately.
+                </p>
+              </form>
             )}
           </div>
         </div>

@@ -76,9 +76,17 @@ function parseTicketDate(dateStr: string) {
   }
 }
 
-export function PublicEventCard({ event, now }: { event: PublicEventCardData; now?: number }) {
+export function PublicEventCard({
+  event,
+  now,
+  mode = "auto",
+}: {
+  event: PublicEventCardData;
+  now?: number;
+  mode?: "auto" | "ticketing" | "voting";
+}) {
   const presentation = eventPresentation(event, now);
-  const isTicketing = event.event_type === "ticketing" || event.event_type === "hybrid";
+  const isTicketing = mode === "ticketing" || (mode !== "voting" && event.event_type === "ticketing");
   const isOpen = presentation.key === "open";
   const statusColor = isOpen ? "#10b981" : "#f59e0b";
   const dateInfo = parseTicketDate(event.starts_at);
@@ -94,7 +102,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
 
     return (
       <Link
-        href={`/events/${event.slug}`}
+        href={`/events/${event.slug}#tickets`}
         className="group block min-w-0 focus-visible:outline-2 focus-visible:outline-amber-500 rounded-2xl sm:rounded-3xl h-full transition-all duration-300 hover:-translate-y-1"
       >
         {/* =========================================================================
@@ -237,14 +245,14 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
     timeZone: "Africa/Accra",
   });
   const formattedDate = schedule.format(new Date(event.starts_at));
-  const subtitle =
-    event.voting_mode === "free"
-      ? "Free Public Voting"
-      : `GHS ${(event.unit_price_minor / 100).toFixed(2)} / vote`;
+  const isHybrid = event.event_type === "hybrid";
+  const subtitle = isHybrid
+    ? (event.voting_mode === "free" ? "Free Nominee Voting · Passes Available" : `GHS ${(event.unit_price_minor / 100).toFixed(2)} / vote · Passes Available`)
+    : (event.voting_mode === "free" ? "Free Public Voting" : `GHS ${(event.unit_price_minor / 100).toFixed(2)} / vote`);
 
   return (
     <Link
-      href={`/events/${event.slug}`}
+      href={`/events/${event.slug}#ballot`}
       className="group block min-w-0 focus-visible:outline-2 focus-visible:outline-emerald-500 rounded-3xl h-full transition-all duration-300 hover:-translate-y-1"
     >
       <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-5 shadow-xs transition-all duration-300 hover:border-emerald-300 hover:shadow-xl dark:border-[#1c2721] dark:bg-[#0c120e] dark:hover:border-emerald-800/80">
@@ -253,7 +261,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
           <div className="flex items-center justify-between gap-1 text-xs font-medium">
             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold truncate border bg-emerald-50 text-emerald-900 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50">
               <VoteIcon size={12} />
-              <span className="truncate">Official Contest</span>
+              <span className="truncate">{isHybrid ? "Contest + 🎟️ Passes" : "Official Contest"}</span>
             </span>
 
             <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold text-stone-700 dark:text-stone-300 shrink-0 bg-stone-100/80 dark:bg-[#141b16] px-2 py-0.5 rounded-full border border-stone-200/60 dark:border-[#1f2c24]">
@@ -304,7 +312,7 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
 
         {/* Footer: Date & Action Button */}
         <div className="mt-4 sm:mt-5 flex items-end justify-between border-t border-stone-100 dark:border-[#1a251f] pt-3">
-          <div className="min-w-0 pr-1">
+          <div className="min-w-0 pr-2">
             <span className="block text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
               VOTING SCHEDULE
             </span>
@@ -313,10 +321,9 @@ export function PublicEventCard({ event, now }: { event: PublicEventCardData; no
             </span>
           </div>
 
-          <div className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 group-hover:bg-emerald-800 group-hover:border-emerald-800 group-hover:text-white dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:group-hover:bg-emerald-600 dark:group-hover:text-white transition-all shadow-xs">
-            <span className="text-xs sm:text-sm font-bold transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-              ↗
-            </span>
+          <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900 group-hover:bg-emerald-800 group-hover:border-emerald-800 group-hover:text-white dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:group-hover:bg-emerald-600 dark:group-hover:text-white transition-all shadow-xs shrink-0">
+            <span>Vote</span>
+            <span className="text-[11px] transition-transform group-hover:translate-x-0.5">🗳️</span>
           </div>
         </div>
       </div>
