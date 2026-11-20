@@ -146,6 +146,8 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
     ? await getCachedSignedUrls(supabase, "nominee-images", nominationPhotos, 3600)
     : new Map<string, string>();
 
+  const nomineeCodeById = new Map((nominees ?? []).map((nom) => [nom.id, nom.public_code]));
+
   const reviewNominations: ReviewNomination[] = ((rawNominations as any[]) ?? []).map((n) => ({
     id: n.id,
     category_id: n.category_id,
@@ -160,6 +162,7 @@ export default async function EventSetupPage({ params, searchParams }: Props) {
     nominator_phone: n.nominator_phone,
     status: n.status as "pending" | "approved" | "declined" | "pending_payment",
     created_at: n.created_at,
+    public_code: n.approved_nominee_id ? nomineeCodeById.get(n.approved_nominee_id) ?? null : null,
   }));
 
   const pagePath = `/organizer/${organizationId}/events/${eventId}`;

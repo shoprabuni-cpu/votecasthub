@@ -6,6 +6,7 @@ import { requireVerifiedUser } from "@/lib/auth/require-user";
 import { normalizeGhanaPhone } from "@/lib/auth/phone";
 import { paymentAdmin } from "@/lib/payments/admin";
 import { getPublicEnvironment } from "@/lib/env";
+import { sendNominationApprovalNotifications } from "./notifications";
 
 export type NominationActionState = {
   success?: boolean;
@@ -177,6 +178,33 @@ export async function approveNominationAction(
 
     if (error || !res?.success) {
       return { error: error?.message || "Unable to approve nomination." };
+    }
+
+    // Trigger instant SMS & Email to the nominee (non-blocking)
+    const { data: nomRow } = await paymentAdmin()
+      .from("event_nominations")
+      .select(`
+        nominee_name,
+        nominee_phone,
+        nominee_email,
+        categories (name),
+        events (name, slug)
+      `)
+      .eq("id", nominationId)
+      .maybeSingle();
+
+    if (nomRow) {
+      const catObj = nomRow.categories as any;
+      const evObj = nomRow.events as any;
+      sendNominationApprovalNotifications({
+        nomineeName: nomRow.nominee_name,
+        nomineePhone: nomRow.nominee_phone,
+        nomineeEmail: nomRow.nominee_email,
+        eventName: evObj?.name || "the event",
+        eventSlug: evObj?.slug || "",
+        categoryName: catObj?.name || "Official Category",
+        publicCode: res.public_code,
+      }).catch((err) => console.error("[Nomination Notice Worker] Delivery failed:", err));
     }
 
     if (eventId && orgId) {

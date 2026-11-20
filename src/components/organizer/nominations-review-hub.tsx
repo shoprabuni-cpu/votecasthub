@@ -20,6 +20,7 @@ export interface ReviewNomination {
   nominator_phone: string | null;
   status: "pending" | "approved" | "declined" | "pending_payment";
   created_at: string;
+  public_code?: string | null;
 }
 
 export function NominationsReviewHub({
@@ -115,6 +116,63 @@ export function NominationsReviewHub({
     }
   }
 
+  function handleExportCsv() {
+    if (!nominations.length) return;
+
+    const headers = [
+      "Nominee Name",
+      "Category",
+      "Status",
+      "Assigned Voting Code",
+      "Nominee Phone",
+      "Nominee Email",
+      "Nominator Type",
+      "Nominator Name",
+      "Nominator Phone",
+      "Portfolio / Social Link",
+      "Bio / Statement",
+      "Submitted Date (GMT)",
+    ];
+
+    const rows = filtered.map((item) => {
+      const catName = categoryMap.get(item.category_id) || item.category_name || "Uncategorized";
+      return [
+        item.nominee_name,
+        catName,
+        item.status.toUpperCase(),
+        item.public_code || "N/A",
+        item.nominee_phone,
+        item.nominee_email || "",
+        item.nominator_type === "third_party" ? "Third Party" : "Self",
+        item.nominator_name || "",
+        item.nominator_phone || "",
+        item.portfolio_url || "",
+        (item.nominee_bio || "").replace(/[\r\n]+/g, " "),
+        new Date(item.created_at).toLocaleString("en-GB", { timeZone: "UTC" }),
+      ];
+    });
+
+    const csvContent = [
+      headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(","),
+      ...rows.map((row) =>
+        row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\r\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `votecasthub-nominations-${filter}-${new Date().toISOString().slice(0, 10)}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Filter & Counter Bar */}
@@ -188,6 +246,16 @@ export function NominationsReviewHub({
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 dark:border-[#223028] dark:bg-[#121914] dark:text-white"
           />
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={nominations.length === 0}
+            title="Download candidate submissions to CSV/Excel"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-[#223028] dark:bg-[#121914] dark:text-stone-300 dark:hover:bg-[#1c2721] cursor-pointer shrink-0 transition-colors"
+          >
+            <span className="text-sm leading-none">📥</span>
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 
