@@ -719,6 +719,7 @@ export default async function PublicEventPage({ params, searchParams }: Props) {
                       venueAddress={event.venue_address}
                       doorsOpenTime={event.doors_open_time}
                       tiers={ticketTiers}
+                      isOpen={isOpen}
                     />
                   </div>
                 )}

@@ -14,6 +14,7 @@ export function PublicTicketWidget({
   venueAddress,
   doorsOpenTime,
   tiers = [],
+  isOpen = true,
 }: {
   eventId: string;
   eventName: string;
@@ -22,6 +23,7 @@ export function PublicTicketWidget({
   venueAddress?: string | null;
   doorsOpenTime?: string | null;
   tiers: TicketTier[];
+  isOpen?: boolean;
 }) {
   const [selectedTierId, setSelectedTierId] = useState<string>(tiers[0]?.id ?? "");
   const [quantity, setQuantity] = useState<number>(1);
@@ -36,6 +38,22 @@ export function PublicTicketWidget({
 
   const activeTiers = tiers.filter((t) => t.is_active);
   const selectedTier = activeTiers.find((t) => t.id === selectedTierId) ?? activeTiers[0];
+
+  if (!isOpen) {
+    return (
+      <div className="rounded-3xl border border-amber-900/20 bg-amber-50/60 p-6 sm:p-8 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 mb-3">
+          <TicketIcon size={24} />
+        </div>
+        <h3 className="font-serif text-lg font-bold text-stone-900 dark:text-white">
+          Ticket Sales Have Closed
+        </h3>
+        <p className="mt-1.5 text-xs sm:text-sm text-stone-600 dark:text-stone-300 max-w-md mx-auto">
+          Ticket sales for this event have officially ended. If you already purchased a ticket, your gate pass and PAX code remain valid for entry at the venue.
+        </p>
+      </div>
+    );
+  }
 
   if (!activeTiers.length) {
     return (

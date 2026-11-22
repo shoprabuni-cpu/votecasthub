@@ -259,6 +259,23 @@ export async function purchaseTicketAction(
       return { error: "Please select between 1 and 20 tickets." };
     }
 
+    // Verify event is active and has not expired
+    const { data: eventRow } = await supabase
+      .from("events")
+      .select("status, ends_at")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (eventRow) {
+      const isClosed =
+        eventRow.status === "closed" ||
+        eventRow.status === "archived" ||
+        (eventRow.ends_at && new Date(eventRow.ends_at).getTime() <= Date.now());
+      if (isClosed) {
+        return { error: "Ticket sales for this event have officially ended." };
+      }
+    }
+
     const { data, error } = await supabase.rpc("purchase_event_ticket", {
       p_event_id: eventId,
       p_tier_id: tierId,
